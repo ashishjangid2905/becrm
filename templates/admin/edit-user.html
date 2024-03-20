@@ -1,0 +1,60 @@
+{% extends 'home.html' %}
+{% load static %}
+
+{% block content %}
+  <div class="container my-5">
+    <h5 class="text-uppercase fs-4 fw-normal mb-5">Create User</h5>
+
+    <form class="row g-3 p-4 needs-validation border border-rounded rounded-5" action="{% url 'teams:edit_user' user_instance.id %}" method="post">
+      {% csrf_token %}
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label for="first_name" class="form-label">First name</label>
+          <input type="text" class="form-control" name="first_name" id="first_name" placeholder="First Name" value="{{user_instance.first_name}}" required />
+          <div class="valid-feedback">Looks good!</div>
+        </div>
+        <div class="col-md-3">
+          <label for="last_name" class="form-label">Last name</label>
+          <input type="text" class="form-control" name="last_name" id="last_name" placeholder="Last Name" value="{{user_instance.last_name}}" required />
+          <div class="valid-feedback">Looks good!</div>
+        </div>
+        <div class="col-md-6">
+          <label for="email" class="form-label">Email</label>
+          <div class="input-group has-validation">
+            <input type="email" class="form-control" name="email" id="useremail" aria-describedby="inputGroupPrepend" value="{{user_instance.email}}" required />
+            <div class="invalid-feedback">Email must be required</div>
+          </div>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label for="branch" class="form-label">Branch</label>
+            <select class="form-select" name="chooseBranch" id="validationCustom04" required>
+              {% for branch in chooseBranch %}
+                <option value="{{ branch.branch_name }}" {% if profile_instance.branch.branch_name == branch.branch_name %}selected{% endif %}>{{ branch }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="role" class="form-label">Role</label>
+            <select class="form-select" name="chooseRole" id="userRole" required>
+              {% for value, label in role_choices %}
+                <option value="{{ value }}" {% if value == user_instance.role %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="department" class="form-label">Department</label>
+            <select class="form-select" name="chooseDepartment" id="userDepartment" required>
+              {% for value, label in department_choices %}
+                <option value="{{ value }}" {% if value == user_instance.department %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <button class="btn btn-primary" type="submit">Update</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

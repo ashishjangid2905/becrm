@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block nav %}
+  {% if user.is_authenticated %}
+    {% if user.role == 'admin' %}
+      {% include 'admin/admin-nav.html' %}
+    {% else %}
+      {% include 'user/user-nav.html' %}
+    {% endif %}
+  {% endif %}
+{% endblock %}
+
+{% comment %}inserted main content{% endcomment %}
+
+{% block content %}
+
+{% endblock %}

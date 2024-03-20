@@ -1,0 +1,54 @@
+{% extends 'home.html' %} {% load static %} {% block content %}
+<div class="container-fluid gap-3 d-flex align-items-center my-3">
+  <h5 class="text-uppercase fs-5 fw-normal">Users</h5>
+  <a href="{% url 'teams:add_user' %}" class="btn btn-primary px-3"
+    >+Add User</a
+  >
+</div>
+
+<div class="container-fluid d-flex justify-content-center">
+  <table class="table user-table">
+    <thead>
+      <tr>
+        <th scope="col">S.No</th>
+        <th scope="col">User Name</th>
+        <th scope="col">Email</th>
+        <th scope="col">Phone</th>
+        <th scope="col">D.O.B.</th>
+        <th scope="col">Branch</th>
+        <th scope="col">Role</th>
+        <th scope="col">Department</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    {% for member in all_users %}
+    <tbody>
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ member.user }}</td>
+        <td>{{ member.user.email }}</td>
+        <td>{{ member.phone }}</td>
+        <td>{{ member.dob }}</td>
+        <td>{{ member.branch }}</td>
+        <td>{{ member.user.role }}</td>
+        <td>{{ member.user.department }}</td>
+        <td class="utils">
+          <a href="{% url 'teams:edit_user' member.user.id %}" class="edit-btn"
+            ><span class="material-icons">edit</span></a
+          >
+          <a
+            href="{% url 'teams:change_password' member.user.id %}"
+            class="edit-btn"
+            ><span class="material-symbols-outlined"> lock_reset </span></a
+          >
+        </td>
+      </tr>
+    </tbody>
+    {% empty %}
+    <tr>
+      <td>No Sample request</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}
