@@ -48,6 +48,7 @@ class sample(models.Model):
     status = models.CharField(max_length=50, blank=False, choices = STATUS, default='pending')
     requested_at = models.DateTimeField(auto_now_add=True)
     slug = models.SlugField(unique=True, blank=True)
+    last_edited = models.DateTimeField(auto_now=True, blank = True)
 
 
     def save(self, *args, **kwargs):
