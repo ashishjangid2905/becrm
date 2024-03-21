@@ -1,44 +1,54 @@
 {% load static %} {% block nav %}
-  <nav class="container-fluid m-0 px-3">
-    <div class="navbar">
-      <div class="nav-brand">
-        <a href="#"><img src="{% static 'becrm/image/logo.png' %}" alt="brand-logo" width="140" /></a>
-      </div>
-      <ul class="menu">
-        <li class="menu-item">
-          <a href="{% url 'app:home' %}">Dashboard</a>
-        </li>
-        <li class="menu-item">
-          <a href="{% url 'teams:users' %}">User</a>
-        </li>
-        <li class="menu-item has-subitems">
-          <a href="/">Sample</a><span class="clickd"></span>
-          <ul class="menu-subitem">
-            <li class="subitem">
-              <a href="{% url 'sample:sample_request' %}">Request</a>
-            </li>
-            <li class="subitem">
-              <a href="{% url 'sample:samples' %}">List</a>
-            </li>
-          </ul>
-        </li>
-      </ul>
-      <div class="user-nav">
-        <a href="/"><img src="{% static 'becrm/image/user-default-96.png' %}" alt="profile" width="30" /></a>
-        <h6 class="user-title">{{ user.first_name }} {{ user.last_name }}</h6>
-        <span class="user-drop"></span>
-        <ul class="user-menu">
-          <li class="user-menu-item">
-            <a href="/">Profile</a>
+<nav class="container-fluid m-0 px-3">
+  <div class="navbar">
+    <div class="nav-brand">
+      <a href="#"
+        ><img
+          src="{% static 'becrm/image/logo.png' %}"
+          alt="brand-logo"
+          width="140"
+      /></a>
+    </div>
+    <ul class="menu">
+      <li class="menu-item">
+        <a href="{% url 'app:home' %}">Dashboard</a>
+      </li>
+      <li class="menu-item">
+        <a href="{% url 'teams:users' %}">User</a>
+      </li>
+      <li class="menu-item has-subitems">
+        <a>Sample</a><span class="clickd"></span>
+        <ul class="menu-subitem">
+          <li class="subitem">
+            <a href="{% url 'sample:sample_request' %}">Request</a>
           </li>
-          <li class="user-menu-item">
-            <a href="{% url 'teams:user_password' %}">Change Password</a>
-          </li>
-          <li class="user-menu-item">
-            <a href="{% url 'app:logout' %}">Logout</a>
+          <li class="subitem">
+            <a href="{% url 'sample:samples' %}">List</a>
           </li>
         </ul>
-      </div>
+      </li>
+    </ul>
+    <div class="user-nav">
+      <a href="/"
+        ><img
+          src="{% static 'becrm/image/user-default-96.png' %}"
+          alt="profile"
+          width="30"
+      /></a>
+      <h6 class="user-title">{{ user.first_name }} {{ user.last_name }}</h6>
+      <span class="user-drop"></span>
+      <ul class="user-menu">
+        <li class="user-menu-item">
+          <a href="/">Profile</a>
+        </li>
+        <li class="user-menu-item">
+          <a href="{% url 'teams:user_password' %}">Change Password</a>
+        </li>
+        <li class="user-menu-item">
+          <a href="{% url 'app:logout' %}">Logout</a>
+        </li>
+      </ul>
     </div>
-  </nav>
+  </div>
+</nav>
 {% endblock %}

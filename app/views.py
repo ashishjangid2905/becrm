@@ -16,12 +16,19 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 def home(request):
     if request.user.is_authenticated:
-        samples = sample.objects.all().count()
-        received_sample = sample.objects.filter(status='received').count()
-        pending_sample = sample.objects.filter(status='pending').count()
+        total_samples = sample.objects.all()
+
+        if request.user.role == 'admin':
+            user_sample = total_samples
+        else:
+            user_sample = total_samples.filter(user = request.user)
+
+        total_samples = user_sample.count()
+        received_sample = user_sample.filter(status='received').count()
+        pending_sample = user_sample.filter(status='pending').count()
 
         context = {
-            'total_samples': samples,
+            'total_samples': total_samples,
             'received_sample': received_sample,
             'pending_sample': pending_sample,
         }
@@ -33,17 +40,29 @@ def home(request):
 @login_required(login_url='app:home')
 def sample_chart(request):
 
+    if not request.user.is_authenticated:
+        return redirect('app:login')
     # filter_count = {
     #     'status__icontains': 'received',
     #     'status__icontains': 'pending',
     #     'status__icontains': 'reject'
     #                 }
 
-    received_sample = sample.objects.filter(status='received').count()
-    pending_sample = sample.objects.filter(status='pending').count()
-    rejected_sample = sample.objects.filter(status='reject').count()
+    total_samples = sample.objects.all()
+    if request.user.role == 'admin':
+        user_sample = total_samples
+    else:
+        user_sample = total_samples.filter(user = request.user)
+    
 
-    samples_data = sample.objects.annotate(
+    # received_sample = user_sample.filter(status='received').count()
+    # pending_sample = user_sample.filter(status='pending').count()
+    # rejected_sample = user_sample.filter(status='reject').count()
+        
+    status_counts = user_sample.values('status').annotate(count=Count('sample_id')).order_by('status')
+    doughnut_data = {status['status']: status['count'] for status in status_counts}
+
+    samples_data = user_sample.annotate(
             month_name = ExtractMonth('requested_at')
             ).values('month_name').annotate(
                 counts = Count('sample_id')
@@ -59,14 +78,11 @@ def sample_chart(request):
     data = {
         'month_labels': months,
         'sample_counts': sample_counts,
-        'rejected_sample':rejected_sample,
-        'received_sample':received_sample,
-        'pending_sample':pending_sample
-
-
+        'doughnut_data':doughnut_data,
     }
 
     return JsonResponse(data)
+
 
 def login_user(request):
     if request.method == 'POST':

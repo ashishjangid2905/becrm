@@ -1,45 +1,49 @@
-{% extends 'home.html' %}
-
-{% load static %}
-
-{% block content %}
-  <div class="container-fluid">
-    {% comment %} <h4 class="fw-normal fs-1 mt-3 text-center text-warning">Dashboard</h4> {% endcomment %}
-    <div class="row mx-5 mt-1 g-5 d-flex justify-content-center">
-      <div class="col-lg-3 col-md-4 col-sm-4">
-        <div class="card bg-info bg-gradient text-white">
-          <div class="card-body ps-5">
-            <h4 class="card-title fw-normal mb-3">Total Sample</h4>
-            <h4 class="mb-3">{{ total_samples }}</h4>
-          </div>
-        </div>
-      </div>
-      <div class="col-lg-3 col-md-4 col-sm-4">
-        <div class="card bg-success bg-opacity-75 text-white">
-          <div class="card-body ps-5">
-            <h4 class="card-title fw-normal mb-3">Received Sample</h4>
-            <h4 class="mb-3">{{ received_sample }}</h4>
-          </div>
-        </div>
-      </div>
-      <div class="col-lg-3 col-md-4 col-sm-4">
-        <div class="card bg-warning bg-gradient text-white">
-          <div class="card-body ps-5">
-            <h4 class="card-title fw-normal mb-3">Pending Sample</h4>
-            <h4 class="mb-3">{{ pending_sample }}</h4>
-          </div>
+{% extends 'home.html' %} {% load static %} {% block content %}
+<div class="container-fluid">
+  {% comment %}
+  <h4 class="fw-normal fs-1 mt-3 text-center text-warning">Dashboard</h4>
+  {% endcomment %}
+  <div class="row mx-5 mt-1 g-5 d-flex justify-content-center">
+    <div class="col-lg-3 col-md-4 col-sm-4">
+      <div class="card bg-info bg-gradient text-white">
+        <div class="card-body ps-5">
+          <h4 class="card-title fw-normal mb-3">Total Sample</h4>
+          <h4 class="mb-3">{{ total_samples }}</h4>
         </div>
       </div>
     </div>
-
-    {% comment %}Graph is here{% endcomment %}
-    <div class="row chart-section">
-      <div class="col-md-5 border border-rounded rounded-4">
-        <canvas id="sample_chart"></canvas>
+    <div class="col-lg-3 col-md-4 col-sm-4">
+      <div class="card bg-success bg-opacity-75 text-white">
+        <div class="card-body ps-5">
+          <h4 class="card-title fw-normal mb-3">Received Sample</h4>
+          <h4 class="mb-3">{{ received_sample }}</h4>
+        </div>
       </div>
-      <div class="col-md-5 border border-rounded rounded-4">
-        <canvas id="sample_status_chart"></canvas>
+    </div>
+    <div class="col-lg-3 col-md-4 col-sm-4">
+      <div class="card bg-warning bg-gradient text-white">
+        <div class="card-body ps-5">
+          <h4 class="card-title fw-normal mb-3">Pending Sample</h4>
+          <h4 class="mb-3">{{ pending_sample }}</h4>
+        </div>
       </div>
     </div>
   </div>
+
+  {% comment %}Graph is here{% endcomment %}
+  <div class="row chart-section">
+    <div class="col-md-5 border border-rounded rounded-4">
+      <h6 class="fw-normal fs-4 my-2 text-center text-primary">
+        Monthwise Sample Requested
+      </h6>
+      <canvas id="sample_chart"></canvas>
+    </div>
+    <div class="col-md-5 border border-rounded rounded-4">
+      <h6 class="fw-normal fs-4 my-2 text-center text-success">
+        Sample Status
+      </h6>
+      <canvas id="sample_status_chart"></canvas>
+    </div>
+  </div>
+</div>
 {% endblock %}

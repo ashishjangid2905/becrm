@@ -54,6 +54,10 @@ body {
     justify-content: center;
 }
 
+.email_in {
+    text-transform: lowercase;
+}
+
 .login_btn {
     background-image: linear-gradient(to right, #0047A8 0%, #EAC00D 51%, #0047A8 100%);
     width: 10rem;

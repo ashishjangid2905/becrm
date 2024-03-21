@@ -23,9 +23,12 @@ $(document).ready(function () {
       var month_labels = data.month_labels;
       var sample_counts = data.sample_counts;
 
-      var rejected_sample = data.rejected_sample;
-      var received_sample = data.received_sample;
-      var pending_sample = data.pending_sample;
+      // var rejected_sample = data.rejected_sample;
+      // var received_sample = data.received_sample;
+      // var pending_sample = data.pending_sample;
+
+      var status = Object.keys(data.doughnut_data);
+      var status_counts = Object.values(data.doughnut_data);
 
       var bar = $("#sample_chart");
       var doughnut = $("#sample_status_chart");
@@ -55,12 +58,12 @@ $(document).ready(function () {
       var sample_status_chart = new Chart(doughnut, {
         type: "doughnut",
         data: {
-          labels: ["rejected", "received", "pending"],
+          labels: status,
           datasets: [
             {
-              label: "Dataset 1",
-              data: [rejected_sample, received_sample, pending_sample],
-              backgroundColor: ["#FF4069", "#22CFCF", "#FFC337"],
+              label: "Sample Status",
+              data: status_counts,
+              backgroundColor: ["#FFC337", "#22CFCF", "#FF4069"],
               borderWidth: 1,
             },
           ],
@@ -73,7 +76,7 @@ $(document).ready(function () {
             },
             title: {
               display: true,
-              text: "Chart.js Doughnut Chart",
+              text: "Sample Status",
             },
           },
         },

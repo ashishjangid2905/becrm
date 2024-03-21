@@ -59,7 +59,7 @@ def sample_request(request):
 @login_required(login_url='app:login')
 def sample_list(request):
     if not request.user.is_authenticated:
-        return redirect('login')
+        return redirect('app:login')
     
     query = request.GET.get('q')
 
