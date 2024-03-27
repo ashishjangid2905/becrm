@@ -10,5 +10,9 @@ urlpatterns = [
     path('edit/<int:user_id>', views.edit_user, name='edit_user'),
     path('change-password/<int:user_id>', views.change_password, name='change_password'),
     path('change-password-user/', views.user_password, name='user_password'),
+    path('branches/', views.branch_list, name='branch_list'),
+    path('add-branch/', views.add_branch, name='add_branch'),
+    path('edit-branch/<int:branch_id>', views.edit_branch, name='edit_branch'),
+    path('profile/', views.profile, name='profile'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

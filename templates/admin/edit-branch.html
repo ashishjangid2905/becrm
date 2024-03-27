@@ -1,0 +1,108 @@
+{% extends 'home.html' %} {% load static %} {% block content %}
+<div class="container my-5">
+  <div class="row d-flex justify-content-center align-item-center p-4">
+    <div class="col-lg-8 col-md-8">
+      <h5 class="text-uppercase fs-4 fw-normal ms-3 mb-5">Add Branch</h5>
+      <form
+        class="row g-3 p-4 needs-validation border border-rounded rounded-5"
+        action="{% url 'teams:edit_branch' branch_instance.id %}"
+        method="post"
+      >
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="branch_name" class="form-label">Branch Name*</label>
+            <input
+              type="text"
+              class="form-control"
+              name="branch_name"
+              id="branch_name"
+              placeholder="Branch Name"
+              value="{{branch_instance.branch_name}}"
+              required
+            />
+            <div class="valid-feedback">Looks good!</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label for="building_Name" class="form-label"
+                >Flat No & Buliding Name*</label
+              >
+              <div class="input-group has-validation">
+                <input
+                  type="text"
+                  class="form-control"
+                  name="building_Name"
+                  id="building_Name"
+                  value="{{branch_instance.address}}"
+                  required
+                />
+              </div>
+            </div>
+            <div class="col-md-5">
+              <label for="street_name" class="form-label">Street Name</label>
+              <input
+                type="text"
+                class="form-control"
+                name="street_name"
+                id="street_name"
+                value="{{branch_instance.street}}"
+                required
+              />
+            </div>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label for="city" class="form-label">City</label>
+              <input
+                type="text"
+                class="form-control"
+                name="city"
+                id="city"
+                value="{{branch_instance.city}}"
+                required
+              />
+            </div>
+            <div class="col-md-3">
+              <label for="state" class="form-label">State</label>
+              <input
+                type="text"
+                class="form-control"
+                name="state"
+                id="state"
+                value="{{branch_instance.state}}"
+                required
+              />
+            </div>
+            <div class="col-md-3">
+              <label for="pincode" class="form-label">Pin Code</label>
+              <input
+                type="text"
+                class="form-control"
+                name="pincode"
+                id="pincode"
+                value="{{branch_instance.postcode}}"
+                required
+              />
+            </div>
+            <div class="col-md-3">
+              <label for="country" class="form-label">Country</label>
+              <input
+                type="text"
+                class="form-control"
+                name="country"
+                id="country"
+                value="{{branch_instance.country}}"
+                required
+              />
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <button class="btn btn-primary" type="submit">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

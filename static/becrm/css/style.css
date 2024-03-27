@@ -305,7 +305,8 @@ td {
     font-size: 15px;
 }
 
-.user-table {
+.user-table,
+.branch-table {
     font-size: 12px;
     border: 1px solid #bebebe;
     overflow: hidden;
@@ -321,7 +322,9 @@ td {
     display: inline-block;
     color: #0047A8;
     vertical-align: middle;
-    height: 25px;
+    /* height: 25px; */
+    font-size: 20px;
+    text-decoration: none;
 }
 
 .edit-btn:not(:last-child) {
@@ -337,4 +340,18 @@ td {
     justify-content: center;
     gap: 15px;
     margin-top: 3em;
+}
+
+
+/* Profile page CSS */
+
+.profile-card {
+    background: linear-gradient(to right bottom, rgba(246, 211, 101, 1), rgba(253, 160, 133, 1))
+}
+
+.profile-pic {
+    border-radius: 50%;
+    margin: 1.5em 0em;
+    width: 130px;
+    height: 130px;
 }

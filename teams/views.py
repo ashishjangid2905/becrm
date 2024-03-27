@@ -24,6 +24,8 @@ def user_list(request):
     if request.user.role == 'admin':
         return render(request, 'admin/users.html', context)
     
+    return redirect('app:home')
+    
 @login_required(login_url='app:login')
 def add_user(request):
 
@@ -61,7 +63,8 @@ def add_user(request):
                 profile = Profile.objects.create(user=user, branch=branch)
                 return redirect('teams:users')
             return render(request, 'admin/add-user.html', context)
-        return redirect('teams:add_user')
+        return redirect('app:home')
+    return redirect('app:login')
     
 
 @login_required(login_url='app:login')
@@ -112,8 +115,8 @@ def edit_user(request, user_id):
 
                 return redirect('teams:users')
             return render(request, 'admin/edit-user.html', context)
-    else:
-        return redirect('app:login')
+        return redirect('app:home')
+    return redirect('app:login')
     
 
 # Change Password by User itself or admin
@@ -140,9 +143,10 @@ def change_password(request, user_id):
             user.save()
 
             messages.success(request, 'Password has been Changed successfully')
-            return redirect('teams:users')        
-
-    return render(request, 'success/change-password.html', context)
+            return redirect('teams:users') 
+        return render(request, 'success/change-password.html', context)
+    
+    return redirect('app:home')
 
 
 @login_required(login_url='app:login')
@@ -202,3 +206,88 @@ def user_password(request):
             return redirect('app:home')
 
     return render(request, 'success/change-password_user.html', context)
+
+
+@login_required(login_url='app:login')
+def branch_list(request):
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
+    if not request.user.role == 'admin':
+        return redirect('app:home')
+    
+    branch_list = Branch.objects.all()
+
+    context = {
+        'branch_list': branch_list
+    }
+
+    return render(request, 'admin/branches.html', context)
+
+
+@login_required(login_url='app:login')
+def add_branch(request):
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    if request.user.role == 'admin':
+        if request.method == 'POST':
+            branch_name = request.POST.get('branch_name')
+            address = request.POST.get('building_Name')
+            street = request.POST.get('street_name')
+            city = request.POST.get('city')
+            state = request.POST.get('state')
+            postcode = request.POST.get('pincode') 
+            country = request.POST.get('country')
+            branch = Branch.objects.create(branch_name=branch_name, address=address, street=street, city=city, state=state, postcode=postcode, country=country)
+            return redirect('teams:branch_list')
+        return render(request, 'admin/add-branch.html')
+
+
+def edit_branch(request, branch_id):
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
+    branch_instance = get_object_or_404(Branch, pk=branch_id)
+
+    context = {
+        'branch_instance': branch_instance
+    }
+
+    if request.user.role == 'admin':
+        if request.method == 'POST':
+            branch_name = request.POST.get('branch_name')
+            address = request.POST.get('building_Name')
+            street = request.POST.get('street_name')
+            city = request.POST.get('city')
+            state = request.POST.get('state')
+            postcode = request.POST.get('pincode') 
+            country = request.POST.get('country')
+
+            # Update Branch Details
+
+            branch_instance.branch_name = branch_name
+            branch_instance.address = address
+            branch_instance.street = street
+            branch_instance.city = city
+            branch_instance.state = state
+            branch_instance.postcode = postcode
+            branch_instance.country = country
+
+            branch_instance.save()
+
+            return redirect('teams:branch_list')
+        return render(request, 'admin/edit-branch.html', context)
+
+
+@login_required(login_url='app:login')
+def profile(request):
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    user = request.user
+    user_profile = Profile.objects.all().filter(user = user)
+
+    context = {
+        'user_profile': user_profile,
+    }
+
+    return render(request, 'user/profile.html', context)

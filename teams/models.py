@@ -47,7 +47,11 @@ class Branch(models.Model):
         verbose_name_plural = 'Branches'
 
     def __str__(self):
-        return f'{self.branch_name} {self.city}'
+        return f'{self.branch_name}, {self.city}'
+    
+    def full_address(self):
+        address_components = [self.address, self.street, self.city, self.state, self.postcode,self.country]
+        return ', '. join(filter(None, address_components))
     
 def user_profile_path(instance, filename): 
   

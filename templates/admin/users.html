@@ -1,8 +1,7 @@
 {% extends 'home.html' %} {% load static %} {% block content %}
-<div class="container-fluid gap-3 d-flex align-items-center my-3">
-  <h5 class="text-uppercase fs-5 fw-normal">Users</h5>
+<div class="container-fluid gap-3 d-flex align-items-center my-3 ms-3">
   <a href="{% url 'teams:add_user' %}" class="btn btn-primary px-3"
-    >+Add User</a
+    ><i class="ti ti-plus"></i>Add User</a
   >
 </div>
 
@@ -34,13 +33,13 @@
         <td>{{ member.user.department }}</td>
         <td class="utils">
           <a href="{% url 'teams:edit_user' member.user.id %}" class="edit-btn"
-            ><span class="material-icons">edit</span></a
-          >
+            ><i class="ti ti-edit"></i
+          ></a>
           <a
             href="{% url 'teams:change_password' member.user.id %}"
             class="edit-btn"
-            ><span class="material-symbols-outlined"> lock_reset </span></a
-          >
+            ><i class="ti ti-password-user"></i
+          ></a>
         </td>
       </tr>
     </tbody>
