@@ -111,8 +111,8 @@ def sample_list(request):
     return render(request, 'sample/sample-list.html', context)
 
 @login_required(login_url='app:login')
-def edit_sample(request, sample_id):
-    sample_instance = get_object_or_404(sample, pk=sample_id)
+def edit_sample(request, sample_slug):
+    sample_instance = get_object_or_404(sample, slug=sample_slug)
     format_choices = sample.FORMAT
     type_choices = sample.TYPE
     month_choices = sample.MONTH

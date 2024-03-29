@@ -28,7 +28,7 @@ class sample(models.Model):
     MONTH = (
         (1,'Jan'), (2, 'Feb'), (3,'Mar'), (4, 'Apr'), (5,'May'), (6,'Jun'), (7,'Jul'), (8,'Aug'), (9, 'Sep'), (10,'Oct'), (11,'Nov'), (12,'Dec')
         )
-    STATUS = (('pending', 'Pending'), ('received', 'Received'), ('reject', 'Reject'))
+    STATUS = (('pending', 'Pending'), ('received', 'Received'), ('rejected', 'Rejected'))
 
     sample_id = models.CharField(max_length=50, default=sample_no, unique=True)
     user = models.ForeignKey(User, verbose_name='User', on_delete=models.CASCADE)
