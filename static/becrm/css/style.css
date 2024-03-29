@@ -271,7 +271,7 @@ body {
     border-bottom: 1px solid gray;
     scroll-behavior: smooth;
     white-space: hidden;
-    scrollbar-width: none;
+    scrollbar-width: thin;
     width: 100%;
     font-size: 12px;
     border: 1px solid #bebebe;

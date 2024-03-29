@@ -42,7 +42,7 @@ class sample(models.Model):
     consignee = models.CharField(max_length=255, blank=True, default='%')
     foreign_country = models.CharField(max_length=255, blank=True, default='%')
     port = models.CharField(max_length=255, blank=True, default='%')
-    month = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(13)], blank=True, default=1, choices=MONTH)
+    month = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(13)], blank=True, null=True, default=None, choices=MONTH)
     year = models.SmallIntegerField(validators=[MinValueValidator(2010), MaxValueValidator(current_year)], blank=True, default=current_year)
     client_name = models.CharField(_("Client Name"), max_length=100, blank=False, null=False)
     status = models.CharField(max_length=50, blank=False, choices = STATUS, default='pending')

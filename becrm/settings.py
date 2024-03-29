@@ -29,7 +29,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['192.168.1.19']
 
 
 # Application definition
@@ -157,3 +157,11 @@ STATICFILES_DIRS = [
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # Directory where uploaded media is saved.
 MEDIA_URL = '/media/' # Public URL at the browser
+
+
+
+# custom session time out
+
+# SESSION_COOKIE_AGE = 60   #SESSION TIME IS 30MIN
+
+# SESSION_EXPIRE_AT_BROWSER_CLOSE = True

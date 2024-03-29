@@ -133,42 +133,45 @@ def edit_sample(request, sample_id):
     }
 
     if request.user.is_authenticated:
-        if request.method == 'POST':
-            user = request.user
-            country = request.POST.get('inputCountry')
-            report_format = request.POST.get('formatReport')
-            report_type = request.POST.get('typeReport')
-            hs_code = request.POST.get('inputHSN','%')
-            product = request.POST.get('inputProduct', '%')
-            iec = request.POST.get('inputIEC', '%')
-            shipper = request.POST.get('inputShiper', '%')
-            consignee = request.POST.get('inputForeign', '%')
-            foreign_country = request.POST.get('inputForeignCountry', '%')
-            port = request.POST.get('inputPort', '%')
-            month = request.POST.get('month')
-            year = request.POST.get('inputyear')
-            client_name = request.POST.get('inputClient')
-            status = request.POST.get('sampleStatus')
+        if sample_instance.user == request.user:
+            if sample_instance.status != 'received':
+                if request.method == 'POST':
+                    user = request.user
+                    country = request.POST.get('inputCountry')
+                    report_format = request.POST.get('formatReport')
+                    report_type = request.POST.get('typeReport')
+                    hs_code = request.POST.get('inputHSN','%')
+                    product = request.POST.get('inputProduct', '%')
+                    iec = request.POST.get('inputIEC', '%')
+                    shipper = request.POST.get('inputShiper', '%')
+                    consignee = request.POST.get('inputForeign', '%')
+                    foreign_country = request.POST.get('inputForeignCountry', '%')
+                    port = request.POST.get('inputPort', '%')
+                    month = request.POST.get('month')
+                    year = request.POST.get('inputyear')
+                    client_name = request.POST.get('inputClient')
+                    status = request.POST.get('sampleStatus')
 
-            # Update the sample object with the new data
-            sample_instance.country = country
-            sample_instance.report_format = report_format
-            sample_instance.report_type = report_type
-            sample_instance.hs_code = hs_code
-            sample_instance.product = product
-            sample_instance.iec = iec
-            sample_instance.shipper = shipper
-            sample_instance.consignee = consignee
-            sample_instance.foreign_country = foreign_country
-            sample_instance.port = port
-            sample_instance.month = month
-            sample_instance.year = year
-            sample_instance.client_name = client_name
-            sample_instance.status = status
-            sample_instance.save()
+                    # Update the sample object with the new data
+                    sample_instance.country = country
+                    sample_instance.report_format = report_format
+                    sample_instance.report_type = report_type
+                    sample_instance.hs_code = hs_code
+                    sample_instance.product = product
+                    sample_instance.iec = iec
+                    sample_instance.shipper = shipper
+                    sample_instance.consignee = consignee
+                    sample_instance.foreign_country = foreign_country
+                    sample_instance.port = port
+                    sample_instance.month = month
+                    sample_instance.year = year
+                    sample_instance.client_name = client_name
+                    sample_instance.status = status
+                    sample_instance.save()
 
-            messages.success(request, "Sample Update successfully")
+                    messages.success(request, "Sample Update successfully")
+                    return redirect('sample:samples')
+                return render(request, 'sample/edit-sample.html', context)
             return redirect('sample:samples')
-        return render(request, 'sample/edit-sample.html', context)
-    else:
-        return redirect('app:login')
+        return redirect('sample:samples')
+    return redirect('app:login')

@@ -107,3 +107,7 @@ def logout_user(request):
     logout(request)
     messages.success(request,"You have Logged Out")
     return redirect('app:login')
+
+
+def custom_page_not_found(request, exception):
+    return render(request, 'error/page404.html', status=404)
