@@ -6,7 +6,9 @@ $(document).ready(function () {
 
   // to show and hide password
   $("#show_password").change(function () {
-    var passwordField = $("#createPass, #confirmPass");
+    var passwordField = $(
+      "#createPass, #confirmPass, #confirm_password, #new_password"
+    );
     var passwordFieldType = passwordField.attr("type");
     if (passwordFieldType === "password") {
       passwordField.attr("type", "text");
@@ -31,6 +33,46 @@ $(document).ready(function () {
     $("#month").val(default_month);
     $("#year").val(default_year);
   }
+
+  // Change Month choices once change the year
+
+  $("#year").change(function () {
+    var selectedyear = $(this).val();
+    var current_year = date.getFullYear();
+    var current_month = date.getMonth() + 1;
+
+    var month = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    $("#month").empty();
+
+    for (let i = 1; i <= 12; i++) {
+      if (selectedyear == current_year && i > current_month - 1) {
+        break;
+      }
+
+      $("#month").append(
+        $("<option>", {
+          value: i,
+          text: month[i - 1],
+        })
+      );
+    }
+  });
+
+  // Fetch the sample data
 
   $.ajax({
     url: "/sample-chart/",

@@ -77,19 +77,19 @@
             <label for="inputPort" class="form-label">Port</label>
             <input type="text" name="inputPort" class="form-control" id="inputPort" />
           </div>
-          <div class="col-md-2">
-            <label for="month" class="form-label">Month</label>
-            <select name="month" id="month" class="form-control">
-              {% for value, label in month_choices %}
-                <option value="{{ value }}">{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
           <div class="col-md-1">
             <label for="inputyear" class="form-label">Year</label>
             <select name="inputyear" id="year" class="form-control">
               {% for year in range_year %}
                 <option value="{{ year }}">{{ year }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label for="month" class="form-label">Month</label>
+            <select name="month" id="month" class="form-control">
+              {% for value, label in month_choices %}
+                <option value="{{ value }}">{{ label }}</option>
               {% endfor %}
             </select>
           </div>

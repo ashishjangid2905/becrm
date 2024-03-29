@@ -8,7 +8,7 @@
       <h5 class="display-5 my-4">Edit Sample</h5>
     </div>
     <div class="container border border-rounded rounded-5 p-3">
-      <form class="row d-flex justify-content-center my-2" id="sampleForm" action="{% url 'sample:edit_sample' sample_instance.id %}" method="post">
+      <form class="row d-flex justify-content-center my-2" id="sampleForm" action="{% url 'sample:edit_sample' sample_instance.slug %}" method="post">
         {% csrf_token %}
         <div class="col-lg">
           <div class="row g-3 d-flex justify-content-center">

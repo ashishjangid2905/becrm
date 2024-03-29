@@ -21,7 +21,16 @@ def sample_request(request):
 
     start_year = datetime.datetime.now().year - 5
     current_year = datetime.datetime.now().year
+    current_month = datetime.datetime.now().month
+
     range_year = range(current_year, start_year - 1, -1)  # Reverse range
+
+    selected_year = request.POST.get('inputyear')
+
+    if selected_year == current_year:
+        month_choices = month_choices[:current_month]
+    else:
+        month_choices = month_choices
 
     context = {
         'format_choices': format_choices,
@@ -29,6 +38,7 @@ def sample_request(request):
         'month_choices': month_choices,
         'status_choices': status_choices,
         'range_year': range_year,
+        'selected_year': selected_year
     }
 
     if request.user.is_authenticated:

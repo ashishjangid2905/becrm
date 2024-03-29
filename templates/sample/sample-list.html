@@ -27,6 +27,7 @@
           <th scope="col">Consignee</th>
           <th scope="col">Foreign Country</th>
           <th scope="col">Port</th>
+          <th scope="col">Period</th>
           <th scope="col">Client Name</th>
           <th scope="col">Status</th>
           <th scope="col"></th>
@@ -48,6 +49,7 @@
             <td>{{ sample.consignee }}</td>
             <td>{{ sample.foreign_country }}</td>
             <td>{{ sample.port }}</td>
+            <td>{{ sample.get_month_display }}/{{ sample.year }}</td>
             <td>{{ sample.client_name }}</td>
             <td>{{ sample.status }}</td>
             <td>
@@ -67,7 +69,7 @@
         </tbody>
         {% empty %}
         <tr>
-          <td colspan="16">No Sample request</td>
+          <td colspan="17">No Sample request</td>
         </tr>
       {% endfor %}
     </table>
