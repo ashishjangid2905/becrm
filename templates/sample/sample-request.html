@@ -99,11 +99,19 @@
           </div>
           <div class="col-md-2">
             <label for="sampleStatus" class="form-label">Status</label>
-            <select name="sampleStatus" id="sampleStatus" class="form-control">
-              {% for value, label in status_choices %}
-                <option value="{{ value }}">{{ label }}</option>
-              {% endfor %}
-            </select>
+            {% if request.user.department == 'production' %}
+              <select name="sampleStatus" id="sampleStatus" class="form-control">
+                {% for value, label in status_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <select name="sampleStatus" id="sampleStatus" class="form-control" disabled>
+                {% for value, label in status_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            {% endif %}
           </div>
         </div>
         <div class="row g-3 d-flex justify-content-center">

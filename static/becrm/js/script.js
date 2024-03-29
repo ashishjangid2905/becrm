@@ -15,6 +15,23 @@ $(document).ready(function () {
     }
   });
 
+  // default Month and Year selection
+
+  var date = new Date();
+  var default_year = date.getFullYear();
+  var default_month = date.getMonth() + 1 - 2;
+
+  if (default_month == 0) {
+    $("#month").val(12);
+    $("#year").val(default_year - 1);
+  } else if (default_month < 0) {
+    $("#month").val(11);
+    $("#year").val(default_year - 1);
+  } else {
+    $("#month").val(default_month);
+    $("#year").val(default_year);
+  }
+
   $.ajax({
     url: "/sample-chart/",
     type: "GET",

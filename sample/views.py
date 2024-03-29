@@ -47,7 +47,7 @@ def sample_request(request):
             month = request.POST.get('month')
             year = request.POST.get('inputyear')
             client_name = request.POST.get('inputClient')
-            status = request.POST.get('sampleStatus')
+            status = request.POST.get('sampleStatus', 'pending')
 
             Sample = sample.objects.create(user=user,country=country,report_format=report_format,report_type=report_type,hs_code=hs_code,product=product,iec=iec,shipper=shipper,consignee=consignee,foreign_country=foreign_country,port=port,month=month,year=year,client_name=client_name,status=status)
             messages.success(request, "Sample Request Submited")
