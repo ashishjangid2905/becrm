@@ -1,0 +1,50 @@
+{% extends 'home.html' %} {% load static %} {% block content %}
+  <div class="container-fluid mt-3">
+    <form method="GET" class="row g-3">
+      <div class="col-md-4 gap-3 d-flex justify-content-between">
+        <input type="text" class="form-control" name="q" placeholder="Search" />
+        <button type="submit" class="btn btn-primary">Search</button>
+      </div>
+    </form>
+  </div>
+  <div class="container d-flex justify-content-center">
+    <h5 class="display-5 my-4">Sample List</h5>
+  </div>
+  <div class="container-fluid">
+    <table class="table sample-table">
+      <thead>
+        <tr>
+          <th scope="col">S.No</th>
+          <th scope="col">Company Name</th>
+          <th scope="col">Address Line 1</th>
+          <th scope="col">Address Line 2</th>
+          <th scope="col">City</th>
+          <th scope="col">State</th>
+          <th scope="col">Country</th>
+          <th scope="col">User</th>
+        </tr>
+      </thead>
+      {% for lead in user_leads %}
+        <tbody>
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ lead.company_name }}</td>
+            <td>{{ lead.address1 }}</td>
+            <td>{{ lead.address2 }}</td>
+            <td>{{ lead.city }}</td>
+            <td>{{ lead.state }}</td>
+            <td>{{ lead.country }}</td>
+            <td>{{ user_details }}</td>
+            <td>
+              <a href="#" class="edit-btn"><i class="ti ti-edit"></i></a>
+            </td>
+          </tr>
+        </tbody>
+        {% empty %}
+        <tr>
+          <td>No Sample request</td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}

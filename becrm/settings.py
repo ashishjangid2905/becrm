@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -29,7 +30,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.1.19']
+ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -44,6 +45,7 @@ INSTALLED_APPS = [
     'teams',
     'sample',
     'app',
+    'lead',
 ]
 
 MIDDLEWARE = [
@@ -87,6 +89,9 @@ WSGI_APPLICATION = 'becrm.wsgi.application'
 #     }
 # }
 
+
+DATABASE_ROUTERS = ["dbrouter.routers.lead_router"]
+
 # Database connection for using sql
 
 DATABASES = {
@@ -96,6 +101,18 @@ DATABASES = {
         'USER': os.getenv('USERNAME'),
         'PASSWORD': os.getenv('PASSWORD'),
         'HOST': os.getenv('HOST'),  # If it's on localhost, use 'localhost' or '127.0.0.1'
+        'PORT': '',  # Default SQL Server port is 1433
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',  # Use the appropriate ODBC driver
+        },
+    },
+
+    'leads_db': {
+        'ENGINE': 'mssql',
+        'NAME': os.getenv('DB_NAME2'),
+        'USER': os.getenv('USERNAME2'),
+        'PASSWORD': os.getenv('PASSWORD2'),
+        'HOST': os.getenv('HOST2'),  # If it's on localhost, use 'localhost' or '127.0.0.1'
         'PORT': '',  # Default SQL Server port is 1433
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',  # Use the appropriate ODBC driver
