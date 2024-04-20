@@ -48,7 +48,7 @@
             <input type="text" name="inputIEC" class="form-control" id="inputIEC" value="{{sample_instance.iec}}"/>
           </div>
           <div class="col-md-3">
-            <label for="inputShiper" class="form-label">Shipper</label>
+            <label for="inputShiper" class="form-label">Indian Company</label>
             <input type="text" name="inputShiper" class="form-control" id="inputShipe" value="{{sample_instance.shipper}}" />
           </div>
           <div class="col-md-3">
@@ -63,7 +63,12 @@
         <div class="row g-3 d-flex justify-content-center">
           <div class="col-md-2">
             <label for="inputPort" class="form-label">Port</label>
-            <input type="text" name="inputPort" class="form-control" id="inputPort" value="{{sample_instance.port}}"/>
+            {% comment %} <input type="text" name="inputPort" class="form-control" id="inputPort" value="{{sample_instance.port}}"/> {% endcomment %}
+            <select class="form-control form-control-sm" name="inputPort" id="multiPort" multiple="multiple">
+              {% for ports in port_choice %}
+                <option value="{{ ports.port }}" {% if ports.port in sample_instance.port %}selected{% endif %}>{{ ports.port }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-2">
             <label for="month" class="form-label">Month</label>

@@ -17,6 +17,15 @@ $(document).ready(function () {
     }
   });
 
+  // Multiple port selection
+
+  $(function () {
+    $("#multiPort").multipleSelect({
+      selectAll: false,
+      filter: true,
+    });
+  });
+
   // default Month and Year selection
 
   var date = new Date();

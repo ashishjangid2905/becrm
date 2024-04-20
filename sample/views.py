@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib import messages, auth
 from django.template import loader
 
-from sample.models import sample
+from sample.models import sample, Portmaster
 from django.db.models import Q
 import datetime
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -18,6 +18,7 @@ def sample_request(request):
     type_choices = sample.TYPE
     month_choices = sample.MONTH
     status_choices = sample.STATUS
+    port_choice = Portmaster.objects.all()
 
     start_year = datetime.datetime.now().year - 5
     current_year = datetime.datetime.now().year
@@ -38,7 +39,8 @@ def sample_request(request):
         'month_choices': month_choices,
         'status_choices': status_choices,
         'range_year': range_year,
-        'selected_year': selected_year
+        'selected_year': selected_year,
+        'port_choice': port_choice
     }
 
     if request.user.is_authenticated:
@@ -53,13 +55,15 @@ def sample_request(request):
             shipper = request.POST.get('inputShiper', '%')
             consignee = request.POST.get('inputForeign', '%')
             foreign_country = request.POST.get('inputForeignCountry', '%')
-            port = request.POST.get('inputPort', '%')
+            port = request.POST.getlist('inputPort', '%')
             month = request.POST.get('month')
             year = request.POST.get('inputyear')
             client_name = request.POST.get('inputClient')
             status = request.POST.get('sampleStatus', 'pending')
 
-            Sample = sample.objects.create(user=user,country=country,report_format=report_format,report_type=report_type,hs_code=hs_code,product=product,iec=iec,shipper=shipper,consignee=consignee,foreign_country=foreign_country,port=port,month=month,year=year,client_name=client_name,status=status)
+            ports = ', '.join(port)
+
+            Sample = sample.objects.create(user=user,country=country,report_format=report_format,report_type=report_type,hs_code=hs_code,product=product,iec=iec,shipper=shipper,consignee=consignee,foreign_country=foreign_country,port=ports,month=month,year=year,client_name=client_name,status=status)
             messages.success(request, "Sample Request Submited")
             return redirect('sample:samples')
         return render(request, 'sample/sample-request.html', context)
@@ -74,7 +78,7 @@ def sample_list(request):
     query = request.GET.get('q')
 
     # Define the fields want to search across
-    search_fields = ['user__email','hs_code', 'report_type','product', 'shipper', 'consignee', 'foreign_country', 'client_name', 'status']
+    search_fields = ['user__first_name','user__email','hs_code', 'report_type','product', 'shipper', 'consignee', 'foreign_country', 'client_name', 'status']
 
     # Create a Q object to search across all specified fields
     search_objects = Q()
@@ -82,10 +86,10 @@ def sample_list(request):
     for field in search_fields:
         search_objects |= Q(**{f'{field}__icontains': query})
 
-    all_samples = sample.objects.all()
+    all_samples = sample.objects.all().order_by('-requested_at')
 
     if query:
-        filtered_samples = sample.objects.filter(search_objects)  # Define all_samples outside of the if statement
+        filtered_samples = sample.objects.filter(search_objects).order_by('-requested_at')  # Define all_samples outside of the if statement
     else:
         filtered_samples = all_samples
     if request.user.role == 'admin':
@@ -99,7 +103,7 @@ def sample_list(request):
 
     # pagination of sample list
         
-    paginator = Paginator(user_samples, 10)  # Show 10 samples per page
+    paginator = Paginator(user_samples, 20)  # Show 10 samples per page
     page = request.GET.get('page')
 
     try:
@@ -127,6 +131,7 @@ def edit_sample(request, sample_slug):
     type_choices = sample.TYPE
     month_choices = sample.MONTH
     status_choices = sample.STATUS
+    port_choice = Portmaster.objects.all()
 
     start_year = datetime.datetime.now().year - 5
     current_year = datetime.datetime.now().year
@@ -140,6 +145,7 @@ def edit_sample(request, sample_slug):
         'month_choices': month_choices,
         'status_choices': status_choices,
         'range_year': range_year,
+        'port_choice': port_choice
     }
 
     if request.user.is_authenticated:
@@ -156,11 +162,13 @@ def edit_sample(request, sample_slug):
                     shipper = request.POST.get('inputShiper', '%')
                     consignee = request.POST.get('inputForeign', '%')
                     foreign_country = request.POST.get('inputForeignCountry', '%')
-                    port = request.POST.get('inputPort', '%')
+                    port = request.POST.getlist('inputPort', '%')
                     month = request.POST.get('month')
                     year = request.POST.get('inputyear')
                     client_name = request.POST.get('inputClient')
                     status = request.POST.get('sampleStatus')
+
+                    ports = ', '.join(port)
 
                     # Update the sample object with the new data
                     sample_instance.country = country
@@ -172,7 +180,7 @@ def edit_sample(request, sample_slug):
                     sample_instance.shipper = shipper
                     sample_instance.consignee = consignee
                     sample_instance.foreign_country = foreign_country
-                    sample_instance.port = port
+                    sample_instance.port = ports
                     sample_instance.month = month
                     sample_instance.year = year
                     sample_instance.client_name = client_name

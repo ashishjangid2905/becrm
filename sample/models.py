@@ -6,16 +6,33 @@ import fiscalyear, datetime
 from django.utils.translation import gettext as _
 # Create your models here.
 
+
+class Portmaster(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    code = models.CharField(max_length=255, db_collation='SQL_Latin1_General_CP1_CI_AS', blank=True, null=True)
+    port = models.CharField(db_column='Port', max_length=255, db_collation='SQL_Latin1_General_CP1_CI_AS', blank=True, null=True)  # Field name made lowercase.
+    mode = models.CharField(max_length=255, db_collation='SQL_Latin1_General_CP1_CI_AS', blank=True, null=True)
+    ismonthly = models.BooleanField(blank=True, null=True)
+    isweekly = models.BooleanField(blank=True, null=True)
+    issez = models.BooleanField(blank=True, null=True)
+
+    class Meta:
+        managed = True
+        db_table = 'portmaster'
+
 def sample_no():
     fiscalyear.START_MONTH = 4
     n = sample.objects.all().order_by('id').last()
     fy = str(fiscalyear.FiscalYear.current())[-4:]
 
-    if not n:
+    if n:
+        last_fy = n.sample_id[5:9]
+
+    if not n or fy != last_fy:
         n=1
-        return f'BE/{fy}/Sample: {str(n).zfill(4)}'
+        return f'BE/FY{fy}/Sample: {str(n).zfill(4)}'
     else:
-        return f'BE/{fy}/Sample: {str(n.id+1).zfill(4)}'
+        return f'BE/FY{fy}/Sample: {str(n.id+1).zfill(4)}'
     
 def current_year():
     year = datetime.datetime.today().strftime('%Y')
@@ -23,7 +40,7 @@ def current_year():
 
 class sample(models.Model):
 
-    FORMAT = (('monthly', 'Monthly'), ('weekly', 'Weekly'), ('sez', 'SEZ'))
+    FORMAT = (('monthly', 'Monthly'), ('weekly', 'Weekly'), ('sez', 'SEZ'), ('incoterm', 'Incoterm'))
     TYPE = (('export','Export'), ('import', 'Import'))
     MONTH = (
         (1,'Jan'), (2, 'Feb'), (3,'Mar'), (4, 'Apr'), (5,'May'), (6,'Jun'), (7,'Jul'), (8,'Aug'), (9, 'Sep'), (10,'Oct'), (11,'Nov'), (12,'Dec')
