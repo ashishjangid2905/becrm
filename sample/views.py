@@ -6,7 +6,8 @@ from django.shortcuts import get_object_or_404
 from django.contrib import messages, auth
 from django.template import loader
 
-from sample.models import sample, Portmaster
+from sample.models import sample, Portmaster, sample_no
+from teams.models import Profile
 from django.db.models import Q
 import datetime
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -46,6 +47,8 @@ def sample_request(request):
     if request.user.is_authenticated:
         if request.method == 'POST':
             user = request.user
+            sample_id = sample_no(user)
+
             country = request.POST.get('inputCountry')
             report_format = request.POST.get('formatReport')
             report_type = request.POST.get('typeReport')
@@ -63,7 +66,7 @@ def sample_request(request):
 
             ports = ', '.join(port)
 
-            Sample = sample.objects.create(user=user,country=country,report_format=report_format,report_type=report_type,hs_code=hs_code,product=product,iec=iec,shipper=shipper,consignee=consignee,foreign_country=foreign_country,port=ports,month=month,year=year,client_name=client_name,status=status)
+            Sample = sample.objects.create(user=user, sample_id =sample_id,country=country,report_format=report_format,report_type=report_type,hs_code=hs_code,product=product,iec=iec,shipper=shipper,consignee=consignee,foreign_country=foreign_country,port=ports,month=month,year=year,client_name=client_name,status=status)
             messages.success(request, "Sample Request Submited")
             return redirect('sample:samples')
         return render(request, 'sample/sample-request.html', context)
@@ -86,10 +89,13 @@ def sample_list(request):
     for field in search_fields:
         search_objects |= Q(**{f'{field}__icontains': query})
 
-    all_samples = sample.objects.all().order_by('-requested_at')
+    user_profile = Profile.objects.get(user=request.user)
+    user_branch = user_profile.branch
+
+    all_samples = sample.objects.filter(user__profile__branch=user_branch.id).order_by('-requested_at')
 
     if query:
-        filtered_samples = sample.objects.filter(search_objects).order_by('-requested_at')  # Define all_samples outside of the if statement
+        filtered_samples = all_samples.filter(search_objects).order_by('-requested_at')  # Define all_samples outside of the if statement
     else:
         filtered_samples = all_samples
     if request.user.role == 'admin':
@@ -119,6 +125,8 @@ def sample_list(request):
         'all_samples': all_samples,
         'user_samples': user_samples,
         'filtered_samples': filtered_samples,
+        'user_branch':user_branch,
+        'user_profile':user_profile
     }
 
 

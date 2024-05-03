@@ -276,6 +276,8 @@ body {
     font-size: 12px;
     border: 1px solid #bebebe;
     border-radius: 15px;
+    height: 500px;
+    overflow-y: scroll;
 
     th {
         background-color: #5097D7;
@@ -309,7 +311,8 @@ td {
 .branch-table {
     font-size: 12px;
     border: 1px solid #bebebe;
-    overflow: hidden;
+    /* overflow: hidden; */
+    height: 450px;
 
     th {
         background-color: #5097D7;

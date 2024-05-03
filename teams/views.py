@@ -12,7 +12,9 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 @login_required(login_url='app:login')
 def user_list(request):
-    all_users = Profile.objects.all()
+
+    user_branch = Profile.objects.get(user=request.user).branch
+    all_users = Profile.objects.filter(user__profile__branch=user_branch.id)
 
     context = {
         'all_users': all_users,

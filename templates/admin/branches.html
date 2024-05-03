@@ -1,32 +1,34 @@
-{% extends 'home.html' %}
-{% load static %}
-{% block content %}
-  <div class="container-fluid gap-3 d-flex align-items-center my-3 ms-3">
-    <a href="{% url 'teams:add_branch' %}" class="btn btn-primary px-3"><i class="ti ti-plus"></i>Add Branch</a>
-  </div>
+{% extends 'home.html' %} {% load static %} {% block content %}
+<div class="container gap-3 d-flex align-items-center my-3 ms-3">
+  <a href="{% url 'teams:add_branch' %}" class="btn btn-primary px-3"
+    ><i class="ti ti-plus"></i>Add Branch</a
+  >
+</div>
 
-  <div class="container-fluid d-flex justify-content-center">
-    <table class="table branch-table">
-      <thead>
-        <tr>
-          <th scope="col">S.No</th>
-          <th scope="col">Branch Name</th>
-          <th scope="col">Address</th>
-          <th scope="col"></th>
-        </tr>
-      </thead>
-      {% for branch in branch_list %}
-        <tbody>
-          <tr>
-            <td>{{ forloop.counter }}</td>
-            <td>{{ branch }}</td>
-            <td>{{ branch.full_address }}</td>
-            <td class="utils">
-              <a href="{% url 'teams:edit_branch' branch.id %}" class="edit-btn"><i class="ti ti-edit"></i></a>
-            </td>
-          </tr>
-        </tbody>
-      {% endfor %}
-    </table>
-  </div>
+<div class="container-fluid d-flex justify-content-center">
+  <table class="table branch-table">
+    <thead>
+      <tr>
+        <th scope="col">S.No</th>
+        <th scope="col">Branch Name</th>
+        <th scope="col">Address</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    {% for branch in branch_list %}
+    <tbody>
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ branch }}</td>
+        <td>{{ branch.full_address }}</td>
+        <td class="utils">
+          <a href="{% url 'teams:edit_branch' branch.id %}" class="edit-btn"
+            ><i class="ti ti-edit"></i
+          ></a>
+        </td>
+      </tr>
+    </tbody>
+    {% endfor %}
+  </table>
+</div>
 {% endblock %}

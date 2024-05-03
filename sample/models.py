@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils.text import slugify
-from teams.models import User
+from teams.models import User, Profile
 from django.core.validators import MinValueValidator, MaxValueValidator
 import fiscalyear, datetime
 from django.utils.translation import gettext as _
@@ -20,19 +20,33 @@ class Portmaster(models.Model):
         managed = True
         db_table = 'portmaster'
 
-def sample_no():
+def sample_no(user):
     fiscalyear.START_MONTH = 4
-    n = sample.objects.all().order_by('id').last()
     fy = str(fiscalyear.FiscalYear.current())[-4:]
 
-    if n:
-        last_fy = n.sample_id[5:9]
+    branch_id = Profile.objects.get(user=user).branch.id
 
-    if not n or fy != last_fy:
-        n=1
-        return f'BE/FY{fy}/Sample: {str(n).zfill(4)}'
+    prefix = 'BE' if branch_id == 1 else 'CE'
+
+    n = sample.objects.filter(sample_id__startswith=f"{prefix}/FY{fy}/Sample:").order_by('sample_id').last()
+
+
+    if n:
+        last_no = int(n.sample_id.split(':')[-1])
+        new_no = last_no + 1
     else:
-        return f'BE/FY{fy}/Sample: {str(n.id+1).zfill(4)}'
+        new_no = 1
+
+    return f"{prefix}/FY{fy}/Sample: {str(new_no).zfill(4)}"
+
+    # if n:
+    #     last_fy = n.sample_id[5:9]
+
+    # if not n or fy != last_fy:
+    #     n=1
+    #     return f'BE/FY{fy}/Sample: {str(n).zfill(4)}'
+    # else:
+    #     return f'BE/FY{fy}/Sample: {str(n.id+1).zfill(4)}'
     
 def current_year():
     year = datetime.datetime.today().strftime('%Y')
