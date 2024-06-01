@@ -1,0 +1,71 @@
+{% extends 'home.html' %} {% load static %} {% block content %}
+<div class="container d-flex justify-content-center">
+  <h5 class="fs-3 text-primary mt-2">Follow Up List</h5>
+</div>
+<div class="container-fluid my-2">
+  <div class="row">
+    <div class="col-md-4 m-0 d-flex justify-content-between">
+      <div class="btn-group">
+        <a
+          href="?filter=previous"
+          class="btn btn-primary {% if request.GET.filter == 'previous' %}active{% endif %}"
+          >Previous</a
+        >
+        <a
+          href="?filter=today"
+          class="btn btn-primary {% if not request.GET.filter or request.GET.filter == 'today' %}active{% endif %}"
+          >Today</a
+        >
+        <a
+          href="?filter=future"
+          class="btn btn-primary {% if request.GET.filter == 'future' %}active{% endif %}"
+          >Upcoming</a
+        >
+      </div>
+    </div>
+  </div>
+</div>
+<div class="container-fluid">
+  <table class="table table-hover table-light">
+    <thead>
+      <tr class="table-primary">
+        <th scope="col">S.No</th>
+        <th scope="col">Company Name</th>
+        <th scope="col">Title</th>
+        <th scope="col">Contact Person</th>
+        <th scope="col">Email</th>
+        <th scope="col">Mobile</th>
+        <th scope="col">Last Message</th>
+        <th scope="col">Follow Up Date</th>
+        <th scope="col">Action</th>
+      </tr>
+    </thead>
+    {% for lead in latest_conversation_details %}
+    <tbody>
+      <tr class="table-light">
+        <td>{{ forloop.counter }}</td>
+        <td>{{ lead.chat_no.company_id }}</td>
+        <td>{{ lead.chat_no }}</td>
+        <td>{{ lead.contact_person }}</td>
+        <td>{{ lead.contact_person.email_id }}</td>
+        <td>{{ lead.contact_person.contact_no }}</td>
+        <td>{{ lead.details }}</td>
+        <td>{{ lead.follow_up }}</td>
+        <td>
+          <a
+            href="{% url 'lead:lead' lead.chat_no.company_id.id %}?chat={{lead.chat_no.id}}"
+            class="edit-btn"
+            ><i class="ti ti-details"></i
+          ></a>
+          <!-- <a href="#" class="edit-btn"><i class="ti ti-edit"></i></a> -->
+        </td>
+      </tr>
+    </tbody>
+    {% empty %}
+    <tr>
+      <td colspan="12">No Lead Added</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

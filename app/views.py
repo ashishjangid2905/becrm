@@ -6,9 +6,11 @@ from django.template import loader
 from teams.models import Profile, Branch, User
 from sample.models import sample
 from django.db.models import Count
-from django.db.models.functions import ExtractMonth
+from django.db.models.functions import ExtractMonth, TruncDate
 from django.http import JsonResponse
-import datetime, calendar, json
+import calendar, json
+from datetime import timedelta
+from django.utils.timezone import now
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 # Create your views here.
@@ -58,6 +60,10 @@ def sample_chart(request):
     # received_sample = user_sample.filter(status='received').count()
     # pending_sample = user_sample.filter(status='pending').count()
     # rejected_sample = user_sample.filter(status='reject').count()
+
+    last_month = now() - timedelta(days=30)
+
+    samples_per_day = user_sample.filter(requested_at__gte = last_month).annotate(date=TruncDate('requested_at')).values('date').annotate(count=Count('sample_id')).order_by('date')
         
     status_counts = user_sample.values('status').annotate(count=Count('sample_id')).order_by('status')
     doughnut_data = {status['status']: status['count'] for status in status_counts}
@@ -70,6 +76,7 @@ def sample_chart(request):
         
     months = []
     sample_counts = []
+    per_day_count = {str(sample['date']):sample['count'] for sample in samples_per_day}
 
     for sample_data in samples_data:
         months.append(calendar.month_name[sample_data['month_name']])
@@ -79,6 +86,7 @@ def sample_chart(request):
         'month_labels': months,
         'sample_counts': sample_counts,
         'doughnut_data':doughnut_data,
+        'per_day_count': per_day_count
     }
 
     return JsonResponse(data)

@@ -1,0 +1,58 @@
+<div class="row g-3 d-flex justify-content-center">
+  <h4 class="col-7 fs-4 text-primary-emphasis">
+    <i class="ti ti-clipboard-plus"></i> Edit Contact Person
+  </h4>
+</div>
+<form class="row g-3 d-flex justify-content-center" action="#" method="post">
+  {% csrf_token %}
+  <div class="col-7">
+    <label for="person">Contact Person</label>
+    <input
+      class="form-control"
+      type="text"
+      name="contact_person"
+      value="{{person_instance}}"
+      required
+    />
+  </div>
+  <div class="col-7">
+    <label for="Email">Email</label>
+    <input
+      class="form-control"
+      type="email"
+      name="email"
+      value="{{person_instance.email_id}}"
+      required
+    />
+  </div>
+  <div class="col-7">
+    <label for="contactNo">Contact No</label>
+    <input
+      class="form-control"
+      type="text"
+      name="contact_no"
+      value="{{person_instance.contact_no}}"
+      required
+    />
+  </div>
+  <div class="col-7">
+    <input
+      class="form-check-input"
+      type="checkbox"
+      name="is_active"
+      {% if person_instance.is_active %}checked{% endif %}
+    />
+    <label for="contactNo">Is Active</label>
+  </div>
+  <div class="col-7">
+    <a
+      href="{% url 'lead:lead' person_instance.company.id %}"
+      class="btn btn-secondary"
+    >
+      Back
+    </a>
+    <button type="submit" class="btn btn-primary" name="edit_contact_person">
+      Update
+    </button>
+  </div>
+</form>
