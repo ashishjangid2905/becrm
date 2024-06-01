@@ -421,7 +421,8 @@ td {
 }
 
 
-.lead-table {
+.lead-table,
+.follow-table {
     height: 450px;
     width: 100%;
     /* border: 2px solid #0047A8; */
@@ -437,4 +438,13 @@ td {
         font-weight: 600;
         font-size: 12px;
     }
+}
+
+
+.table-primary th {
+    position: sticky;
+    top: 0;
+    background-color: #007bff;
+    color: white;
+    z-index: 100;
 }

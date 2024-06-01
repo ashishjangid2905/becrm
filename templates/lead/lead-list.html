@@ -87,7 +87,7 @@
     {% comment %} Popup ended here {% endcomment %}
 
 <div class="container-fluid lead-table">
-  <table class="table table-hover table-light">
+  <table class="table table-hover table-light position-sticky top-0">
     <thead>
       <tr class="table-primary">
         <th scope="col">S.No</th>
@@ -107,7 +107,7 @@
       <tr class="table-light">
         <td>{{ forloop.counter }}</td>
         <td>{{ lead.company_name }}</td>
-        <td>{{ lead.gstin }}</td>
+        <td>{% if lead.gstin != None %}{{ lead.gstin }}{% endif %}</td>
         <td class="text-wrap">{{ lead.address1 }} {{ lead.address2 }}</td>
         <td>{{ lead.city }}</td>
         <td>{{ lead.state }}</td>
