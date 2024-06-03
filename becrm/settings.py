@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -29,7 +30,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.1.239']
+ALLOWED_HOSTS = ['192.168.1.69',]
 
 
 # Application definition
@@ -41,9 +42,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_ckeditor_5',
     'teams',
     'sample',
     'app',
+    'lead',
 ]
 
 MIDDLEWARE = [
@@ -87,6 +90,9 @@ WSGI_APPLICATION = 'becrm.wsgi.application'
 #     }
 # }
 
+
+DATABASE_ROUTERS = ["dbrouter.routers.lead_router"]
+
 # Database connection for using sql
 
 DATABASES = {
@@ -96,6 +102,18 @@ DATABASES = {
         'USER': os.getenv('USERNAME'),
         'PASSWORD': os.getenv('PASSWORD'),
         'HOST': os.getenv('HOST'),  # If it's on localhost, use 'localhost' or '127.0.0.1'
+        'PORT': '',  # Default SQL Server port is 1433
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',  # Use the appropriate ODBC driver
+        },
+    },
+
+    'leads_db': {
+        'ENGINE': 'mssql',
+        'NAME': os.getenv('DB_NAME2'),
+        'USER': os.getenv('USERNAME2'),
+        'PASSWORD': os.getenv('PASSWORD2'),
+        'HOST': os.getenv('HOST2'),  # If it's on localhost, use 'localhost' or '127.0.0.1'
         'PORT': '',  # Default SQL Server port is 1433
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',  # Use the appropriate ODBC driver
@@ -165,3 +183,164 @@ MEDIA_URL = '/media/' # Public URL at the browser
 # SESSION_COOKIE_AGE = 60   #SESSION TIME IS 30MIN
 
 # SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+
+# CkEditor Configuration
+
+customColorPalette = [
+    {"color": "hsl(4, 90%, 58%)", "label": "Red"},
+    {"color": "hsl(340, 82%, 52%)", "label": "Pink"},
+    {"color": "hsl(291, 64%, 42%)", "label": "Purple"},
+    {"color": "hsl(262, 52%, 47%)", "label": "Deep Purple"},
+    {"color": "hsl(231, 48%, 48%)", "label": "Indigo"},
+    {"color": "hsl(207, 90%, 54%)", "label": "Blue"},
+]
+
+CKEDITOR_5_CONFIGS = {
+    "default": {
+        "toolbar": [
+            "heading",
+            "|",
+            "bold",
+            "italic",
+            "link",
+            "bulletedList",
+            "numberedList",
+            "blockQuote",
+            "imageUpload"
+        ],
+    },
+    "comment": {
+        "language": {"ui": "en", "content": "en"},
+        "toolbar": [
+            "heading",
+            "|",
+            "bold",
+            "italic",
+            "link",
+            "bulletedList",
+            "numberedList",
+            "blockQuote",
+        ],
+    },
+    "extends": {
+        "language": "en",
+        "blockToolbar": [
+            "paragraph",
+            "heading1",
+            "heading2",
+            "heading3",
+            "|",
+            "bulletedList",
+            "numberedList",
+            "|",
+            "blockQuote",
+        ],
+        "toolbar": [
+            "heading",
+            "|",
+            "outdent",
+            "indent",
+            "|",
+            "bold",
+            "italic",
+            "link",
+            "underline",
+            "strikethrough",
+            "code",
+            "subscript",
+            "superscript",
+            "highlight",
+            "|",
+            "bulletedList",
+            "numberedList",
+            "todoList",
+            "|",
+            "blockQuote",
+            "insertImage",
+            "|",
+            "fontSize",
+            "fontFamily",
+            "fontColor",
+            "fontBackgroundColor",
+            "removeFormat",
+            "insertTable",
+        ],
+        "image": {
+            "toolbar": [
+                "imageTextAlternative",
+                "|",
+                "imageStyle:alignLeft",
+                "imageStyle:alignRight",
+                "imageStyle:alignCenter",
+                "imageStyle:side",
+                "|",
+                "toggleImageCaption",
+                "|"
+            ],
+            "styles": [
+                "full",
+                "side",
+                "alignLeft",
+                "alignRight",
+                "alignCenter",
+            ],
+        },
+        "table": {
+            "contentToolbar": [
+                "tableColumn",
+                "tableRow",
+                "mergeTableCells",
+                "tableProperties",
+                "tableCellProperties",
+            ],
+            "tableProperties": {
+                "borderColors": customColorPalette,
+                "backgroundColors": customColorPalette,
+            },
+            "tableCellProperties": {
+                "borderColors": customColorPalette,
+                "backgroundColors": customColorPalette,
+            },
+        },
+        "heading": {
+            "options": [
+                {
+                    "model": "paragraph",
+                    "title": "Paragraph",
+                    "class": "ck-heading_paragraph",
+                },
+                {
+                    "model": "heading1",
+                    "view": "h1",
+                    "title": "Heading 1",
+                    "class": "ck-heading_heading1",
+                },
+                {
+                    "model": "heading2",
+                    "view": "h2",
+                    "title": "Heading 2",
+                    "class": "ck-heading_heading2",
+                },
+                {
+                    "model": "heading3",
+                    "view": "h3",
+                    "title": "Heading 3",
+                    "class": "ck-heading_heading3",
+                },
+            ]
+        },
+        "list": {
+            "properties": {
+                "styles": True,
+                "startIndex": True,
+                "reversed": True,
+            }
+        },
+        "htmlSupport": {
+            "allow": [
+                {"name": "/.*/", "attributes": True, "classes": True, "styles": True}
+            ]
+        },
+    },
+}

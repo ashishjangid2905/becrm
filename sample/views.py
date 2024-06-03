@@ -113,13 +113,13 @@ def sample_list(request):
     page = request.GET.get('page')
 
     try:
-        user_samples = paginator.page(page)
+        user_samples = paginator.get_page(page)
     except PageNotAnInteger:
         # If page is not an integer, deliver first page.
-        user_samples = paginator.page(1)
+        user_samples = paginator.get_page(1)
     except EmptyPage:
         # If page is out of range (e.g. 9999), deliver last page of results.
-        user_samples = paginator.page(paginator.num_pages)
+        user_samples = paginator.get_page(paginator.num_pages)
 
     context = {
         'all_samples': all_samples,

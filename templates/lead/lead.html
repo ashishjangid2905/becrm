@@ -1,0 +1,425 @@
+{% extends "home.html" %} {% load static %} {% block title %} Lead{% endblock %}
+{% block content %}
+
+<div class="container-fluid">
+  <div
+    class="container ms-5 mt-3 shadow-sm p-3 mb-2 bg-warning bg-opacity-25 rounded"
+  >
+    <div class="px-3 lead-detail">
+      <h4 class="m-0 text-primary-emphasis text-uppercase">
+        {{company}}
+        <span
+          ><a
+            href="{% url 'lead:edit_lead' company.id %}"
+            class="float-end fs-4 btn text-body-tertiary"
+            ><i class="ti ti-edit"></i></a
+        ></span>
+      </h4>
+      <p class="fs-6 fw-light">GSTIN: {{company.gstin}}</p>
+      <p class="m-0 text-secondary">{{company.address1}}</p>
+      <p class="m-0 text-secondary">
+        {{company.address2}} {{company.city}},
+        {{company.state}},({{company.pincode}}) {{company.country}}
+      </p>
+    </div>
+  </div>
+  <div class="text-primary">
+    <hr />
+  </div>
+  <div class="row gap-1 ms-3 mb-0">
+    <div
+      class="col-lg-3 py-2 border rounded shadow-sm p-3 mb-0 bg-success bg-opacity-25 contact-details"
+    >
+      <div
+        class="z-3 d-flex gap-3 position-sticky top-0 shadow-sm bg-success bg-opacity-25 rounded px-1 py-2 block"
+      >
+        <h5 class="mt-1">Contact Person</h5>
+      {% comment %} {% if request.GET.chat %}
+        <button
+          type="button"
+          class="btn btn-primary"
+          data-bs-toggle="modal"
+          data-bs-target="#addContact"
+          disabled
+        >
+          Add Contact
+        </button>
+        {% else %} {% endcomment %}
+        <button
+          type="button"
+          class="btn btn-primary"
+          data-bs-toggle="modal"
+          data-bs-target="#addContact"
+        >
+          Add Contact
+        </button>
+
+        {% comment %} {% endif %} {% endcomment %}
+      </div>
+      <div class="contacts">
+        {% for person in contact_person %} {% if person.is_active == True %}
+        <div class="my-2 p-2 shadow-sm border border-success-subtle rounded">
+          <h6>
+            <a class="page-link text-primary" href="#">{{person}}</a>
+            <a
+              href="?editPerson={{person.id}}"
+              class="float-end fs-5 btn"
+            >
+              <i class="ti ti-edit"></i>
+            </a>
+          </h6>
+          <p class="m-0 text-primary-emphasis text-wrap">
+            <strong class="text-success">Email: </strong>{{person.email_id}}
+          </p>
+          <p class="m-0 text-primary-emphasis">
+            <strong class="text-success">Contact No: </strong
+            >{{person.contact_no}}
+          </p>
+        </div>
+        {% else %}
+        <div
+          class="my-2 p-2 shadow-sm bg-secondary-subtle border border-secondary-subtle rounded"
+        >
+          <h6>
+            <a class="page-link text-secondary" href="">{{person}}</a>
+            <span
+              ><a href="?editPerson={{person.id}}" class="float-end fs-5 btn text-body-tertiary"
+                ><i class="ti ti-edit"></i></a
+            ></span>
+          </h6>
+          <p class="m-0 text-secondary-emphasis text-wrap">
+            <strong class="text-secondary">Email: </strong>{{person.email_id}}
+          </p>
+          <p class="m-0 text-secondary-emphasis">
+            <strong class="text-secondary">Contact No: </strong
+            >{{person.contact_no}}
+          </p>
+        </div>
+        {% endif %} {% endfor %}
+      </div>
+    </div>
+
+    {% comment %} add Contact Form as Popup Modal {% endcomment %}
+    <div
+      class="modal fade"
+      id="addContact"
+      tabindex="-1"
+      aria-labelledby="exampleModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4
+              class="modal-title fs-5 text-primary-emphasis"
+              id="exampleModalLabel"
+            >
+              <i class="ti ti-clipboard-plus"></i> Add Contact Person
+            </h4>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="container-fluid">
+              <form
+                class="row g-3 d-flex justify-content-center"
+                action="#"
+                method="post"
+              >
+                {% csrf_token %}
+                <div class="col-10">
+                  <label for="person">Contact Person</label>
+                  <input
+                    class="form-control"
+                    type="text"
+                    name="contact_person"
+                    required
+                  />
+                </div>
+                <div class="col-10">
+                  <label for="Email">Email</label>
+                  <input
+                    class="form-control"
+                    type="email"
+                    name="email"
+                    required
+                  />
+                </div>
+                <div class="col-10">
+                  <label for="contactNo">Contact No</label>
+                  <input
+                    class="form-control"
+                    type="text"
+                    name="contact_no"
+                    required
+                  />
+                </div>
+                <div class="col-10">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="is_active"
+                    checked
+                  />
+                  <label for="contactNo">Is Active</label>
+                </div>
+                <div class="modal-footer">
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    class="btn btn-primary"
+                    name="add_contact_person"
+                  >
+                    Add Person
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% comment %} Popup ended here {% endcomment %}
+
+      <div class="col-lg-2 px-2 mb-0">
+        <div class="row g-3">
+          <div
+            class="p-3 col-lg-12 col-md-12 shadow-sm px-2 mb-0 bg-primary-subtle rounded summery-chat"
+          >
+            {% comment %} <div class="p-2 mb-2 shadow bg-light bg-gradient rounded">
+              <h6 class="m-0 text-wrap overflow-hidden">
+                <a class="page-link text-primary-emphasis" href="?chat=">All</a>
+              </h6>
+            </div> {% endcomment %}
+            {% for chat_title in chat_titles %}
+            <div class="p-2 mb-2 shadow bg-light bg-gradient rounded">
+              <h6 class="m-0 text-wrap overflow-hidden">
+                <a
+                  class="page-link text-primary-emphasis"
+                  href="?chat={{chat_title.id}}"
+                  >{{chat_title}}</a
+                >
+              </h6>
+            </div>
+            {%endfor%}
+            <div>
+              <a
+                class="btn btn-secondary p-2"
+                data-bs-toggle="modal"
+                data-bs-target="#newChat"
+                >New Conversation</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% comment %} Popup for New Conversation starts {% endcomment %}
+      <div
+        class="modal fade"
+        id="newChat"
+        tabindex="-1"
+        aria-labelledby="exampleModalLabel"
+        aria-hidden="true"
+      >
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h4
+                class="modal-title fs-5 text-primary-emphasis"
+                id="exampleModalLabel"
+              >
+                <i class="ti ti-clipboard-plus"></i> New Conversation
+              </h4>
+              <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <div class="container-fluid">
+                <form
+                  class="row g-3 d-flex justify-content-center"
+                  action="#"
+                  method="post"
+                >
+                  {% csrf_token %}
+                  <div class="col-10">
+                    <label for="chat-title">Title</label>
+                    <input
+                      class="form-control"
+                      type="text"
+                      name="chat_title"
+                      required
+                    />
+                  </div>
+                  <div class="col-10">
+                    <label for="contact_person">Contact Person</label>
+                    <select class="form-control" name="contactPerson">
+                      {% for contact_person in contact_person %}
+                      {% if contact_person.is_active %}
+                      <option value="{{contact_person.id}}">
+                        {{contact_person}}
+                      </option>
+                      {% endif %}
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-10">
+                    <label for="contactNo">Comments</label>
+                    <textarea
+                      name="feeds"
+                      class="form-control"
+                      id=""
+                    ></textarea>
+                  </div>
+                  <div class="col-5">
+                    <label for="status">Status</label>
+                    <select name="status" class="form-control">
+                      {% for value, label in status_choice %}
+                      <option value="{{value}}">{{label}}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-5">
+                    <label for="follow_up">Next Follow Up</label>
+                    <input class="form-control" type="date" name="follow_up" />
+                  </div>
+                  <div class="modal-footer">
+                    <button
+                      type="button"
+                      class="btn btn-secondary"
+                      data-bs-dismiss="modal"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      class="btn btn-primary"
+                      name="start_new_chat"
+                    >
+                      Start New
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% comment %} Popup for New Conversation ended here {% endcomment %}
+
+      <div class="col-lg-7 px-2 mb-0">
+        <div class="row g-3">
+          <div
+            class="col-lg-12 col-md-12 bg-light bg-gradient bg-opacity-10 rounded summery-chat"
+          >
+            <div class="p-3 pt-0 col-lg-12 col-md-12 rounded chats">
+              {% if request.GET.chat %}
+              <h4 class="fs-3 position-sticky top-0 p-2 rounded bg-secondary-subtle text-info-emphasis mb-2">{{chat_title}}</h4>
+              {% for chat in chat_details %}
+              <div class="fs-6 text-body-tertiary">
+                <p class="fs-5 text-info-emphasis">
+                  {% comment %} {{chat.chat_no}}: {% endcomment %}
+                  <span
+                    ><a class="fs-4 text-body-tertiary btn p-0 float-end"
+                      ><i class="ti ti-edit"></i></a
+                  ></span>
+                </p>
+                {{chat.inserted_at}}
+                <strong class="text-danger-emphasis">{{chat.status}}</strong>
+              </div>
+              <div class="text-primary-emphasis text-wrap">
+                -<strong class="text-success">{{chat.contact_person}}</strong>
+                {{chat.details | safe}}
+              </div>
+              <div>
+                Next Follow Up:
+                <strong class="text-warning-emphasis"
+                  >{{chat.follow_up}}</strong
+                >
+              </div>
+              <hr />
+              {% endfor %}
+              {% elif request.GET.editPerson %}
+                {% include "lead/edit-person.html" %}
+              {% endif %}
+            </div>
+            {% if request.GET.chat %}
+            <form
+              class="row g-2 position-sticky bottom-0 border rounded py-1 bg-light"
+              action="#"
+              method="post"
+            >
+              {% csrf_token %}
+              <div class="col-4 m-0">
+                <textarea
+                  class="form-control"
+                  type="textarea"
+                  name="feeds"
+                ></textarea>
+              </div>
+              <div class="col-2 m-0">
+                <label>Contact Person*</label>
+                <select
+                  class="form-control"
+                  name="contactPerson"
+                  id="chatStatus"
+                >
+                  {% for contact_person in contact_person %}
+                  {% if contact_person.is_active %}
+                  <option value="{{contact_person.id}}">
+                    {{contact_person}}
+                  </option>
+                  {% endif %}
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-2 m-0">
+                <label>Status</label>
+                <select class="form-control" name="status" id="chatStatus">
+                  {% for value, label in status_choice %}
+                  <option value="{{value}}">{{label}}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-2 m-0">
+                <label for="follow_up">Next Follow Up</label>
+                <input
+                  class="form-control"
+                  type="date"
+                  name="follow_up"
+                  id="follow_up_date"
+                />
+              </div>
+              <div class="col-auto">
+                <button class="btn btn-primary px-4" type="submit" name="add_feed">Save</button>
+              </div>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const date = new Date();
+    const dateFormat = `${date.getFullYear()}-0${
+      date.getMonth() + 1
+    }-${date.getDate()}`;
+    document.getElementById("follow_up_date").min = dateFormat;
+  </script>
+  {% endblock %}
+</div>

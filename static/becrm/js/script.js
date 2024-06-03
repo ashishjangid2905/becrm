@@ -95,11 +95,58 @@ $(document).ready(function () {
       // var received_sample = data.received_sample;
       // var pending_sample = data.pending_sample;
 
+      var per_day = Object.keys(data.per_day_count);
+      var per_day_count = Object.values(data.per_day_count);
+
       var status = Object.keys(data.doughnut_data);
       var status_counts = Object.values(data.doughnut_data);
 
+      var line = $("#sample_per_day_chart");
       var bar = $("#sample_chart");
       var doughnut = $("#sample_status_chart");
+
+      var sample_perday_chart = new Chart(line, {
+        type: "line",
+        data: {
+          labels: per_day,
+          datasets: [
+            {
+              labels: per_day,
+              data: per_day_count,
+              fill: false,
+              borderColor: "rgb(75, 192, 192)",
+              tension: 0.1,
+            },
+          ],
+        },
+        options: {
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: "Date",
+              },
+            },
+            y: {
+              title: {
+                display: true,
+                text: "Sample Requests",
+              },
+              beginAtZero: true, // Ensures the y-axis starts from zero
+            },
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function (tooltipItem) {
+                  return "Sample requests: " + tooltipItem.raw;
+                },
+              },
+            },
+          },
+        },
+      });
+
       var sample_chart = new Chart(bar, {
         type: "bar",
         data: {

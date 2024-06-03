@@ -270,7 +270,6 @@ body {
     white-space: nowrap;
     border-bottom: 1px solid gray;
     scroll-behavior: smooth;
-    white-space: hidden;
     scrollbar-width: thin;
     width: 100%;
     font-size: 12px;
@@ -292,7 +291,7 @@ td {
     vertical-align: middle;
     text-align: start;
     text-transform: capitalize;
-    font-size: 14px;
+    font-size: 12px;
     border: 1px solid rgb(205, 205, 205);
 }
 
@@ -357,4 +356,98 @@ td {
     margin: 1.5em 0em;
     width: 130px;
     height: 130px;
+}
+
+
+.summery-chat,
+.lead-detail,
+.contact-details {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    border-bottom: 1px solid gray;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    position: relative;
+    width: 100%;
+    height: 480px;
+    font-size: 14px;
+    border: none;
+    scrollbar-width: none;
+
+    p {
+        margin: 0;
+    }
+
+    form {
+        font-size: small;
+
+        select {
+            font-size: small;
+        }
+
+        input[type='date'] {
+            font-size: small;
+        }
+
+        textarea {
+            font-size: small;
+        }
+    }
+}
+
+.chats {
+    width: 99%;
+    overflow-y: scroll;
+    scrollbar-width: none;
+    height: 420px;
+}
+
+.lead-detail {
+    height: auto;
+}
+
+.contact-details {
+    width: auto;
+    overflow: hidden;
+
+    button {
+        font-size: 14px;
+    }
+}
+
+.contacts {
+    height: 380px;
+    overflow-y: scroll;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+}
+
+
+.lead-table,
+.follow-table {
+    height: 450px;
+    width: 100%;
+    /* border: 2px solid #0047A8; */
+    overflow-x: auto;
+    overflow-y: scroll;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    font-size: 10px;
+
+    th {
+        background-color: #5097D7;
+        color: #fff;
+        font-weight: 600;
+        font-size: 12px;
+    }
+}
+
+
+.table-primary th {
+    position: sticky;
+    top: 0;
+    background-color: #007bff;
+    color: white;
+    z-index: 100;
 }
