@@ -22,6 +22,7 @@ $(document).ready(function () {
   $(function () {
     $("#multiPort").multipleSelect({
       selectAll: false,
+      showClear: true,
       filter: true,
     });
   });
@@ -106,16 +107,16 @@ $(document).ready(function () {
       var doughnut = $("#sample_status_chart");
 
       var sample_perday_chart = new Chart(line, {
-        type: "line",
+        type: "bar",
         data: {
           labels: per_day,
           datasets: [
             {
-              labels: per_day,
+              label: "per_day",
               data: per_day_count,
-              fill: false,
-              borderColor: "rgb(75, 192, 192)",
-              tension: 0.1,
+              backgroundColor: "rgba(241, 131, 13, 0.6)",
+              borderColor: "rgba(255, 99, 132, 1)",
+              borderWidth: 0.1,
             },
           ],
         },

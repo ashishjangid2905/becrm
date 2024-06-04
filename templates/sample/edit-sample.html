@@ -7,8 +7,8 @@
     <div class="container d-flex justify-content-center">
       <h5 class="fs-3 my-3 text-primary">Edit Sample</h5>
     </div>
-    <div class="container border border-rounded rounded-5 p-3">
-      <form class="row d-flex justify-content-center my-2" id="sampleForm" action="{% url 'sample:edit_sample' sample_instance.slug %}" method="post">
+    <div class="container rounded p-3 shadow p-3 mb-5 bg-body-tertiary">
+      <form class="row d-flex justify-content-center my-2 " id="sampleForm" action="{% url 'sample:edit_sample' sample_instance.slug %}" method="post">
         {% csrf_token %}
         <div class="col-lg">
           <div class="row g-3 d-flex justify-content-center">
@@ -61,7 +61,7 @@
           </div>
         </div>
         <div class="row g-3 d-flex justify-content-center">
-          <div class="col-md-2">
+          <div class="col-md-3 multi-select">
             <label for="inputPort" class="form-label">Port</label>
             {% comment %} <input type="text" name="inputPort" class="form-control" id="inputPort" value="{{sample_instance.port}}"/> {% endcomment %}
             <select class="form-control form-control-sm" name="inputPort" id="multiPort" multiple="multiple">
@@ -70,7 +70,7 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-md-2">
+          <div class="col-md-1">
             <label for="month" class="form-label">Month</label>
             <select name="month" id="month" class="form-control">
               {% for value, label in month_choices %}

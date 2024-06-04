@@ -5,7 +5,7 @@
 <div class="container-fluid my-3">
   <form method="GET" class="row g-3">
     <div class="col-md-4 gap-3 d-flex justify-content-between">
-      <input type="text" class="form-control" name="q" placeholder="Search" />
+      <input type="text" class="form-control form-control-sm" name="q" placeholder="Search" />
       <button type="submit" class="btn btn-primary">Search</button>
     </div>
   </form>
@@ -30,7 +30,7 @@
         <th scope="col">Period</th>
         <th scope="col">Client Name</th>
         <th scope="col">Status</th>
-        <th scope="col"></th>
+        <th scope="col">Action</th>
       </tr>
     </thead>
     {% for sample in user_samples %}
@@ -53,16 +53,19 @@
         <td>{{ sample.client_name }}</td>
         <td>{{ sample.status }}</td>
         <td>
-          {% if sample.user == request.user %} {% if sample.status !=
-          'received'%}
-          <a href="{% url 'sample:edit_sample' sample.slug %}" class="edit-btn"
-            ><i class="ti ti-edit"></i
-          ></a>
+          {% if sample.user == request.user %}
+            {% if sample.status != 'received'%}
+              <a href="{% url 'sample:edit_sample' sample.slug %}" class="edit-btn"
+              ><i class="ti ti-edit"></i
+              ></a>
+            {% else %}
+              <a class="edit-btn"><i class="ti ti-file-check"></i></a>
+            {% endif %}
           {% else %}
-          <a class="edit-btn"><i class="ti ti-file-check"></i></a>
-          {% endif %} {% else %} {% if sample.status == 'received' %}
-          <a class="edit-btn"><i class="ti ti-send"></i></a>
-          {% endif %} {% endif %}
+            {% if sample.status == 'received' %}
+              <a class="edit-btn"><i class="ti ti-send"></i></a>
+            {% endif %}
+          {% endif %}
         </td>
       </tr>
     </tbody>

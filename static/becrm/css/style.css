@@ -264,7 +264,22 @@ body {
     font-weight: 400;
 }
 
-.sample-table {
+
+.multi-select .placeholder {
+    display: none;
+}
+
+.multi-select .ms-choice {
+    border: none;
+}
+
+.multi-select .ms-choice>.icon-close {
+    top: 4px;
+}
+
+.sample-table,
+.user-table,
+.branch-table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
@@ -273,9 +288,9 @@ body {
     scrollbar-width: thin;
     width: 100%;
     font-size: 12px;
-    border: 1px solid #bebebe;
-    border-radius: 15px;
-    height: 500px;
+    /* border: 1px solid #bebebe; */
+    /* border-radius: 15px; */
+    height: 400px;
     overflow-y: scroll;
 
     th {
@@ -301,17 +316,18 @@ td {
     flex-direction: column;
     justify-content: end;
     align-items: end;
-    padding: 1em;
+    padding: 0em 2em;
     margin: 0em 1em;
-    font-size: 15px;
+    font-size: 12px;
 }
 
 .user-table,
 .branch-table {
     font-size: 12px;
     border: 1px solid #bebebe;
+    scrollbar-width: none;
     /* overflow: hidden; */
-    height: 450px;
+    /* height: 450px; */
 
     th {
         background-color: #5097D7;
