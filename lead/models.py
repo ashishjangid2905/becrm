@@ -3,7 +3,6 @@ from django.utils.translation import gettext_lazy as _
 
 # Create your models here.
 from teams.models import User, Profile
-from django_ckeditor_5.fields import CKEditor5Field
 
 class leads(models.Model):
 

@@ -34,7 +34,7 @@
         class="z-3 d-flex gap-3 position-sticky top-0 shadow-sm bg-success bg-opacity-25 rounded px-1 py-2 block"
       >
         <h5 class="mt-1">Contact Person</h5>
-      {% comment %} {% if request.GET.chat %}
+      {% if company.user == request.user.id %}
         <button
           type="button"
           class="btn btn-primary"
@@ -44,7 +44,7 @@
         >
           Add Contact
         </button>
-        {% else %} {% endcomment %}
+        {% else %}
         <button
           type="button"
           class="btn btn-primary"
@@ -54,7 +54,7 @@
           Add Contact
         </button>
 
-        {% comment %} {% endif %} {% endcomment %}
+        {% endif %}
       </div>
       <div class="contacts">
         {% for person in contact_person %} {% if person.is_active == True %}
