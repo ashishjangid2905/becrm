@@ -37,6 +37,7 @@
         <th scope="col">Mobile</th>
         <th scope="col">Last Message</th>
         <th scope="col">Follow Up Date</th>
+        <th scope="col">Team Member</th>
         <th scope="col">Action</th>
       </tr>
     </thead>
@@ -51,6 +52,7 @@
         <td>{{ lead.contact_person.contact_no }}</td>
         <td>{{ lead.details }}</td>
         <td>{{ lead.follow_up }}</td>
+        <td>{{ lead.chat_no.company_id.user }}</td>
         <td>
           <a
             href="{% url 'lead:lead' lead.chat_no.company_id.id %}?chat={{lead.chat_no.id}}"

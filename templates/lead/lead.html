@@ -9,11 +9,13 @@
       <h4 class="m-0 text-primary-emphasis text-uppercase">
         {{company}}
         <span
-          ><a
-            href="{% url 'lead:edit_lead' company.id %}"
-            class="float-end fs-4 btn text-body-tertiary"
-            ><i class="ti ti-edit"></i></a
-        ></span>
+          >
+          {% if company.user == request.user.id %}
+          
+          <a href="{% url 'lead:edit_lead' company.id %}"
+            class="float-end fs-4 btn text-body-tertiary"><i class="ti ti-edit"></i></a>
+          {% endif %}
+      </span>
       </h4>
       <p class="fs-6 fw-light">GSTIN: {{company.gstin}}</p>
       <p class="m-0 text-secondary">{{company.address1}}</p>
@@ -34,17 +36,7 @@
         class="z-3 d-flex gap-3 position-sticky top-0 shadow-sm bg-success bg-opacity-25 rounded px-1 py-2 block"
       >
         <h5 class="mt-1">Contact Person</h5>
-      {% comment %} {% if request.GET.chat %}
-        <button
-          type="button"
-          class="btn btn-primary"
-          data-bs-toggle="modal"
-          data-bs-target="#addContact"
-          disabled
-        >
-          Add Contact
-        </button>
-        {% else %} {% endcomment %}
+      {% if company.user == request.user.id %}
         <button
           type="button"
           class="btn btn-primary"
@@ -54,19 +46,21 @@
           Add Contact
         </button>
 
-        {% comment %} {% endif %} {% endcomment %}
+        {% endif %}
       </div>
       <div class="contacts">
         {% for person in contact_person %} {% if person.is_active == True %}
         <div class="my-2 p-2 shadow-sm border border-success-subtle rounded">
           <h6>
             <a class="page-link text-primary" href="#">{{person}}</a>
+            {% if company.user == request.user.id %}
             <a
               href="?editPerson={{person.id}}"
               class="float-end fs-5 btn"
             >
               <i class="ti ti-edit"></i>
             </a>
+            {% endif %}
           </h6>
           <p class="m-0 text-primary-emphasis text-wrap">
             <strong class="text-success">Email: </strong>{{person.email_id}}
@@ -213,12 +207,14 @@
             </div>
             {%endfor%}
             <div>
-              <a
+              {% if company.user == request.user.id %}
+              <button
                 class="btn btn-secondary p-2"
                 data-bs-toggle="modal"
                 data-bs-target="#newChat"
-                >New Conversation</a
+                >New Conversation</button
               >
+              {% endif %}
             </div>
           </div>
         </div>
@@ -357,7 +353,7 @@
                 {% include "lead/edit-person.html" %}
               {% endif %}
             </div>
-            {% if request.GET.chat %}
+            {% if request.GET.chat and company.user == request.user.id %}
             <form
               class="row g-2 position-sticky bottom-0 border rounded py-1 bg-light"
               action="#"
