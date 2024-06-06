@@ -104,7 +104,7 @@ def sample_list(request):
         if request.user.department == 'production':
             user_samples = filtered_samples  # Use all_samples directly for production users
         else:
-            user_samples = filtered_samples  # not Filter all_samples for non-production users
+            user_samples = filtered_samples # not Filter all_samples for non-production users
 
 
     # pagination of sample list

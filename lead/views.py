@@ -41,16 +41,16 @@ def leads_list(request):
 
     all_leads = leads.objects.all().order_by('-id')
 
+
     if query:
         all_lead = all_leads.filter(search_objects)
     else:
         all_lead = all_leads
 
-
     if request.user.role == 'admin':
         user_leads = all_lead
     else:
-        user_leads = all_lead.filter(user=user_id)
+        user_leads = all_lead.filter(user=request.user.id)
 
     if user_leads:
         for lead in user_leads:
@@ -316,15 +316,22 @@ def follow_ups(request):
     if not request.user.is_authenticated:
         return redirect('app:login')
     
+    user_id = request.user.id
+
     # allFollowups = conversationDetails.objects.filter(chat_no = OuterRef('chat_no')).values('chat_no').annotate(latest_follow_up=Max('follow_up')).values('latest_follow_up')
     
     # latest_conversation_details = conversationDetails.objects.filter(follow_up__in=allFollowups).order_by('chat_no','-follow_up', '-inserted_at')
 
+    if request.user.role == 'admin':
+        allchat = conversationDetails.objects.all()
+    else:
+        allchat = conversationDetails.objects.filter(chat_no__company_id__user = user_id)
+
     # Subquery to get the latest inserted_at for each chat
-    latest_inserted_at = conversationDetails.objects.values('chat_no').annotate(max_inserted_at=Max('inserted_at'))
+    latest_inserted_at = allchat.values('chat_no').annotate(max_inserted_at=Max('inserted_at'))
 
     # Query to get the latest entry for each chat
-    latest_conversation_details = conversationDetails.objects.filter(
+    latest_conversation_details = allchat.filter(
         inserted_at__in=Subquery(
             latest_inserted_at.values('max_inserted_at')
         )
@@ -343,7 +350,9 @@ def follow_ups(request):
     else:
         latest_conversation_details = latest_conversation_details.filter(follow_up=today)
         
-
+    if latest_conversation_details:
+        for lead in latest_conversation_details:
+            lead.chat_no.company_id.user = User.objects.get(pk=lead.chat_no.company_id.user)
 
     context = {
         'latest_conversation_details':latest_conversation_details,
