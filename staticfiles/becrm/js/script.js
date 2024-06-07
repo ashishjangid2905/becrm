@@ -82,6 +82,12 @@ $(document).ready(function () {
     }
   });
 
+  // loader implimentation
+
+  $("form").on("submit", function(){
+    $("#loader").show();
+  });
+
   // Fetch the sample data
 
   $.ajax({
