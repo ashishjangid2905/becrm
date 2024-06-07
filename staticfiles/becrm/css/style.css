@@ -467,3 +467,40 @@ td {
     color: white;
     z-index: 100;
 }
+
+
+.loader-body {
+    position: absolute;
+    background: #2f2f2f34;
+    width: 100vw;
+    height: 100vh;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+}
+
+.loader {
+    border: 16px solid #f3f3f3;
+    border-radius: 50%;
+    border-top: 10px solid #5097D7;
+    border-right: 10px solid #F09113;
+    border-bottom: 10px solid #EAC00D;
+    border-left: 10px solid #50BF62;
+    width: 80px;
+    height: 80px;
+    animation: spin 2s linear infinite;
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
