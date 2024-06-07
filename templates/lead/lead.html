@@ -28,6 +28,9 @@
   <div class="text-primary">
     <hr />
   </div>
+  <div class="loader-body" id="loader" style="display: none">
+    <div class="loader"></div>
+  </div>
   <div class="row gap-1 ms-3 mb-0">
     <div
       class="col-lg-3 py-2 border rounded shadow-sm p-3 mb-0 bg-success bg-opacity-25 contact-details"
@@ -326,6 +329,7 @@
               {% if request.GET.chat %}
               <h4 class="fs-3 position-sticky top-0 p-2 rounded bg-secondary-subtle text-info-emphasis mb-2">{{chat_title}}</h4>
               {% for chat in chat_details %}
+              <div class="ps-2 border-start border-5 {%if chat.status == 'closed' %} border-success {% elif chat.status == 'open' %} border-warning {% else %} border-danger {% endif %}">
               <div class="fs-6 text-body-tertiary">
                 <p class="fs-5 text-info-emphasis">
                   {% comment %} {{chat.chat_no}}: {% endcomment %}
@@ -347,6 +351,7 @@
                   >{{chat.follow_up}}</strong
                 >
               </div>
+            </div>
               <hr />
               {% endfor %}
               {% elif request.GET.editPerson %}

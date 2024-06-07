@@ -82,7 +82,7 @@ $(document).ready(function () {
     }
   });
 
-  // Loader implimentation
+  // loader implimentation
 
   $("form").on("submit", function () {
     $("#loader").show();
