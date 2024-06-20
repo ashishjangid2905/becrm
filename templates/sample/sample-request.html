@@ -109,16 +109,26 @@
             id="inputForeign"
           />
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 multi-select">
           <label for="inputForeignCountry" class="form-label"
             >Foreign Country</label
           >
-          <input
+          {% comment %} <input
             type="text"
             name="inputForeignCountry"
             class="form-control"
             id="inputForeignCountry"
-          />
+          /> {% endcomment %}
+          <select
+            class="form-control form-control-sm"
+            name="inputForeignCountry"
+            id="multiCountries"
+            multiple="multiple"
+          >
+            {% for countries in country_choice %}
+            <option value="{{ countries.country }}">{{ countries.country }}</option>
+            {% endfor %}
+          </select>
         </div>
       </div>
       <div class="row g-3 d-flex justify-content-center">

@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib import messages, auth
 from django.template import loader
 
-from sample.models import sample, Portmaster, sample_no
+from sample.models import sample, Portmaster, sample_no, CountryMaster
 from teams.models import Profile
 from django.db.models import Q
 import datetime
@@ -20,6 +20,7 @@ def sample_request(request):
     month_choices = sample.MONTH
     status_choices = sample.STATUS
     port_choice = Portmaster.objects.all()
+    country_choice = CountryMaster.objects.all()
 
     start_year = datetime.datetime.now().year - 5
     current_year = datetime.datetime.now().year
@@ -41,7 +42,8 @@ def sample_request(request):
         'status_choices': status_choices,
         'range_year': range_year,
         'selected_year': selected_year,
-        'port_choice': port_choice
+        'port_choice': port_choice,
+        'country_choice': country_choice,
     }
 
     if request.user.is_authenticated:
@@ -57,7 +59,7 @@ def sample_request(request):
             iec = request.POST.get('inputIEC', '%')
             shipper = request.POST.get('inputShiper', '%')
             consignee = request.POST.get('inputForeign', '%')
-            foreign_country = request.POST.get('inputForeignCountry', '%')
+            foreign_country = request.POST.getlist('inputForeignCountry', '%')
             port = request.POST.getlist('inputPort', '%')
             month = request.POST.get('month')
             year = request.POST.get('inputyear')
@@ -65,8 +67,9 @@ def sample_request(request):
             status = request.POST.get('sampleStatus', 'pending')
 
             ports = ', '.join(port)
+            countries = ', '.join(foreign_country)
 
-            Sample = sample.objects.create(user=user, sample_id =sample_id,country=country,report_format=report_format,report_type=report_type,hs_code=hs_code,product=product,iec=iec,shipper=shipper,consignee=consignee,foreign_country=foreign_country,port=ports,month=month,year=year,client_name=client_name,status=status)
+            Sample = sample.objects.create(user=user, sample_id =sample_id,country=country,report_format=report_format,report_type=report_type,hs_code=hs_code,product=product,iec=iec,shipper=shipper,consignee=consignee,foreign_country=countries,port=ports,month=month,year=year,client_name=client_name,status=status)
             messages.success(request, "Sample Request Submited")
             return redirect('sample:samples')
         return render(request, 'sample/sample-request.html', context)
@@ -140,6 +143,7 @@ def edit_sample(request, sample_slug):
     month_choices = sample.MONTH
     status_choices = sample.STATUS
     port_choice = Portmaster.objects.all()
+    country_choice = CountryMaster.objects.all()
 
     start_year = datetime.datetime.now().year - 5
     current_year = datetime.datetime.now().year
@@ -153,7 +157,8 @@ def edit_sample(request, sample_slug):
         'month_choices': month_choices,
         'status_choices': status_choices,
         'range_year': range_year,
-        'port_choice': port_choice
+        'port_choice': port_choice,
+        'country_choice': country_choice,
     }
 
     if request.user.is_authenticated:
@@ -169,7 +174,7 @@ def edit_sample(request, sample_slug):
                     iec = request.POST.get('inputIEC', '%')
                     shipper = request.POST.get('inputShiper', '%')
                     consignee = request.POST.get('inputForeign', '%')
-                    foreign_country = request.POST.get('inputForeignCountry', '%')
+                    foreign_country = request.POST.getlist('inputForeignCountry', '%')
                     port = request.POST.getlist('inputPort', '%')
                     month = request.POST.get('month')
                     year = request.POST.get('inputyear')
@@ -177,6 +182,7 @@ def edit_sample(request, sample_slug):
                     status = request.POST.get('sampleStatus')
 
                     ports = ', '.join(port)
+                    countries = ', '.join(foreign_country)
 
                     # Update the sample object with the new data
                     sample_instance.country = country
@@ -187,7 +193,7 @@ def edit_sample(request, sample_slug):
                     sample_instance.iec = iec
                     sample_instance.shipper = shipper
                     sample_instance.consignee = consignee
-                    sample_instance.foreign_country = foreign_country
+                    sample_instance.foreign_country = countries
                     sample_instance.port = ports
                     sample_instance.month = month
                     sample_instance.year = year

@@ -20,7 +20,16 @@ $(document).ready(function () {
   // Multiple port selection
 
   $(function () {
-    $("#multiPort").multipleSelect({
+    $("#multiPort, #multiCountries").multipleSelect({
+      selectAll: false,
+      showClear: true,
+      filter: true,
+    });
+  });
+
+
+  $(function () {
+    $("#multiCountries").multipleSelect({
       selectAll: false,
       showClear: true,
       filter: true,

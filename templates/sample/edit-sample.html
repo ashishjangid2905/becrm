@@ -57,9 +57,14 @@
             <label for="inputForeign" class="form-label">Importer</label>
             <input type="text" name="inputForeign" class="form-control" id="inputForeign" value="{{sample_instance.consignee}}"/>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-3 multi-select">
             <label for="inputForeignCountry" class="form-label">Foreign Country</label>
-            <input type="text" name="inputForeignCountry" class="form-control" id="inputForeignCountry" value="{{sample_instance.foreign_country}}"/>
+            {% comment %} <input type="text" name="inputForeignCountry" class="form-control" id="inputForeignCountry" value="{{sample_instance.foreign_country}}"/> {% endcomment %}
+            <select class="form-control form-control-sm" name="inputPort" id="multiPort" multiple="multiple">
+              {% for countries in country_choice %}
+                <option value="{{ countries.country }}" {% if countries.country in sample_instance.foreign_country %}selected{% endif %}>{{ countries.country }}</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
         <div class="row g-3 d-flex justify-content-center">

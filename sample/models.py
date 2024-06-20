@@ -20,6 +20,15 @@ class Portmaster(models.Model):
         managed = True
         db_table = 'portmaster'
 
+class CountryMaster(models.Model):
+
+    country_code = models.CharField(max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS', blank=True, null=True)
+    country = models.CharField(max_length=100, db_collation='SQL_Latin1_General_CP1_CI_AS')
+
+    class Meta:
+        managed = False
+        db_table = 'country_master'
+
 def sample_no(user):
     fiscalyear.START_MONTH = 4
     fy = str(fiscalyear.FiscalYear.current())[-4:]

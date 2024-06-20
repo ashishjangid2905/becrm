@@ -27,6 +27,15 @@ $(document).ready(function () {
     });
   });
 
+
+  $(function () {
+    $("#multiCountries").multipleSelect({
+      selectAll: false,
+      showClear: true,
+      filter: true,
+    });
+  });
+
   // default Month and Year selection
 
   var date = new Date();
