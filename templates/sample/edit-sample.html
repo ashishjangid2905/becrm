@@ -60,7 +60,7 @@
           <div class="col-md-3 multi-select">
             <label for="inputForeignCountry" class="form-label">Foreign Country</label>
             {% comment %} <input type="text" name="inputForeignCountry" class="form-control" id="inputForeignCountry" value="{{sample_instance.foreign_country}}"/> {% endcomment %}
-            <select class="form-control form-control-sm" name="inputPort" id="multiPort" multiple="multiple">
+            <select class="form-control form-control-sm" name="inputPort" id="multiCountries" multiple="multiple">
               {% for countries in country_choice %}
                 <option value="{{ countries.country }}" {% if countries.country in sample_instance.foreign_country %}selected{% endif %}>{{ countries.country }}</option>
               {% endfor %}
