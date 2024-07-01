@@ -12,5 +12,6 @@ urlpatterns = [
     path('follow-up', views.follow_ups, name='follow_ups'),
     path('upload-lead', views.upload_Leads, name='upload_Leads'),
     path('download-template', views.download_template, name='download_template'),
+    path('export', views.exportlead, name='export_lead'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

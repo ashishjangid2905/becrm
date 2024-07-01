@@ -8,6 +8,9 @@ from django.db.models import OuterRef, Subquery, Max, F, Q
 from datetime import date
 from django.conf import settings
 import csv, os
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 
 # Create your views here.
 
@@ -424,3 +427,76 @@ def upload_Leads(request):
 def download_template(request):
     file_path = os.path.join(settings.BASE_DIR, 'static', 'becrm/template.csv')
     return FileResponse(open(file_path,'rb'), as_attachment=True, filename='template.csv')
+
+
+@login_required(login_url='app:login')
+def exportlead(request):
+
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
+    user_id = request.user.id
+
+
+    if request.user.role == 'admin':
+        all_lead = leads.objects.all()
+    else:
+        all_lead = leads.objects.filter(user = user_id)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Leads'
+
+    headers = [
+        'Team Member','Company Name', 'GSTIN', 'Address', 'City', 'State', 'Country', 'Pincode',
+        'Industry', 'Source', 'Contact Person Name', 'Email', 'Contact Number', 'Is Active'
+    ]
+
+    ws.append(headers)
+
+    header_fill = PatternFill(fill_type='solid', start_color="0099CCFF", end_color="0099CCFF")
+    header_font = Font(name='Calibri', size=11, bold=True, color="00000000")
+
+    for col in range(1, len(headers)+1):
+        cell = ws.cell(row=1, column=col)
+        cell.fill = header_fill
+        cell.font = header_font
+
+    # Add data rows to the sheet
+    for lead in all_lead:
+        # Iterate over each contact person associated with the lead
+        contact_person = contactPerson.objects.filter(company = lead)
+
+        for contact_person in contact_person:
+            user_name = User.objects.get(pk=contact_person.company.user).get_full_name()
+            address = f"{contact_person.company.address1}, {contact_person.company.address2}" if contact_person.company.address2 else contact_person.company.address1
+            row = [
+                user_name, contact_person.company.company_name, contact_person.company.gstin, address, contact_person.company.city, contact_person.company.state,
+                contact_person.company.country, contact_person.company.pincode, contact_person.company.industry, contact_person.company.source,
+                contact_person.person_name, contact_person.email_id,
+                contact_person.contact_no, contact_person.is_active
+            ]
+            ws.append(row)
+
+
+    for column in ws.columns:
+        max_length = 0
+        column = list(column)
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+
+        adjusted_width = (max_length+2)
+        ws.column_dimensions[get_column_letter(column[0].column)].width = adjusted_width
+
+    # Create a response object with MIME type for Excel files
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=leads.xlsx'
+
+    # Save the workbook to the response object
+    wb.save(response)
+
+    return response
