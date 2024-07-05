@@ -30,6 +30,7 @@
         <th scope="col">Period</th>
         <th scope="col">Client Name</th>
         <th scope="col">Status</th>
+        <th scope="col">Requested at</th>
         <th scope="col">Action</th>
       </tr>
     </thead>
@@ -52,6 +53,7 @@
         <td>{{ sample.get_month_display }}/{{ sample.year }}</td>
         <td>{{ sample.client_name }}</td>
         <td>{{ sample.status }}</td>
+        <td>{{ sample.requested_at }}</td>
         <td>
           {% if sample.user == request.user %}
             {% if sample.status != 'received'%}

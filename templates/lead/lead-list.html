@@ -95,10 +95,8 @@
         <th scope="col">Company Name</th>
         <th scope="col">Gstin</th>
         <th scope="col">Address</th>
-        <th scope="col">City</th>
-        <th scope="col">State</th>
-        <th scope="col">Country</th>
         <th scope="col">Industry</th>
+        <th scope="col">Inserted</th>
         <th scope="col">Team Member</th>
         <th scope="col">Action</th>
       </tr>
@@ -109,11 +107,9 @@
         <td>{{ forloop.counter }}</td>
         <td>{{ lead.company_name }}</td>
         <td>{% if lead.gstin != None %}{{ lead.gstin }}{% endif %}</td>
-        <td class="text-wrap">{{ lead.address1 }} {{ lead.address2 }}</td>
-        <td>{{ lead.city }}</td>
-        <td>{{ lead.state }}</td>
-        <td>{{ lead.country }}</td>
+        <td class="text-wrap">{{ lead.address1 }} {{ lead.address2 }} {{ lead.city }} {{ lead.state }} {{ lead.country }}</td>
         <td>{{ lead.industry }}</td>
+        <td>{{ lead.created_at }}</td>
         <td>{{ lead.user }}</td>
         <td>
           <a href="{% url 'lead:lead' lead.id %}" class="edit-btn"><i class="ti ti-details"></i></a>

@@ -25,7 +25,8 @@ def leads_list(request):
 
     search_fields = [
         'company_name', 'gstin', 'city', 'state', 'country', 
-        'industry', 'source', 'contactperson__person_name','contactperson__email_id', 'contactperson__contact_no'
+        'industry', 'source', 'contactperson__person_name','contactperson__email_id', 'contactperson__contact_no',
+        'conversation__title', 'conversation__conversationdetails__details'
     ]
 
     search_objects = Q()

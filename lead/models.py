@@ -31,6 +31,10 @@ class leads(models.Model):
         verbose_name_plural = "Leads"
         db_table = "Leads"
         unique_together = ('company_name', 'gstin', 'user')
+        indexes = [
+            models.Index(fields=['gstin', 'company_name']),
+            models.Index(fields=['company_name'], name='company_name_idx')
+        ]
 
     def __str__(self):
         return self.company_name

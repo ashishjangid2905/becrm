@@ -18,7 +18,8 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 def home(request):
     if request.user.is_authenticated:
-        total_samples = sample.objects.all()
+        user_branch = Profile.objects.get(user=request.user).branch
+        total_samples = sample.objects.filter(user__profile__branch = user_branch.id)
 
         if request.user.role == 'admin':
             user_sample = total_samples
@@ -50,7 +51,9 @@ def sample_chart(request):
     #     'status__icontains': 'reject'
     #                 }
 
-    total_samples = sample.objects.all()
+    user_branch = Profile.objects.get(user=request.user).branch
+
+    total_samples = sample.objects.filter(user__profile__branch = user_branch.id)
     if request.user.role == 'admin':
         user_sample = total_samples
     else:
