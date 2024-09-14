@@ -13,14 +13,33 @@ document.addEventListener("DOMContentLoaded", function () {
       let usersale = 0;
 
       data.forEach((pi) => {
-        if (pi.closed_at != null) {
+        if (pi.closed_at) {
           const piDate = new Date(pi.closed_at);
           const month = piDate.toLocaleString("en-US", {
             month: "short",
             year: "2-digit",
           });
+
+          if (!months.includes(month)) {
+            months.push(month);
+            totalSales[month] = 0;
+            userSales[month] = 0;
+          }
+
+          pi.order_list.forEach((order) => {
+            if (pi.pi_status === "closed") {
+              totalSales[month] += order.total_price;
+              teamsales += order.total_price;
+
+              if (pi.pi_user === USER_ID) {
+                userSales[month] += order.total_price;
+                usersale += order.total_price;
+              }
+            }
+          });
         }
 
+        // not depends on Closed_Date
         const piStatus = pi.pi_status.toLocaleString("default");
 
         if (status[piStatus]) {
@@ -28,24 +47,6 @@ document.addEventListener("DOMContentLoaded", function () {
         } else {
           status[piStatus] = 1; // Initialize count if first occurrence
         }
-
-        if (!months.includes(month)) {
-          months.push(month);
-          totalSales[month] = 0;
-          userSales[month] = 0;
-        }
-
-        pi.order_list.forEach((order) => {
-          if (pi.pi_status === "closed") {
-            totalSales[month] += order.total_price;
-            teamsales += order.total_price;
-
-            if (pi.pi_user === USER_ID) {
-              userSales[month] += order.total_price;
-              usersale += order.total_price;
-            }
-          }
-        });
       });
 
       months.sort((a, b) => new Date("1 " + a) - new Date("1 " + b));
@@ -60,6 +61,7 @@ document.addEventListener("DOMContentLoaded", function () {
         currency: "INR",
       });
 
+      // Value to show in dashboard
       const team_sales = document.querySelector("#team-sales");
       const user_sales = document.querySelector("#user-sales");
       const closedPi = document.querySelector("#closed-pi");

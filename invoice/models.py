@@ -9,6 +9,7 @@ import fiscalyear, datetime
 
 class biller(models.Model):
     biller_name = models.CharField(_("Biller Name"), max_length=150)
+    brand_name = models.CharField(_("Brand Name"), max_length=150, null=True, blank=True)
     biller_gstin = models.CharField(_("Biller Gstin"), max_length=150, blank=True, null=True)
     biller_msme = models.CharField(_("Biller MSME"), max_length=150, blank=True, null=True)
     reg_address1 = models.CharField(_("Reg. Address Line1"), max_length=254)
