@@ -1,6 +1,6 @@
 class lead_router:
     
-    router_app_labels = {"lead"}
+    router_app_labels = {"lead", "invoice"}
 
 
     def db_for_read(self, model, **hints):

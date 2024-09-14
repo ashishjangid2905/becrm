@@ -1,0 +1,231 @@
+{% extends 'home.html' %} {% load static %}
+{% load custom_filters %} {% block content %}
+<div class="container d-flex justify-content-center">
+  <h5 class="fs-3 text-primary mt-3">Proforma Invoice List</h5>
+</div>
+<div class="container-fluid my-2">
+  <div class="row ">
+    <div class="col-6">
+      <div class="row g-2">
+        <form method="GET" class="col-md-7 gap-2 d-flex justify-content-between">
+          <input type="text" class="form-control form-control-sm" name="q" placeholder="Search" />
+          <button type="submit" class="btn btn-primary">Search</button>
+        </form>
+        <div class="col-md-2">
+          <h4 class="m-0"><a href="{% url 'invoice:pi_list' %}" class="btn btn-warning">Clear Filter</a></h4>
+        </div>
+        {% comment %} <div class="col-md-2">
+          <h4 class="m-0"><a href="{% url "invoice:create_pi" %}" class="btn btn-primary"><i class="ti ti-plus"></i>Create New PI</a></h4>
+        </div>  {% endcomment %}
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="container-fluid pi-table">
+  <table class="table">
+    <thead>
+      <tr class="table-primary position-sticky top-0">
+        <th scope="col">S.No</th>
+        <th scope="col">Created By</th>
+        <th scope="col">Date</th>
+        <th scope="col">Company Name</th>
+        <th scope="col">PI No</th>
+        <th scope="col">Amount</th>
+        <th scope="col">Is Approved</th>
+        <th scope="col">status</th>
+        <th scope="col">Action</th>
+      </tr>
+    </thead>
+    {% for proforma in all_pi %}
+    <tbody>
+      <tr class="table-light">
+        <td>{{ forloop.counter }}</td>
+        <td>{{ proforma.user_id }}</td>
+        <td>{{ proforma.pi_date }}</td>
+        <td>{{ proforma.company_name }}</td>
+        <td>{{ proforma.pi_no }}</td>
+        <td class="text-wrap">
+          {% total_order_value proforma %}
+        </td>
+        <td class="text-wrap"> <span class="badge {% if proforma.is_Approved == True %} bg-success {% else %} bg-warning {% endif %} p-2">{% if proforma.is_Approved == True %}Approved {% else %}Pending{% endif %}</span></td>
+        <td class="text-wrap"><span class="badge {% if proforma.status == 'open' %} bg-warning {% elif proforma.status == 'closed' %} bg-success {% else %} bg-danger {% endif %} p-2">{{ proforma.status }}</span></td>
+        <td>
+          <!-- <a href="" class="edit-btn"><i class="ti ti-details"></i></a> -->
+          <a href="{% url 'invoice:edit_pi' proforma.slug %}" class="btn p-0 text-primary"><i class="ti ti-edit"></i></a>
+          <a href="" class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.pi_no}}"><i class="ti ti-eye"></i></a>
+          {% if proforma.is_Approved == True %}
+          <a href="{% url 'invoice:download_pdf' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-file-type-pdf"></i></a>
+          <a href="{% url 'invoice:download_xls' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-file-type-xls"></i></a>
+          <a href="" class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.id}}"><i class="ti ti-status-change"></i></a>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+    <!-- Modal -->
+    <div class="modal fade" id="{{proforma.pi_no}}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-4" >{{proforma.company_name}}</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="container">
+              <div class="row">
+                <div class="col-lg-12">
+                  <p class="text-capitalize"><span class="fw-semibold">GSTIN: </span>{{proforma.gstin}}</p>
+                  <p><span class="fw-semibold">ADDRESS: </span>{{proforma.address}}</p>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-lg-5">
+                  <p><span class="fw-semibold">PI No.: </span>{{proforma.pi_no}}</p>
+                </div>
+                <div class="col-lg-7">
+                  <p><span class="fw-semibold">PI Date: </span>{{proforma.pi_date}}</p>
+                </div>
+              </div>
+              {% if proforma.po_no and proforma.po_no != "" %}
+              <div class="row">
+                <div class="col-lg-5">
+                  <p><span class="fw-semibold">PO No.: </span>{{proforma.po_no}}</p>
+                </div>
+                <div class="col-lg-7">
+                  <p><span class="fw-semibold">PO Date: </span>{{proforma.po_date}}</p>
+                </div>
+              </div>
+              {% endif %}
+              <div class="row">
+                <div class="col-lg-5">
+                  <p><span class="fw-semibold">Requistioner: </span>{{proforma.requistioner}}</p>
+                </div>
+                <div class="col-lg-7">
+                  <p><span class="fw-semibold">Team Member: </span>{{proforma.user_id}}</p>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-lg-5">
+                  <p><span class="fw-semibold">Contact: </span>{{proforma.contact}}</p>
+                </div>
+                <div class="col-lg-7">
+                  <p><span class="fw-semibold">Email: </span>{{proforma.email_id}}</p>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-lg-5">
+                  <p class="text-capitalize"><span class="fw-semibold">Subscription: </span>{{proforma.subscription}}</p>
+                </div>
+                <div class="col-lg-7">
+                  <p class="text-capitalize"><span class="fw-semibold">Payment Term: </span>{{proforma.payment_term}}</p>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-lg-7">
+                  <p class="text-capitalize"><span class="fw-semibold">details: </span>{{proforma.details}}</p>
+                </div>
+              </div>
+              <hr/>
+              <h5>Item Details</h5>
+              {% for order in proforma.orderlist_set.all %}
+                  <div class="row g-3">
+                    <div class="col-lg-1">
+                      <p class="fw-semibold text-end">{{forloop.counter}}.</p>
+                    </div>
+                    <div class="col-lg-11">
+                      <div class="row">
+                        <div class="col-lg-6">
+                          <p class="text-capitalize"><span class="fw-semibold">Category: </span>{{order.category}}</p>
+                        </div>
+                        <div class="col-lg-6">
+                          <p class="text-capitalize"><span class="fw-semibold">Report Type: </span>{{order.report_type}}</p>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-lg-6">
+                          <p class="text-capitalize"><span class="fw-semibold">Product/HSN: </span>{{order.product}}</p>
+                        </div>
+                        <div class="col-lg-6">
+                          <p class="text-capitalize"><span class="fw-semibold">Period: </span>{{order.from_month|format_month}} to {{order.to_month|format_month}}</p>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-lg-6">
+                          <p class="text-capitalize"><span class="fw-semibold">Unit Price: </span>{{order.unit_price}}</p>
+                        </div>
+                        <div class="col-lg-6">
+                          <p class="text-capitalize"><span class="fw-semibold">Total Price: </span>{{order.total_price}}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                  {% if proforma.is_Approved == True %}
+                    <div class="row">
+                      <div class="col-lg-6">
+                        <p class="text-capitalize m-0"><span class="fw-semibold">Approved By: </span>{{proforma.approved_by}}</p>
+                        <p class="text-capitalize p-0"><span class="fw-semibold">Approved Date: </span>{{proforma.approved_at}}</p>
+                      </div>
+                      <div class="col-lg-6">
+                      </div>
+                    </div>
+                  {% endif %}
+            </div>
+          </div>
+          <div class="modal-footer">
+            {% if proforma.is_Approved != True and request.user.role == 'admin' %}
+              <form action="{% url 'invoice:approve_pi' proforma.id %}" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="is_approved" value="true">
+                <button type="submit" class="btn btn-primary" >Approved</button>
+              </form>
+            {%endif%}
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal fade" id="{{proforma.id}}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3 d-flex justify-content-center">
+
+              <form class="row g-3 d-flex justify-content-center" action="{% url 'invoice:update_pi_status' proforma.id %}" method="post">
+                {% csrf_token %}
+                <div class="col-7">
+                  <label class="form-label">Status</label>
+                  <select class="form-select form-select-sm" name="pi_status" id="">
+                    {% for value, label in status_choices %}
+                    <option value="{{value}}">{{label}}</option>                    
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-7">
+                  <label class="form-label">Date</label>
+                  <input class="form-control form-control-sm" type="date" name="closingDate" id="">
+                </div>
+                <div class="col-7"><button type="submit" class="btn btn-outline-primary">Update</button></div>
+              </form>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <tr>
+      <td colspan="12">No Proforma Invoice Added</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+</div>
+{% endblock %}

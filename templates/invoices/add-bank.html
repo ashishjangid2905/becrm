@@ -1,0 +1,108 @@
+{% extends "home.html" %} {% load static %} {% block title %} New
+Lead{%endblock%} {% block content %}
+
+<div class="container-fluid d-flex flex-column">
+  <div class="loader-body" id="loader" style="display: none">
+    <div class="loader"></div>
+  </div>
+  <div class="container">
+    <form
+      class="row g-3 d-flex justify-content-center my-2 p-3 mb-5 rounded-3"
+      action="#"
+      method="post"
+    >
+      {% csrf_token %}
+      <div class="col-lg-10">
+        <h5 class="text-primary fs-5">
+          <i class="ti ti-clipboard-plus"></i>Add Bank Details
+        </h5>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label>Beneficiary Name</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="beneficiary_name"
+            />
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label>Bank Name</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="bank_name"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label>A/c No:</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="ac_no"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label>Branch Address</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="branch_address"
+            />
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label>IFSC Code</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="ifsc_code"
+            />
+          </div>
+          <div class="col-md-3">
+            <label>Swift Code:</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="swift_code"
+            />
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <button class="btn btn-primary px-5" type="submit">Submit</button>
+          </div>
+          <div class="col-md-3">
+            <a
+              href="{% url 'invoice:biller_detail' biller_dtl.id %}"
+              class="btn btn-warning px-5"
+              >Back</a
+            >
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

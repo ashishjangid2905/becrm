@@ -28,9 +28,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.1.69', '192.168.1.240', '45.251.117.2']
+ALLOWED_HOSTS = ['192.168.3.99', '192.168.1.240', '45.251.117.2', '127.0.0.1']
 
 
 # Application definition
@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'sample',
     'app',
     'lead',
+    'invoice',
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,330 @@
+{% extends "home.html" %} {% load static %} {% block content %}
+<div class="container-fluid d-flex flex-column">
+  <div class="container my-2">
+    <h1 class="text-primary fs-5">
+      <i class="ti ti-clipboard-plus"></i>Proforma Invoice
+    </h1>
+  </div>
+  <div class="loader-body" id="loader" style="display: none">
+    <div class="loader"></div>
+  </div>
+  <div class="container">
+    <form
+      class="row g-3 d-flex justify-content-center my-2 shadow p-3 mb-5 rounded-4"
+      action="#"
+      method="post"
+    >
+      {% csrf_token %}
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label>Company Name<span class="text-danger">*</span></label>
+            <input
+              class="form-control form-control-sm text-capitalize"
+              type="text"
+              name="company_name"
+              value="{{lead_info.company_name | default_if_none:''}}"
+              required
+            />
+          </div>
+          <div class="col-md-4">
+            <label>Gstin</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="gstin"
+              value="{{lead_info.gstin | default_if_none:''}}"
+            />
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="is-sez"
+              name="gstin"
+            />
+            <label class="form-check-label">Is SEZ</label>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label>PO No</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="po_no"
+            />
+          </div>
+          <div class="col-md-4">
+            <label>PO Date</label>
+            <input
+              class="form-control form-control-sm"
+              type="date"
+              name="po_date"
+              value=""
+            />
+          </div>
+          <div class="col-md-4">
+            <label>Subscription Mode<span class="text-danger">*</span></label>
+            <select
+              class="form-select form-select-sm"
+              type="text"
+              name="subs_mode"
+            >
+              {% for value, label in subs_choice %}
+              <option value="{{value}}">{{label}}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label>Bank<span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" type="text" name="bank">
+              {% for bank in bank_choice %}
+              <option value="{{bank.id}}">
+                {{bank.bank_name}} ({{bank.bnf_name}})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label>Payment Term<span class="text-danger">*</span></label>
+            <select
+              class="form-select form-select-sm"
+              type="text"
+              name="payment_term"
+            >
+              {% for value, label in pay_choice %}
+              <option value="{{value}}">{{label}}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label>Currency<span class="text-danger">*</span></label>
+            <select
+              class="form-select form-select-sm"
+              type="text"
+              name="currency"
+            >
+              <option value="inr">INR</option>
+              <option value="usd">USD</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label>Requisitioner Name</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="requistioner"
+              value="{{ contact_info.person_name|default_if_none:'' }}"
+            />
+          </div>
+          <div class="col-md-4">
+            <label>Email</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="email"
+              value="{{ contact_info.email_id|default_if_none:'' }}"
+            />
+          </div>
+          <div class="col-md-4">
+            <label>Contact No</label>
+            <input
+              class="form-control form-control-sm"
+              type="text"
+              name="contact_no"
+            />
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label>Country<span class="text-danger">*</span></label>
+            <select
+              class="form-select form-select-sm"
+              type="text"
+              name="country"
+              required
+            >
+              {% for value, label in country_choice %}
+              <option value="{{value}}">{{label}}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label>State<span class="text-danger">*</span></label>
+            <select
+              class="form-select form-select-sm"
+              type="text"
+              name="state"
+              required
+            >
+              <option value="" selected disabled>Select State</option>
+              {% for value, label in state_choice %}
+              <option value="{{value}}">{{label}}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-5">
+            <label>Address<span class="text-danger">*</span></label>
+            <textarea
+              class="form-control form-control-sm"
+              type="textarea"
+              name="address"
+              rows="4"
+              required
+            >
+{% if lead_info is not None %}{{lead_info.address1| default_if_none:''}}, {{lead_info.address2|default_if_none:''}}, {{lead_info.city|default_if_none:''}}- {{lead_info.pincode|default_if_none:''}}, {{lead_info.state|default_if_none:''}}, {{lead_info.country|default_if_none:''}}{% endif %}</textarea
+            >
+          </div>
+          <div class="col-md-7">
+            <label>Details<span class="text-danger">*</span></label>
+            <textarea
+              class="form-control form-control-sm"
+              type="textarea"
+              name="details"
+              rows="4"
+              required
+            ></textarea>
+          </div>
+        </div>
+      </div>
+      <hr class="my-5" />
+      <div class="col-lg-10 order-list" id="order-item">
+        <div class="row g-3">
+          <div class="col-lg-12">
+            <h5 class="d-inline fs-6">Item Details</h5>
+            <button class="btn btn-sm btn-secondary" id="add-items">
+              <i class="ti ti-plus"></i>
+            </button>
+          </div>
+          <div class="col-lg-12 border p-3 rounded">
+            <div class="row g-3">
+              <div class="col-lg-12">
+                <div class="row g-3">
+                  <div class="col-md-5">
+                    <input
+                      class="form-check-input is-lumpsum"
+                      type="checkbox"
+                      id="is-lumpsum"
+                      name="is_lumpsum"
+                    />
+                    <label class="form-check-label ps-2" for="is_lumpsum">
+                      Lumpsum
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-12">
+                <div class="row g-3">
+                  <div class="col-md-5">
+                    <label>Name of Report</label>
+                    <select
+                      class="form-select form-select-sm"
+                      type="text"
+                      name="category"
+                      required
+                    >
+                      {% for value, label in category_choice %}
+                      <option value="{{value}}">{{label}}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-md-5">
+                    <label>Type of Report</label>
+                    <select
+                      class="form-select form-select-sm"
+                      type="text"
+                      name="report_type"
+                      required
+                    >
+                      {% for value, label in report_choice %}
+                      <option value="{{value}}">{{label}}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-12">
+                <div class="row g-3">
+                  <div class="col-md-5">
+                    <label>Product/HSN</label>
+                    <input
+                      class="form-control form-control-sm"
+                      type="text"
+                      name="product"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-12">
+                <div class="row g-3">
+                  <div class="col-md-5">
+                    <label>From Month</label>
+                    <input
+                      class="form-control form-control-sm"
+                      type="month"
+                      name="from_month"
+                      required
+                    />
+                  </div>
+                  <div class="col-md-5">
+                    <label>To Month</label>
+                    <input
+                      class="form-control form-control-sm"
+                      type="month"
+                      name="to_month"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-12">
+                <div class="row g-3" id="item-price">
+                  <div class="col-md-5">
+                    <label>Unit Price</label>
+                    <input
+                      class="form-control form-control-sm"
+                      type="text"
+                      name="unit_price"
+                      required
+                    />
+                  </div>
+                  <div class="col-md-5">
+                    <label>Total Price</label>
+                    <input
+                      class="form-control form-control-sm"
+                      type="text"
+                      name="total_price"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <button type="submit" class="btn btn-primary">Create</button>
+        <button type="reset" class="btn btn-warning">Reset</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script src="{% static 'becrm/js/form.js' %}"></script>
+{% endblock %}

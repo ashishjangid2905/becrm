@@ -1,0 +1,273 @@
+{% extends "lead/lead_new.html" %} {% block leadContent %}
+
+<div class="container-fluid p-0 mt-2">
+  <div class="row">
+    <!-- Chat Title section -->
+    <div class="col-md-4 bg-primary-subtle" style="min-height: 100px; overflow-y: auto">
+      <div class="d-flex flex-column justify-content-center">
+        {% if company.user == request.user.id %}
+        <button class="btn btn-sm my-1 btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newChat">
+          <i class="ti ti-brand-hipchat"></i> New Conversation
+        </button>
+        {% endif %}
+        {% for chat_title in chat_titles %}
+        <h6
+          class="btn btn-sm p-0 btn-outline-secondary my-1 text-wrap overflow-hidden"
+        >
+          <a class="btn w-100" href="?chat={{chat_title.id}}"
+            >{{chat_title}} <i class="ti ti-circle-arrow-right"></i
+          ></a>
+        </h6>
+        {% endfor %}
+      </div>
+    </div>
+
+
+    <!--Model for start New Conversation-->
+
+    <div class="modal fade" id="newChat" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="exampleModalLabel">New message</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form action="{% url 'lead:new_chat' company.id %}" method="post">
+              {% csrf_token %}
+              <div class="my-1">
+                <label for="recipient-name" class="col-form-label">Title:</label>
+                <input type="text" class="form-control form-control-sm" name="chat_title">
+              </div>
+              <div class="my-1">
+                <label for="message-text" class="col-form-label">Contact Person:</label>
+                <select class="form-select form-select-sm" name="contactPerson">
+                  {% for contact_person in contact_person %}
+                    {% if contact_person.is_active %}
+                      <option value="{{contact_person.id}}">{{contact_person}}</option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="my-1">
+                <label for="message-text" class="col-form-label">Message:</label>
+                <textarea class="form-control form-control-sm" rows="4" name="feeds"></textarea>
+              </div>
+              <div class="my-1 row g-3">
+                <div class="col-6">
+                  <label for="message-text" class="col-form-label">Status:</label>
+                  <select class="form-select form-select-sm" name="status">
+                    {% for value,label in status_choice %}
+                    <option value="{{value}}">{{label}}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label for="message-text" class="col-form-label">Next Follow Up:</label>
+                  <input class="form-control form-control-sm" type="date" name="follow_up" />
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-sm btn-primary">Start New</button>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model for New Chat ended here -->
+
+
+    <!-- Chat details section -->
+    <div class="col-md-8 py-2">
+      {% if request.GET.chat %}
+      
+        <div class="container-fluid p-1">
+          <h4
+            class="fs-4 bg-secondary-subtle rounded rounded-2 p-2 text-primary-emphasis"
+            >
+            {{chat_title}}
+          </h4>
+          <div
+          class="container-fluid mb-2 border rounded rounded-2"
+          style="height: 400px; overflow-y: auto"
+          >
+          <!-- insert message in loop here -->
+            {% for chat in chat_details %}
+            <div class="ps-2 my-2 border-start border-5 {%if chat.status == 'closed' %} border-success {% elif chat.status == 'open' %} border-warning {% else %} border-danger {% endif %}">
+              <p class="fs-6 m-0 text-info-emphasis">
+                {{chat.inserted_at}}
+                <strong class="text-danger-emphasis">{{chat.status}}</strong>
+              </p>
+              <p class="fs-6 m-0 text-info-emphasis">
+                -
+                <strong class="text-success">{{chat.contact_person}}</strong>
+                {{chat.details | safe}}
+              </p>
+              <p class="fs-6 m-0 text-info-emphasis">
+                Next Follow Up:
+                <strong class="text-warning-emphasis">{{chat.follow_up}}</strong>
+              </p>
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Chat update form here -->
+          <div class="container fluid">
+            <form
+            class="row p-1 d-flex justify-content-between align-items-center position-sticky bottom-0 border rounded py-1 bg-light"
+            action="{% url 'lead:chat_insert' chat_title.id %}"
+            method="post"
+            >
+            {% csrf_token %}
+            <div class="col-4 m-0 p-0">
+              <textarea
+                class="form-control form-control-sm"
+                type="textarea"
+                name="feeds"
+                required
+                ></textarea>
+              </div>
+              <div class="col-2 m-0 p-0">
+                <select
+                class="form-control form-control-sm"
+                name="contactPerson"
+                id="chatStatus"
+                >
+                {% for contact_person in contact_person %}
+                  {% if contact_person.is_active %}
+                    <option value="{{contact_person.id}}">{{contact_person}}</option>
+                  {% endif %}
+                {% endfor %}
+                </select>
+              </div>
+              <div class="col-2 m-0 p-0">
+                <select
+                class="form-control form-control-sm"
+                  name="status"
+                  id="chatStatus"
+                >
+                {% for value, label in status_choice %}
+                  <option value="{{value}}">{{label}}</option>
+                {% endfor %}
+              </select>
+              </div>
+              <div class="col-2 m-0 p-0">
+                <input
+                class="form-control form-control-sm"
+                type="date"
+                name="follow_up"
+                id="follow_up_date"
+                />
+              </div>
+              <div class="col-auto p-0">
+                <button
+                class="btn btn-sm btn-primary px-4"
+                type="submit"
+                >
+                Save
+              </button>
+              </div>
+            </form>
+          </div>
+        </div>
+        {% elif chat_title %}
+        <div class="container-fluid p-1">
+          <h4
+            class="fs-4 bg-secondary-subtle rounded rounded-2 p-2 text-primary-emphasis"
+            >
+            {{chat_title}}
+          </h4>
+          <div
+          class="container-fluid mb-2 border rounded rounded-2"
+          style="height: 400px; overflow-y: auto"
+          >
+          <!-- insert message in loop here -->
+            {% for chat in chat_details %}
+            <div class="ps-2 my-2 border-start border-5 {%if chat.status == 'closed' %} border-success {% elif chat.status == 'open' %} border-warning {% else %} border-danger {% endif %}">
+              <p class="fs-6 m-0 text-info-emphasis">
+                {{chat.inserted_at}}
+                <strong class="text-danger-emphasis">{{chat.status}}</strong>
+              </p>
+              <p class="fs-6 m-0 text-info-emphasis">
+                -
+                <strong class="text-success">{{chat.contact_person}}</strong>
+                {{chat.details | safe}}
+              </p>
+              <p class="fs-6 m-0 text-info-emphasis">
+                Next Follow Up:
+                <strong class="text-warning-emphasis">{{chat.follow_up}}</strong>
+              </p>
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Chat update form here -->
+          <div class="container fluid">
+            <form
+            class="row p-1 d-flex justify-content-between align-items-center position-sticky bottom-0 border rounded py-1 bg-light"
+            action="{% url 'lead:chat_insert' chat_title.id %}"
+            method="post"
+            >
+            {% csrf_token %}
+            <div class="col-4 m-0 p-0">
+              <textarea
+                class="form-control form-control-sm"
+                type="textarea"
+                name="feeds"
+                required
+                  ></textarea>
+              </div>
+              <div class="col-2 m-0 p-0">
+                <select
+                class="form-control form-control-sm"
+                name="contactPerson"
+                id="chatStatus"
+                >
+                {% for contact_person in contact_person %}
+                  {% if contact_person.is_active %}
+                    <option value="{{contact_person.id}}">{{contact_person}}</option>
+                  {% endif %}
+                {% endfor %}
+                </select>
+              </div>
+              <div class="col-2 m-0 p-0">
+                <select
+                class="form-control form-control-sm"
+                  name="status"
+                  id="chatStatus"
+                >
+                {% for value, label in status_choice %}
+                  <option value="{{value}}">{{label}}</option>
+                {% endfor %}
+              </select>
+              </div>
+              <div class="col-2 m-0 p-0">
+                <input
+                class="form-control form-control-sm"
+                type="date"
+                name="follow_up"
+                id="follow_up_date"
+                />
+              </div>
+              <div class="col-auto p-0">
+                <button
+                class="btn btn-sm btn-primary px-4"
+                type="submit"
+                name="add_feed"
+                >
+                Save
+              </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}

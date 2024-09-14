@@ -1,29 +1,26 @@
 {% extends 'home.html' %} {% load static %} {% block content %}
-<div class="container gap-3 d-flex align-items-center my-3 ms-3">
-  <a href="{% url 'teams:add_user' %}" class="btn btn-primary px-3"
-    ><i class="ti ti-plus"></i>Add User</a
-  >
-</div>
-
-<div class="container-fluid d-flex justify-content-center">
-  <table class="table user-table">
-    <thead>
+<div class="container-fluid px-5">
+  <a href="{% url 'teams:add_user' %}" class="btn btn-outline-primary my-3">
+    <i class="ti ti-user-plus"></i> Add User
+  </a>
+  <table class="border table table-light table-hover">
+    <thead class="table-primary">
       <tr>
-        <th scope="col">S.No</th>
-        <th scope="col">User Name</th>
+        <th scope="col">S.N.</th>
+        <th scope="col">Name</th>
         <th scope="col">Email</th>
         <th scope="col">Phone</th>
         <th scope="col">D.O.B.</th>
         <th scope="col">Branch</th>
         <th scope="col">Role</th>
         <th scope="col">Department</th>
-        <th scope="col"></th>
+        <th scope="col">Action</th>
       </tr>
     </thead>
-    {% for member in all_users %}
     <tbody>
+      {% for member in all_users %}
       <tr>
-        <td>{{ forloop.counter }}</td>
+        <th scope="row">{{ forloop.counter }}</th>
         <td>{{ member.user }}</td>
         <td>{{ member.user.email }}</td>
         <td>{{ member.phone }}</td>
@@ -31,23 +28,25 @@
         <td>{{ member.branch }}</td>
         <td>{{ member.user.role }}</td>
         <td>{{ member.user.department }}</td>
-        <td class="utils">
-          <a href="{% url 'teams:edit_user' member.user.id %}" class="edit-btn"
-            ><i class="ti ti-edit"></i
+        <td>
+          <a
+            class="btn p-0 text-primary mx-1"
+            href="{% url 'teams:edit_user' member.user.id %}"
+            ><i class="ti ti-user-edit"></i
           ></a>
           <a
+            class="btn p-0 text-primary mx-1"
             href="{% url 'teams:change_password' member.user.id %}"
-            class="edit-btn"
             ><i class="ti ti-password-user"></i
           ></a>
         </td>
       </tr>
+      {% empty %}
+      <tr>
+        <td>No User Added</td>
+      </tr>
+      {% endfor %}
     </tbody>
-    {% empty %}
-    <tr>
-      <td>No Sample request</td>
-    </tr>
-    {% endfor %}
   </table>
 </div>
 {% endblock %}

@@ -2,27 +2,32 @@
 {% block content %}
 
 <div class="container-fluid">
-  <div
-    class="container ms-5 mt-3 shadow-sm p-3 mb-2 bg-warning bg-opacity-25 rounded"
-  >
-    <div class="px-3 lead-detail">
-      <h4 class="m-0 text-primary-emphasis text-uppercase">
-        {{company}}
-        <span
-          >
-          {% if company.user == request.user.id %}
-          
-          <a href="{% url 'lead:edit_lead' company.id %}"
-            class="float-end fs-4 btn text-body-tertiary"><i class="ti ti-edit"></i></a>
-          {% endif %}
-      </span>
-      </h4>
-      <p class="fs-6 fw-light">GSTIN: {{company.gstin}}</p>
-      <p class="m-0 text-secondary">{{company.address1}}</p>
-      <p class="m-0 text-secondary">
-        {{company.address2}} {{company.city}},
-        {{company.state}},({{company.pincode}}) {{company.country}}
-      </p>
+  <div class="container ms-5 mt-3 shadow-sm p-3 mb-2 bg-warning bg-opacity-25 rounded">
+    <div class="px-3 row lead-detail d-flex">
+      <div class="col-lg-8">
+        <h4 class="m-0 text-primary-emphasis text-uppercase">
+          {{company}}
+          <span
+            >
+            {% if company.user == request.user.id %}
+
+            <a href="{% url 'lead:edit_lead' company.id %}"
+              class="float-end fs-4 btn text-body-tertiary"><i class="ti ti-edit"></i></a>
+            {% endif %}
+        </span>
+        </h4>
+        <p class="fs-6 fw-light">GSTIN: {{company.gstin}}</p>
+        <p class="m-0 text-secondary">{{company.address1}}</p>
+        <p class="m-0 text-secondary">
+          {{company.address2}} {{company.city}},
+          {{company.state}},({{company.pincode}}) {{company.country}}
+        </p>
+      </div>
+      {% if company.user == request.user.id %}
+      <div class="col-lg-3">
+        <a type="button" href="{% url 'invoice:create_pi_lead_id' company.id %}" class="btn btn-outline-success">Create PI</a>
+      </div>
+      {% endif %}
     </div>
   </div>
   <div class="text-primary">

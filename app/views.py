@@ -1,10 +1,13 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages, auth
 from django.template import loader
 from teams.models import Profile, Branch, User
 from sample.models import sample
+from invoice.models import proforma, orderList
+from invoice.templatetags.custom_filters import total_order_value
+from invoice.utils import STATUS_CHOICES
 from django.db.models import Count
 from django.db.models.functions import ExtractMonth, TruncDate
 from django.http import JsonResponse
@@ -16,29 +19,63 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 # Create your views here.
 
 
+@login_required(login_url='app:home')
 def home(request):
-    if request.user.is_authenticated:
-        user_branch = Profile.objects.get(user=request.user).branch
-        total_samples = sample.objects.filter(user__profile__branch = user_branch.id)
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
+    context = {
+        'user_id': request.user.id
+    }
 
-        if request.user.role == 'admin':
-            user_sample = total_samples
-        else:
-            user_sample = total_samples.filter(user = request.user)
+    return render(request, 'dashboard/dashboard.html', context)
 
-        total_samples = user_sample.count()
-        received_sample = user_sample.filter(status='received').count()
-        pending_sample = user_sample.filter(status='pending').count()
+@login_required(login_url='app:home')
+def dashboard(request):
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
+    user_branch = Profile.objects.get(user=request.user).branch
 
-        context = {
-            'total_samples': total_samples,
-            'received_sample': received_sample,
-            'pending_sample': pending_sample,
+
+    all_pi = proforma.objects.all()
+
+    # if all_pi:
+    #     for pi in all_pi:
+    #         pi.user_id = get_object_or_404(Profile, user = pi.user_id)
+
+    all_pi_data = all_pi
+
+    pi_list = []
+
+    for pi in all_pi_data:
+
+        pi_data = {
+            'pi_date': pi.pi_date,
+            'pi_no': pi.pi_no,
+            'pi_status': pi.status,
+            'pi_user': pi.user_id,
+            'closed_at': pi.closed_at,
+            'order_list': []
         }
 
-        return render(request, 'dashboard/dashboard.html', context)
-    else:
-        return redirect('app:login')
+        order_items = orderList.objects.filter(proforma_id=pi.id)
+
+        for order in order_items:
+            pi_data['order_list'].append({
+                'category': order.category,
+                'report_type': order.report_type,
+                'product': order.product,
+                'is_lumpsum': order.is_lumpsum,
+                'total_price': order.total_price,
+                'lumpsum': order.lumpsum_amt
+            })
+
+        pi_list.append(pi_data)
+
+    return JsonResponse(pi_list, safe=False, json_dumps_params={'indent':2})
+
+
 
 @login_required(login_url='app:home')
 def sample_chart(request):

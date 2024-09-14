@@ -1,0 +1,129 @@
+{% extends "home.html" %} {% load static %} {% block title %} New
+Lead{%endblock%} {% block content %}
+
+<div class="container-fluid d-flex flex-column">
+  <div class="loader-body" id="loader" style="display: none">
+    <div class="loader"></div>
+  </div>
+  {% if messages %} {% for message in messages %}
+  <div class="alert alert-primary alert-dismissible fade show" role="alert">
+    {{message}}
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="alert"
+      aria-label="Close"
+    ></button>
+  </div>
+  {% endfor %} {% endif %}
+  <div class="container">
+    <form
+      class="row g-3 d-flex justify-content-center my-2 p-3 mb-5 rounded-3"
+      action="#"
+      method="post"
+    >
+      {% csrf_token %}
+      <div class="col-lg-10">
+        <h5 class="text-primary fs-5">
+          <i class="ti ti-clipboard-plus"></i>Add Biller
+        </h5>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label>Biller Name</label>
+            <input class="form-control" type="text" name="biller_name" />
+          </div>
+          <div class="col-md-4">
+            <label>Gstin</label>
+            <input class="form-control" type="text" name="gstin" />
+          </div>
+          <div class="col-md-4">
+            <label>Msme</label>
+            <input class="form-control" type="text" name="msme" />
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <h5 class="fs-5 text-secondary mb-0 mt-4">Registered Address:</h5>
+          <div class="col-md-6">
+            <label>Address Line 1</label>
+            <input class="form-control" type="text" name="address1" />
+          </div>
+          <div class="col-md-6">
+            <label>Address Line 2</label>
+            <input class="form-control" type="text" name="address2" />
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label>City</label>
+            <input class="form-control" type="text" name="city" />
+          </div>
+          <div class="col-md-3">
+            <label>State</label>
+            <input class="form-control" type="text" name="state" />
+          </div>
+          <div class="col-md-3">
+            <label>Country</label>
+            <input class="form-control" type="text" name="country" />
+          </div>
+          <div class="col-md-3">
+            <label>Pin Code</label>
+            <input class="form-control" type="text" name="pincode" />
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <h5 class="fs-5 text-secondary mb-0 mt-4">Corporate Address:</h5>
+          <div class="col-md-6">
+            <label>Corp. Address Line 1</label>
+            <input class="form-control" type="text" name="corp_address1" />
+          </div>
+          <div class="col-md-6">
+            <label>Corp. Address Line 2</label>
+            <input class="form-control" type="text" name="corp_address2" />
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label>Corp. City</label>
+            <input class="form-control" type="text" name="corp_city" />
+          </div>
+          <div class="col-md-3">
+            <label>Corp. State</label>
+            <input class="form-control" type="text" name="corp_state" />
+          </div>
+          <div class="col-md-3">
+            <label>Country</label>
+            <input class="form-control" type="text" name="corp_country" />
+          </div>
+          <div class="col-md-3">
+            <label>Corp. Pin Code</label>
+            <input class="form-control" type="text" name="corp_pincode" />
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <button class="btn btn-primary px-5" type="submit">Submit</button>
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-warning px-5" type="reset">Reset</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

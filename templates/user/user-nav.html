@@ -26,6 +26,17 @@
         <a href="{% url 'lead:follow_ups' %}">Follow Ups</a>
       </li>
       <li class="menu-item has-subitems">
+        <a>Proforma Invoice</a><span class="clickd"></span>
+        <ul class="menu-subitem">
+          <li class="subitem">
+            <a href="{% url 'invoice:pi_list' %}">List</a>
+          </li>
+          <li class="subitem">
+            <a href="{% url 'invoice:create_pi' %}">Create</a>
+          </li>
+        </ul>
+      </li>
+      <li class="menu-item has-subitems">
         <a>Sample</a><span class="clickd"></span>
         <ul class="menu-subitem">
           <li class="subitem">

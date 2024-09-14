@@ -1,128 +1,175 @@
-{% extends 'home.html' %} {% load static %} {% block content %}
-<div class="container d-flex justify-content-center">
-  <h5 class="fs-3 text-primary mt-2">Leads List</h5>
-</div>
-<div class="container-fluid my-2">
-  <div class="row ">
-    <div class="col-6">
-      <div class="row g-2">
-        <form method="GET" class="col-md-7 gap-2 d-flex justify-content-between">
-          <input type="text" class="form-control form-control-sm" name="q" placeholder="Search" />
-          <button type="submit" class="btn btn-primary">Search</button>
-        </form>
-        <div class="col-md-2">
-          <h4 class="m-0"><a href="{% url 'lead:leads_list' %}" class="btn btn-warning">Clear Filter</a></h4>
-        </div>
-        <div class="col-md-2">
-          <h4 class="m-0"><a href="{% url "lead:add_lead" %}" class="btn btn-primary">Add Lead</a></h4>
+{% extends 'home.html' %} {% load static %} {% block content %} {% comment %}
+add Contact Form as Popup Modal {% endcomment %}
+<div
+  class="modal fade"
+  id="uploadLeads"
+  tabindex="-1"
+  aria-labelledby="exampleModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4
+          class="modal-title fs-5 text-primary-emphasis"
+          id="exampleModalLabel"
+        >
+          <i class="ti ti-clipboard-plus"></i> Import Leads
+        </h4>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="container-fluid">
+          <form
+            class="row g-3 d-flex justify-content-center"
+            action="{% url 'lead:upload_Leads' %}"
+            method="post"
+            enctype="multipart/form-data"
+          >
+            {% csrf_token %}
+            <div class="col-10">
+              <div class="mb-3">
+                <label for="formFileSm" class="form-label"
+                  >Upload Your Leads</label
+                >
+                <input
+                  class="form-control form-control-sm"
+                  id="formFileSm"
+                  type="file"
+                  name="file"
+                  accept=".csv"
+                  required
+                />
+              </div>
+              <p class="">
+                download:
+                <span
+                  ><a
+                    href="{% url 'lead:download_template' %}"
+                    class="text-danger-emphasis"
+                    >template file</a
+                  ></span
+                >
+              </p>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="reset"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Close
+              </button>
+              <button type="submit" class="btn btn-primary" name="upload_leads">
+                Import
+              </button>
+            </div>
+          </form>
         </div>
       </div>
-    </div>
-    <div class="col-6">
-      <h4 class="m-0 float-end"><a type="button" class="btn bg-success-subtle text-success-emphasis" data-bs-toggle="modal"
-        data-bs-target="#uploadLeads">Import Lead</a></h4>
-      <h4 class="me-2 float-end"><a href="{% url 'lead:export_lead' %}" class="btn bg-danger-subtle text-success-emphasis">Export Lead</a></h4>
     </div>
   </div>
 </div>
-{% comment %} add Contact Form as Popup Modal {% endcomment %}
-    <div
-      class="modal fade"
-      id="uploadLeads"
-      tabindex="-1"
-      aria-labelledby="exampleModalLabel"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h4
-              class="modal-title fs-5 text-primary-emphasis"
-              id="exampleModalLabel"
-            >
-              <i class="ti ti-clipboard-plus"></i> Import Leads
-            </h4>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <div class="container-fluid">
-              <form
-                class="row g-3 d-flex justify-content-center"
-                action="{% url 'lead:upload_Leads' %}"
-                method="post" enctype="multipart/form-data" >
-                {% csrf_token %}
-                <div class="col-10">
-                  <div class="mb-3">
-                    <label for="formFileSm" class="form-label">Upload Your Leads</label>
-                    <input class="form-control form-control-sm" id="formFileSm" type="file" name="file" accept=".csv" required>
-                  </div>
-                  <p class="">download: <span><a href="{% url 'lead:download_template' %}" class='text-danger-emphasis'>template file</a></span></p>
-                </div>
-                <div class="modal-footer">
-                  <button
-                    type="reset"
-                    class="btn btn-secondary"
-                    data-bs-dismiss="modal"
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="submit"
-                    class="btn btn-primary"
-                    name="upload_leads"
-                  >
-                    Import
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+{% comment %} Popup ended here {% endcomment %}
+
+<div class="container-fluid my-3">
+  <div class="d-flex justify-content-between mt-5 mb-3">
+    <div class="d-flex w-75">
+      <form class="d-flex w-50" action="" method="get" role="search">
+        <input type="text" class="form-control" name="q" placeholder="Search" />
+        <button class="btn btn-outline-success mx-1" type="submit">
+          Search
+        </button>
+      </form>
+      <div>
+        <a
+          href="{% url 'lead:leads_list' %}"
+          class="btn btn-outline-warning mx-1"
+          >Clear Filter</a
+        >
+        <a href="{% url 'lead:add_lead' %}" class="btn btn-outline-primary mx-1"
+          >Add Lead</a
+        >
       </div>
     </div>
-    {% comment %} Popup ended here {% endcomment %}
-
-<div class="container-fluid lead-table">
-  <table class="table table-hover table-light position-sticky top-0">
-    <thead>
-      <tr class="table-primary">
-        <th scope="col">S.No</th>
-        <th scope="col">Company Name</th>
-        <th scope="col">Gstin</th>
-        <th scope="col">Address</th>
-        <th scope="col">Industry</th>
-        <th scope="col">Inserted</th>
-        <th scope="col">Team Member</th>
-        <th scope="col">Action</th>
-      </tr>
-    </thead>
-    {% for lead in user_leads %}
-    <tbody>
-      <tr class="table-light">
-        <td>{{ forloop.counter }}</td>
-        <td>{{ lead.company_name }}</td>
-        <td>{% if lead.gstin != None %}{{ lead.gstin }}{% endif %}</td>
-        <td class="text-wrap">{{ lead.address1 }} {{ lead.address2 }} {{ lead.city }} {{ lead.state }} {{ lead.country }}</td>
-        <td>{{ lead.industry }}</td>
-        <td>{{ lead.created_at }}</td>
-        <td>{{ lead.user }}</td>
-        <td>
-          <a href="{% url 'lead:lead' lead.id %}" class="edit-btn"><i class="ti ti-details"></i></a>
-          <!-- <a href="#" class="edit-btn"><i class="ti ti-edit"></i></a> -->
-        </td>
-      </tr>
-    </tbody>
-    {% empty %}
-    <tr>
-      <td colspan="12">No Lead Added</td>
-    </tr>
-    {% endfor %}
-  </table>
-
+    <div class="float-end">
+      <a
+        href="{% url 'lead:export_lead' %}"
+        class="btn btn-outline-success mx-1"
+        ><i class="ti ti-download"></i> Export Lead</a
+      >
+      <a
+        class="btn btn-outline-primary mx-1"
+        data-bs-toggle="modal"
+        data-bs-target="#uploadLeads"
+        ><i class="ti ti-upload"></i> Upload Lead</a
+      >
+    </div>
+  </div>
+  <div
+    class="container-fluid p-0 table-responsive border"
+    style="height: 400px; overflow-y: auto; scrollbar-width: thin"
+  >
+    <table class="table table-sm table-bordered align-middle table-hover m-0">
+      <thead class="table-primary position-sticky top-0 align-middle">
+        <tr>
+          <th class="fw-medium" scope="col">S.N.</th>
+          <th class="fw-medium" scope="col">Company Name</th>
+          <th class="fw-medium" scope="col">Gstin</th>
+          <th class="fw-medium" scope="col">Address</th>
+          <th class="fw-medium" scope="col">Industry</th>
+          <th class="fw-medium" scope="col">Inserted</th>
+          <th class="fw-medium text-nowrap" scope="col">Team Member</th>
+          <th class="fw-medium" scope="col">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in user_leads %}
+        <tr>
+          <th scope="row">{{ forloop.counter }}</th>
+          <td class="text-wrap">{{ lead.company_name }}</td>
+          <td class="text-wrap">
+            {% if lead.gstin != None %}{{ lead.gstin }}{% endif %}
+          </td>
+          <td class="text-wrap">
+            {{ lead.address1 }} {{ lead.address2 }} {{ lead.city }}
+            {{lead.state}} {{ lead.country }}
+          </td>
+          <td class="text-wrap">{{ lead.industry }}</td>
+          <td class="text-wrap">{{ lead.created_at }}</td>
+          <td class="text-nowrap">{{ lead.user }}</td>
+          <td>
+            <a
+              class="btn p-0 text-primary mx-1"
+              href="{% url 'lead:lead' lead.id %}"
+              ><i class="ti ti-details"></i
+            ></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="12">No Lead Added</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="container-fluid mt-3">
+    <nav aria-label="Page navigation example">
+      <ul class="flex-row pagination pagination-sm">
+        <li class="page-item"><a class="page-link" href="#">Previous</a></li>
+        <li class="page-item"><a class="page-link" href="#">1</a></li>
+        <li class="page-item"><a class="page-link" href="#">2</a></li>
+        <li class="page-item"><a class="page-link" href="#">3</a></li>
+        <li class="page-item"><a class="page-link" href="#">Next</a></li>
+      </ul>
+    </nav>
+  </div>
+  <!-- Paginations -->
 </div>
 {% endblock %}

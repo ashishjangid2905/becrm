@@ -5,7 +5,9 @@ html {
 
 body {
     box-sizing: border-box;
-    font-family: "Poppins", sans-serif;
+    /* font-family: "Poppins", sans-serif; */
+    /* font-size: 12px; */
+    /* font-weight: 400; */
 }
 
 .login_page {
@@ -102,6 +104,7 @@ body {
     text-decoration: none;
 }
 
+/* 
 .navbar {
     display: flex;
     justify-content: space-between;
@@ -262,7 +265,7 @@ body {
 .user-nav h6 {
     font-size: 1em;
     font-weight: 400;
-}
+} */
 
 
 .multi-select .placeholder {
@@ -298,17 +301,26 @@ body {
         color: #fff;
         font-weight: 500;
     }
+
+    th,
+    td {
+        vertical-align: middle;
+        text-align: start;
+        text-transform: capitalize;
+        font-size: 11px;
+        border: 1px solid rgb(205, 205, 205);
+    }
 }
 
-.sample-table,
+/* .sample-table,
 th,
 td {
     vertical-align: middle;
     text-align: start;
     text-transform: capitalize;
-    font-size: 12px;
+    font-size: 11px;
     border: 1px solid rgb(205, 205, 205);
-}
+} */
 
 
 .pagination {
@@ -340,13 +352,13 @@ td {
     display: inline-block;
     color: #0047A8;
     vertical-align: middle;
-    /* height: 25px; */
-    font-size: 20px;
+    height: 20px;
+    font-size: 15px;
     text-decoration: none;
 }
 
 .edit-btn:not(:last-child) {
-    margin-right: 15px;
+    margin-right: 5px;
 
 }
 
@@ -460,15 +472,6 @@ td {
 }
 
 
-.table-primary th {
-    position: sticky;
-    top: 0;
-    background-color: #007bff;
-    color: white;
-    z-index: 100;
-}
-
-
 /* Loader design here */
 
 .loader-body {
@@ -505,4 +508,28 @@ td {
     100% {
         transform: rotate(360deg);
     }
+}
+
+
+
+/* Pi Table Css */
+
+.pi-table {
+    display: block;
+    height: 400px;
+    overflow-x: auto;
+    overflow-y: scroll;
+    font-size: 12px;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+
+    th,
+    td {
+        vertical-align: middle;
+        text-align: center;
+        padding: 3px;
+        border: 1px solid #8fd5ff;
+        text-transform: capitalize;
+    }
+
 }

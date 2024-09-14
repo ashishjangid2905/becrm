@@ -1,9 +1,11 @@
-from django.shortcuts import render, redirect, HttpResponse
+from django.shortcuts import render, redirect, HttpResponse, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseRedirect, FileResponse
 from .models import leads, contactPerson, Conversation, conversationDetails
 from teams.models import User, Profile
+from invoice.models import proforma, orderList
+from invoice.utils import STATUS_CHOICES
 from django.db.models import OuterRef, Subquery, Max, F, Q
 from datetime import date
 from django.conf import settings
@@ -47,7 +49,7 @@ def leads_list(request):
 
 
     if query:
-        all_lead = all_leads.filter(search_objects)
+        all_lead = all_leads.filter(search_objects).distinct()
     else:
         all_lead = all_leads
 
@@ -161,116 +163,71 @@ def lead(request, leads_id):
 
     contact_person = contactPerson.objects.filter(company=leads_id).order_by('-is_active')
 
-    chat_titles = Conversation.objects.filter(company_id=leads_id)
+    all_pi = proforma.objects.filter(company_ref = company)
+
+    status_choices = STATUS_CHOICES
+
+    query = request.GET.get('q')
+
+    search_fields = [
+        'company_name', 'gstin', 'state', 'country', 'requistioner','email_id', 'contact',
+        'pi_no', 'orderlist__product'
+    ]
+
+    search_objects = Q()
+
+    if query:
+        # matching_user_ids = User.objects.filter(first_name__icontains=query).values_list('id', flat=True)
+        
+        # Build the Q object for searching leads
+        for field in search_fields:
+            search_objects |= Q(**{f'{field}__icontains': query})
+
+        # Add matching user IDs to the Q object
+        # for user_id in matching_user_ids:
+        #     search_objects |= Q(user__exact=user_id)
+
+        piList = all_pi.filter(search_objects).distinct()
+    else:
+        piList = all_pi
+
+    context={
+        'company': company,
+        'contact_person': contact_person,
+        'piList': piList,
+        'status_choices': status_choices,
+    }
+
+    return render(request, 'lead/pi-list.html', context)
+
+
+@login_required(login_url='app:login')
+def lead_chat(request, leads_id):
+
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
+    company = leads.objects.get(pk=leads_id)
+
+    contact_person = contactPerson.objects.filter(company=leads_id).order_by('-is_active')
+
+    chat_titles = Conversation.objects.filter(company_id=leads_id).order_by('-start_at')
 
     status_choice = conversationDetails.STATUS
 
     Q = request.GET.get('chat')
 
     chats = conversationDetails.objects.all().order_by('-inserted_at')
-    chat_no = chat_titles.values_list('id', flat=True)
 
     if Q:
         try:
             chat_title = Conversation.objects.get(pk=Q)
             chat_details = chats.filter(chat_no=Q)
-            if request.method == 'POST':
-                if 'add_feed' in request.POST:
-                    chat_no = Conversation.objects.get(pk=Q)
-                    details = request.POST.get("feeds")
-                    contact_person_id = request.POST.get("contactPerson")
-                    status = request.POST.get("status")
-                    follow_up = request.POST.get("follow_up")
-
-                    contact_person = contactPerson.objects.get(pk=contact_person_id)
-
-                    if follow_up == "":
-                        follow_up = None
-
-                    feedDetail = conversationDetails.objects.create(chat_no=chat_no, details=details, contact_person=contact_person, status=status, follow_up=follow_up)
-
-                elif 'add_contact_person' in request.POST:
-                    company = leads.objects.get(pk=leads_id)
-                    person_name = request.POST.get("contact_person")
-                    email_id = request.POST.get("email")
-                    contact_no = request.POST.get("contact_no")
-                    is_active = request.POST.get("is_active") == "on"
-
-                    Contact_person = contactPerson.objects.create(person_name=person_name, email_id=email_id, contact_no=contact_no, is_active=is_active, company=company)
-    
-                elif 'start_new_chat' in request.POST:
-                
-                    company_id = leads.objects.get(pk=leads_id)
-                    title = request.POST.get("chat_title")
-
-                    chat = Conversation.objects.create(title=title,company_id=company_id)
-
-                    details = request.POST.get("feeds")
-                    contact_person_id = request.POST.get("contactPerson")
-                    contact_person = contactPerson.objects.get(pk=contact_person_id)
-                    status = request.POST.get("status")
-                    follow_up = request.POST.get("follow_up")
-
-                    if follow_up == "":
-                        follow_up = None
-
-                    conversation = conversationDetails.objects.create(details=details, chat_no=chat, contact_person=contact_person, status=status, follow_up=follow_up)
-
-
-                return HttpResponseRedirect(request.path_info +'?chat=' + str(Q))
         except Conversation.DoesNotExist:
             return HttpResponseRedirect(request.path_info)
-
-    elif Q == "":
-        chat_title = None
-        return HttpResponseRedirect(request.path_info)
     else:
-        chat_title = None
-        chat_details = chats.filter(chat_no__in=chat_no)
-    
-    p=request.GET.get('editPerson')
-    person_instance = None
-
-    if p:
-        try:
-            person_instance = contact_person.get(pk=p)
-            if request.method == "POST":
-                if 'edit_contact_person' in request.POST:
-                    person_instance.person_name = request.POST.get("contact_person")
-                    person_instance.email_id = request.POST.get("email")
-                    person_instance.contact_no = request.POST.get("contact_no")
-                    person_instance.is_active = request.POST.get("is_active") == "on"
-                    person_instance.save()
-            
-                elif 'add_contact_person' in request.POST:
-                    company = leads.objects.get(pk=leads_id)
-                    person_name = request.POST.get("contact_person")
-                    email_id = request.POST.get("email")
-                    contact_no = request.POST.get("contact_no")
-                    is_active = request.POST.get("is_active") == "on"
-
-                    Contact_person = contactPerson.objects.create(person_name=person_name, email_id=email_id, contact_no=contact_no, is_active=is_active, company=company)
-    
-                elif 'start_new_chat' in request.POST:
-                
-                    company_id = leads.objects.get(pk=leads_id)
-                    title = request.POST.get("chat_title")
-
-                    chat = Conversation.objects.create(title=title,company_id=company_id)
-
-                    details = request.POST.get("feeds")
-                    contact_person_id = request.POST.get("contactPerson")
-                    contact_person = contactPerson.objects.get(pk=contact_person_id)
-                    status = request.POST.get("status")
-                    follow_up = request.POST.get("follow_up")
-
-                    if follow_up == "":
-                        follow_up = None
-
-                    conversation = conversationDetails.objects.create(details=details, chat_no=chat, contact_person=contact_person, status=status, follow_up=follow_up)
-                return HttpResponseRedirect(request.path_info)
-        except:
-            return HttpResponseRedirect(request.path_info)
+        chat_title = Conversation.objects.filter(company_id=leads_id).last()
+        chat_details = chats.filter(chat_no=chat_title)
 
     context={
         'company': company,
@@ -279,40 +236,87 @@ def lead(request, leads_id):
         'chat_title': chat_title,
         'chat_details': chat_details,
         'status_choice':status_choice,
-        'person_instance': person_instance,
     }
 
-    if request.method == 'POST':
-        if 'add_contact_person' in request.POST:
-            company = leads.objects.get(pk=leads_id)
-            person_name = request.POST.get("contact_person")
-            email_id = request.POST.get("email")
-            contact_no = request.POST.get("contact_no")
-            is_active = request.POST.get("is_active") == "on"
+    return render(request, 'lead/chat-details.html', context)
 
-            Contact_person = contactPerson.objects.create(person_name=person_name, email_id=email_id, contact_no=contact_no, is_active=is_active, company=company)
+
+@login_required(login_url='app:login')
+def add_contact(request, leads_id):
+    if not request.user.is_authenticated:
+        return redirect('app:login')  
     
-        elif 'start_new_chat' in request.POST:
+    target_url = reverse("lead:leads_pi", args=[leads_id])
 
-            company_id = leads.objects.get(pk=leads_id)
-            title = request.POST.get("chat_title")
+    if request.method == 'POST':
+        company = leads.objects.get(pk=leads_id)
+        person_name = request.POST.get("contact_person")
+        email_id = request.POST.get("email")
+        contact_no = request.POST.get("contact_no")
+        is_active = request.POST.get("is_active") == "on"
 
-            chat = Conversation.objects.create(title=title,company_id=company_id)
+        Contact_person = contactPerson.objects.create(person_name=person_name, email_id=email_id, contact_no=contact_no, is_active=is_active, company=company)
+    
+    return HttpResponseRedirect(target_url)
 
-            details = request.POST.get("feeds")
-            contact_person_id = request.POST.get("contactPerson")
-            contact_person = contactPerson.objects.get(pk=contact_person_id)
-            status = request.POST.get("status")
-            follow_up = request.POST.get("follow_up")
+@login_required(login_url='app:login')
+def edit_contact(request, contact_id):
+    if not request.user.is_authenticated:
+        return redirect('app:login')
 
-            if follow_up == "":
-                follow_up = None
+    person_instance = get_object_or_404(contactPerson, pk=contact_id)
+    target_url = reverse("lead:leads_pi", args=[person_instance.company.id])
 
-            conversation = conversationDetails.objects.create(details=details, chat_no=chat, contact_person=contact_person, status=status, follow_up=follow_up)
+    if request.method == 'POST':
+        person_instance.person_name = request.POST.get("contact_person")
+        person_instance.email_id = request.POST.get("email")
+        person_instance.contact_no = request.POST.get("contact_no")
+        person_instance.is_active = request.POST.get("is_active") == "on"
+        person_instance.save()
 
-        return HttpResponseRedirect(request.path_info)
+    return HttpResponseRedirect(target_url)
 
-    return render(request, 'lead/lead.html', context)
+@login_required(login_url='app:login')
+def new_chat(request, leads_id):
+
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
+    target_url = reverse("lead:leads_chat", args=[leads_id])
+    if request.method == 'POST':
+        company_id = leads.objects.get(pk=leads_id)
+        title = request.POST.get("chat_title")
+        chat = Conversation.objects.create(title=title,company_id=company_id)
+        details = request.POST.get("feeds")
+        contact_person_id = request.POST.get("contactPerson")
+        contact_person = contactPerson.objects.get(pk=contact_person_id)
+        status = request.POST.get("status")
+        follow_up = request.POST.get("follow_up")
+        if follow_up == "":
+            follow_up = None
+        conversation = conversationDetails.objects.create(details=details, chat_no=chat, contact_person=contact_person, status=status, follow_up=follow_up)
+
+        return HttpResponseRedirect(target_url + "?chat=" + str(chat.id))
+    return HttpResponseRedirect(target_url)
+
+@login_required(login_url='app:login')
+def chat_insert(request, chat_id):
+    chat_title = get_object_or_404(Conversation, pk=chat_id)
+
+
+    target_url = reverse("lead:leads_chat", args=[chat_title.company_id.id])
+
+    if chat_title.company_id.user == request.user.id and request.method == 'POST':
+        details = request.POST.get("feeds")
+        contact_person_id = request.POST.get("contactPerson")
+        status = request.POST.get("status")
+        follow_up = request.POST.get("follow_up")
+        contact_person = get_object_or_404(contactPerson, pk=contact_person_id)
+        if follow_up == "":
+            follow_up = None
+        feedDetail = conversationDetails.objects.create(chat_no=chat_title, details=details, contact_person=contact_person, status=status, follow_up=follow_up)
+        
+    return HttpResponseRedirect(target_url + "?chat=" + str(chat_id) )
 
 @login_required(login_url='app:login')
 def follow_ups(request):

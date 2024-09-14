@@ -1,0 +1,74 @@
+{% extends "home.html" %} {% load static %} {% block content %}
+<div class="container-fluid">
+  <div
+    class="container mt-3 shadow-sm p-3 mb-2 bg-primary bg-opacity-10 rounded"
+  >
+    <div class="row g-3 position-relative">
+      <div class="col-lg-6">
+        <div class="p-3 lead-detail rounded rounded-5 text-success">
+          <h3 class="m-0 fs-3 fw-semibold">
+            {{biller_dtl.biller_name}}<a href="" class="btn text-success"
+              ><i class="ti ti-edit"></i
+            ></a>
+          </h3>
+          <p class="p-0 m-0">
+            <span class="fw-semibold">GSTIN:</span> {{biller_dtl.biller_gstin}}
+            <span class="fw-semibold">MSME:</span> {{biller_dtl.biller_msme}}
+          </p>
+          <p class="p-0 m-0">
+            <span class="fw-semibold">Reg Address:</span>
+            {{biller_dtl.reg_address1}}
+          </p>
+          <p class="p-0 m-0">
+            {{biller_dtl.reg_address2}}, {{biller_dtl.reg_city}},
+            {{biller_dtl.reg_state}} ({{biller_dtl.reg_pincode}}),
+            {{biller_dtl.reg_country}}
+          </p>
+          <p class="p-0 m-0">
+            <span class="fw-semibold">Corp Address:</span>
+            {{biller_dtl.corp_address1}},
+          </p>
+          <p class="p-0 m-0">
+            {{biller_dtl.corp_address2}},{{biller_dtl.corp_city}},
+            {{biller_dtl.corp_state}} ({{biller_dtl.corp_pincode}}),
+            {{biller_dtl.corp_country}}
+          </p>
+        </div>
+        <a
+          href="{% url 'invoice:add_bank' biller_dtl.id %}"
+          class="btn btn-primary"
+          >Add Bank</a
+        >
+      </div>
+      <div class="col-lg-6"></div>
+    </div>
+  </div>
+  <div class="row g-3 gap-2 d-flex px-5 mt-3">
+    {% for bank in banks %}
+    <div class="col-lg-3 bg-success bg-opacity-25 rounded rounded-5 p-3">
+      <h5 class="fs-5 fw-semibold m-0">
+        {{bank.bank_name}}
+        <a href="" class="btn text-body-tertiary text-white"
+          ><i class="ti ti-edit text-white"></i
+        ></a>
+      </h5>
+      <p class="p-0 m-0">
+        <span class="fw-semibold">Beneficery:</span> {{bank.bnf_name}}
+      </p>
+      <p class="p-0 m-0">
+        <span class="fw-semibold">A/C No.:</span> {{bank.ac_no}}
+      </p>
+      <p class="p-0 m-0">
+        <span class="fw-semibold">Branch Address:</span> {{bank.branch_address}}
+      </p>
+      <p class="p-0 m-0">
+        <span class="fw-semibold">IFSC:</span> {{bank.ifsc}}
+      </p>
+      <p class="p-0 m-0">
+        <span class="fw-semibold">SWIFT:</span> {{bank.swift_code}}
+      </p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

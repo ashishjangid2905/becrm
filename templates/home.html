@@ -3,11 +3,7 @@
 
 {% block nav %}
   {% if user.is_authenticated %}
-    {% if user.role == 'admin' %}
-      {% include 'admin/admin-nav.html' %}
-    {% else %}
-      {% include 'user/user-nav.html' %}
-    {% endif %}
+      {% include 'admin/nav-bar.html' %}
   {% endif %}
 {% endblock %}
 

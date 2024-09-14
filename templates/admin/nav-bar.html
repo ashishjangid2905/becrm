@@ -1,0 +1,147 @@
+{% load static %} {% block nav %}
+<nav class="navbar navbar-expand-lg bg-body-tertiary justify-content-between">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{% url 'app:home' %}">
+      <img
+        src="{% static 'becrm/image/logo.png' %}"
+        alt="beDatos"
+        width="150"
+        height="32"
+      />
+    </a>
+    <button
+      class="navbar-toggler"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#navbarSupportedContent"
+      aria-controls="navbarSupportedContent"
+      aria-expanded="false"
+      aria-label="Toggle navigation"
+    >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a
+            class="nav-link active"
+            aria-current="page"
+            href="{% url 'app:home' %}"
+            >Dashboard</a
+          >
+        </li>
+        {% if request.user.role == 'admin' %}
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'teams:users' %}">User</a>
+        </li>
+        {% endif %}
+        <li class="nav-item dropdown">
+          <a
+            class="nav-link dropdown-toggle"
+            href="#"
+            role="button"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+          >
+            Leads
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item" href="{% url 'lead:leads_list' %}"
+                >List</a
+              >
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'lead:follow_ups' %}"
+                >Follow Up</a
+              >
+            </li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a
+            class="nav-link dropdown-toggle"
+            href="#"
+            role="button"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+          >
+            Proforma Invoices
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item" href="{% url 'invoice:pi_list' %}"
+                >List</a
+              >
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'invoice:create_pi' %}"
+                >Create</a
+              >
+            </li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a
+            class="nav-link dropdown-toggle"
+            href="#"
+            role="button"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+          >
+            Sample
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item" href="{% url 'sample:samples' %}"
+                >List</a
+              >
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'sample:sample_request' %}"
+                >Request</a
+              >
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <div class="d-flex">
+        <ul class="navbar-nav nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle"
+              href="#"
+              role="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <img
+                class="rounded rounded-5"
+                src="{% static 'becrm/image/user-default-96.png' %}"
+                alt="profile"
+                width="30"
+                height="30"
+              />
+              {{request.user}}
+            </a>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item" href="{% url 'teams:profile' %}"
+                  >Profile</a
+                >
+              </li>
+              <li><a class="dropdown-item" href="#">Settings</a></li>
+              <li><hr class="dropdown-divider" /></li>
+              <li>
+                <a class="dropdown-item" href="{% url 'app:logout' %}"
+                  >Log Out <i class="ti ti-logout"></i
+                ></a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>
+{% endblock %}

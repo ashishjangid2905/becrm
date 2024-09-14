@@ -1,0 +1,126 @@
+{% extends 'home.html' %} {% load static %} {% block content %}
+<div class="container d-flex justify-content-center">
+  <h5 class="fs-3 text-primary mt-2">Leads List</h5>
+</div>
+<div class="container-fluid my-2">
+  <div class="row ">
+    <div class="col-6">
+      <div class="row g-2">
+        {% comment %} <form method="GET" class="col-md-7 gap-2 d-flex justify-content-between">
+          <input type="text" class="form-control form-control-sm" name="q" placeholder="Search" />
+          <button type="submit" class="btn btn-primary">Search</button>
+        </form> {% endcomment %}
+        {% comment %} <div class="col-md-2">
+          <h4 class="m-0"><a href="{% url 'lead:leads_list' %}" class="btn btn-warning">Clear Filter</a></h4>
+        </div> {% endcomment %}
+        <div class="col-md-2">
+          <h4 class="m-0"><a href="{% url "invoice:add_biller" %}" class="btn btn-primary"><i class="ti ti-plus"></i>Add Biller</a></h4>
+        </div>
+      </div>
+    </div>
+    {% comment %} <div class="col-6">
+      <h4 class="m-0 float-end"><a type="button" class="btn bg-success-subtle text-success-emphasis" data-bs-toggle="modal"
+        data-bs-target="#uploadLeads">Import Lead</a></h4>
+      <h4 class="me-2 float-end"><a href="{% url 'lead:export_lead' %}" class="btn bg-danger-subtle text-success-emphasis">Export Lead</a></h4>
+    </div> {% endcomment %}
+  </div>
+</div>
+{% comment %} add Contact Form as Popup Modal {% endcomment %}
+    <div
+      class="modal fade"
+      id="uploadLeads"
+      tabindex="-1"
+      aria-labelledby="exampleModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4
+              class="modal-title fs-5 text-primary-emphasis"
+              id="exampleModalLabel"
+            >
+              <i class="ti ti-clipboard-plus"></i> Import Leads
+            </h4>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="container-fluid">
+              <form
+                class="row g-3 d-flex justify-content-center"
+                action="{% url 'lead:upload_Leads' %}"
+                method="post" enctype="multipart/form-data" >
+                {% csrf_token %}
+                <div class="col-10">
+                  <div class="mb-3">
+                    <label for="formFileSm" class="form-label">Upload Your Leads</label>
+                    <input class="form-control form-control-sm" id="formFileSm" type="file" name="file" accept=".csv" required>
+                  </div>
+                  <p class="">download: <span><a href="{% url 'lead:download_template' %}" class='text-danger-emphasis'>template file</a></span></p>
+                </div>
+                <div class="modal-footer">
+                  <button
+                    type="reset"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    class="btn btn-primary"
+                    name="upload_leads"
+                  >
+                    Import
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% comment %} Popup ended here {% endcomment %}
+
+<div class="container-fluid lead-table">
+  <table class="table table-hover table-light position-sticky top-0">
+    <thead>
+      <tr class="table-primary">
+        <th scope="col">S.No</th>
+        <th scope="col">Biller Name</th>
+        <th scope="col">Gstin</th>
+        <th scope="col">Msme</th>
+        <th scope="col">Register Address</th>
+        <th scope="col">Corporate Address</th>
+        <th scope="col">Action</th>
+      </tr>
+    </thead>
+    {% for biller in billers %}
+    <tbody>
+      <tr class="table-light">
+        <td>{{ forloop.counter }}</td>
+        <td>{{ biller.biller_name }}</td>
+        <td>{% if biller.biller_gstin != None %}{{ biller.biller_gstin }}{% endif %}</td>
+        <td>{% if biller.biller_msme != None %}{{ biller.biller_msme }}{% endif %}</td>
+        <td class="text-wrap">{{ biller.reg_address1 }} {{ biller.reg_address2 }} {{ biller.reg_city }} {{ biller.reg_state }} {{ biller.reg_country }}</td>
+        <td class="text-wrap">{{ biller.corp_address1 }} {{ biller.corp_address2 }} {{ biller.corp_city }} {{ biller.corp_state }} {{ biller.corp_country }}</td>
+        <td>
+          <a href="{% url 'invoice:biller_detail' biller.id %}" class="edit-btn"><i class="ti ti-details"></i></a>
+          <!-- <a href="#" class="edit-btn"><i class="ti ti-edit"></i></a> -->
+        </td>
+      </tr>
+    </tbody>
+    {% empty %}
+    <tr>
+      <td colspan="12">No Lead Added</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+</div>
+{% endblock %}
