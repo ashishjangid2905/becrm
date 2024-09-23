@@ -30,7 +30,7 @@
             <label for="branch" class="form-label">Branch</label>
             <select class="form-select" name="chooseBranch" id="validationCustom04" required>
               {% for branch in branch %}
-                <option value="{{ branch.branch_name }}">{{ branch }}</option>
+                <option value="{{ branch.branch_name }}" {% if request.user.branch.branch_name == value %}selected{% endif %}>{{ branch }}</option>
               {% endfor %}
             </select>
           </div>

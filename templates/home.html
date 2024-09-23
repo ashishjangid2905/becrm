@@ -3,12 +3,14 @@
 
 {% block nav %}
   {% if user.is_authenticated %}
-      {% include 'admin/nav-bar.html' %}
+    {% include 'admin/nav-bar.html' %}
   {% endif %}
+  {% include 'loader.html' %}
 {% endblock %}
-
+  
 {% comment %}inserted main content{% endcomment %}
-
+  
+  
 {% block content %}
 
 {% endblock %}

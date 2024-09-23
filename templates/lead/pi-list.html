@@ -2,26 +2,34 @@
 {% block leadContent %}
 
 <div class="container-fluid p-0 mt-2">
-  <div class="container-fluid d-flex justify-content-between pe-4">
-    <form class="d-flex" action="" method="get" role="search">
-      <input type="text" class="form-control" name="q" placeholder="Search" />
-      <button class="btn btn-outline-success mx-1" type="submit">Search</button>
-    </form>
+  <div class="row g-3 justify-content-between">
+    <div class="col-lg-6 col-md-6">
+      <form class="row g-3" action="" method="get" role="search">
+        <div class="col-lg-8 col-md-8">
+          <input type="text" class="form-control" name="q" placeholder="Search" />
+        </div>
+        <div class="col-lg-4 col-md-4">
+          <button class="btn btn-outline-success mx-1" type="submit">Search</button>
+        </div>
+      </form>
+    </div>
     {% if company.user == request.user.id %}
-    <a
-      href="{% url 'invoice:create_pi_lead_id' company.id %}"
-      class="btn btn-outline-success"
-      >Create PI</a
-    >
+    <div class="col-lg-2 col-md-2 ps-2">
+      <a
+        href="{% url 'invoice:create_pi_lead_id' company.id %}"
+        class="btn btn-outline-success"
+        >Create PI</a
+      >
+    </div>
     {% endif %}
   </div>
   <div class="container-fluid my-3" style="height: 400px; overflow-y: auto">
-    <table class="table table-sm table-light align-middle table-hover">
+    <table class="table table-light align-middle table-hover">
       <thead class="table-primary position-sticky top-0">
         <tr>
           <th class="fw-medium" scope="col">S.N.</th>
           <th class="text-nowrap fw-medium" scope="col">Company Name</th>
-          <th class="fw-medium" scope="col">Gstin</th>
+          <th class="fw-medium text-nowrap" scope="col">Gstin</th>
           <th class="fw-medium" scope="col">PI No</th>
           <th class="fw-medium" scope="col">PI Date</th>
           <th class="fw-medium" scope="col">Status</th>
@@ -34,13 +42,13 @@
 
         <tr>
           <th scope="row">{{ forloop.counter }}</th>
-          <td class="text-nowrap">{{proforma.company_name}}</td>
+          <td class="text-nowrap text-capitalize">{{proforma.company_name}}</td>
           <td>{{proforma.gstin}}</td>
           <td class="text-nowrap">{{proforma.pi_no}}</td>
           <td class="text-nowrap">{{proforma.pi_date}}</td>
           <td><span class="badge text-bg-{% if proforma.status == 'closed' %}success{% elif proforma.status == 'open' %}warning{% else %}danger{% endif %}">{{proforma.status}}</span></td>
           <td>{% total_order_value proforma %}</td>
-          <td>
+          <td class="text-nowrap">
             <a
               class="btn p-0 text-primary"
               href="{% url 'invoice:edit_pi' proforma.slug %}"
@@ -70,7 +78,7 @@
           <div class="modal-dialog modal-lg">
             <div class="modal-content">
               <div class="modal-header">
-                <h1 class="modal-title fs-4" >{{proforma.company_name}}</h1>
+                <h1 class="modal-title fs-4 text-capitalize" >{{proforma.company_name}}</h1>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body">
@@ -130,12 +138,10 @@
                   </div>
                   <hr/>
                   <h5>Item Details</h5>
-                  {% for order in proforma.orderlist_set.all %}
-                      <div class="row g-3">
-                        <div class="col-lg-1">
-                          <p class="fw-semibold text-end">{{forloop.counter}}.</p>
-                        </div>
-                        <div class="col-lg-11">
+                  <div class="row g-3">
+                    {% for order in proforma.orderlist_set.all %}
+                      {% if order.is_lumpsum %}
+                        <div class="col-lg-9 col-md-9">
                           <div class="row">
                             <div class="col-lg-6">
                               <p class="text-capitalize"><span class="fw-semibold">Category: </span>{{order.category}}</p>
@@ -152,27 +158,59 @@
                               <p class="text-capitalize"><span class="fw-semibold">Period: </span>{{order.from_month|format_month}} to {{order.to_month|format_month}}</p>
                             </div>
                           </div>
+                        </div>
+                      {% endif %}
+                    {% endfor %}
+                    {% if proforma|total_lumpsums > 0 %}
+                    <div class="col-lg-3 col-md-3 align-item-center">
+                      <div class="row">
+                        <div class="col-lg-6 p-0">
+                          <p class="text-capitalize"><span class="fw-semibold">Lumpsum: </span>{{ proforma|total_lumpsums }}</p>
+                        </div>
+                      </div>
+                    </div>
+                    {% endif %}
+                    {% for order in proforma.orderlist_set.all %}
+                      {% if not order.is_lumpsum %}
+                        <div class="col-lg-9 col-md-9">
                           <div class="row">
                             <div class="col-lg-6">
-                              <p class="text-capitalize"><span class="fw-semibold">Unit Price: </span>{{order.unit_price}}</p>
+                              <p class="text-capitalize"><span class="fw-semibold">Category: </span>{{order.category}}</p>
                             </div>
                             <div class="col-lg-6">
+                              <p class="text-capitalize"><span class="fw-semibold">Report Type: </span>{{order.report_type}}</p>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-lg-6">
+                              <p class="text-capitalize"><span class="fw-semibold">Product/HSN: </span>{{order.product}}</p>
+                            </div>
+                            <div class="col-lg-6">
+                              <p class="text-capitalize"><span class="fw-semibold">Period: </span>{{order.from_month|format_month}} to {{order.to_month|format_month}}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col-lg-3 col-md-3">
+                          <div class="row">
+                            <div class="col-lg-6 p-0">
+                              <p class="text-capitalize"><span class="fw-semibold">Unit Price: </span>{{order.unit_price}}</p>
+                            </div>
+                            <div class="col-lg-6 p-0">
                               <p class="text-capitalize"><span class="fw-semibold">Total Price: </span>{{order.total_price}}</p>
                             </div>
                           </div>
                         </div>
-                      </div>
-                      {% endfor %}
-                      {% if proforma.is_Approved == True %}
-                        <div class="row">
-                          <div class="col-lg-6">
-                            <p class="text-capitalize m-0"><span class="fw-semibold">Approved By: </span>{{proforma.approved_by}}</p>
-                            <p class="text-capitalize p-0"><span class="fw-semibold">Approved Date: </span>{{proforma.approved_at}}</p>
-                          </div>
-                          <div class="col-lg-6">
-                          </div>
-                        </div>
                       {% endif %}
+                    {% endfor %}
+                    {% if proforma.is_Approved == True %}
+                      <div class="row">
+                        <div class="col-lg-6">
+                          <p class="text-capitalize m-0"><span class="fw-semibold">Approved By: </span>{{proforma.approved_by}}</p>
+                          <p class="text-capitalize p-0"><span class="fw-semibold">Approved Date: </span>{{proforma.approved_at}}</p>
+                        </div>
+                      </div>
+                    {% endif %}
+                  </div>
                 </div>
               </div>
               <div class="modal-footer">

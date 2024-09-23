@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseRedirect, HttpResponse
+from django.http import HttpResponseRedirect, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -33,6 +33,10 @@ from openpyxl.cell.text import InlineFont
 from openpyxl.cell.rich_text import TextBlock, CellRichText
 from openpyxl.worksheet.page import PageMargins
 # Create your views here.
+
+from django.core.mail import send_mail
+from teams.custom_email_backend import CustomEmailBackend
+from .templatetags.custom_filters import total_order_value, total_lumpsums, filter_by_lumpsum
 
 
 @login_required(login_url='app:login')
@@ -182,9 +186,13 @@ def create_pi(request, lead_id=None):
 
     lead_info = None
     contact_info = None
+    target_url = reverse('invoice:pi_list')
+
     if lead_id is not None:
         lead_info = get_object_or_404(leads, pk = lead_id)
         contact_info = lead_info.contactperson_set.filter(is_active=True).first()
+
+        target_url = reverse('lead:leads_pi', args=[lead_id])
 
         if lead_info.user != request.user.id:
             return redirect('invoice:create_pi')
@@ -200,9 +208,9 @@ def create_pi(request, lead_id=None):
 
         company_name = request.POST.get('company_name')
         gstin = request.POST.get('gstin')
-        is_sez = request.POST.get('gstin')
-        lut_no = request.POST.get('gstin')
-        vendor_code = request.POST.get('gstin')
+        is_sez = request.POST.get('is_sez') == 'on'
+        lut_no = request.POST.get('lut_no')
+        vendor_code = request.POST.get('vendor_code')
         currency = request.POST.get('currency')
         po_no = request.POST.get('po_no')
         po_date_str = request.POST.get('po_date')
@@ -226,26 +234,28 @@ def create_pi(request, lead_id=None):
             except ValueError:
                 messages.error(request, 'Invalid date format. It must be in YYYY-MM-DD format.')
 
-        newPI = proforma.objects.create(company_ref=company_ref, user_id=user_id,pi_no=pi_no, company_name=company_name, gstin=gstin,
-                                        currency=currency, po_no=po_no, po_date=po_date, subscription=subscription,
+        newPI = proforma.objects.create(company_ref=company_ref, user_id=user_id,pi_no=pi_no, company_name=company_name, gstin=gstin, is_sez=is_sez, lut_no=lut_no,
+                                        vendor_code=vendor_code, currency=currency, po_no=po_no, po_date=po_date, subscription=subscription,
                                         bank=bank_instance, payment_term=payment_term, requistioner=requistioner, email_id=email_id,
                                         contact=contact, address=address, country=country, state=state, details=details)
         
-        for i in range(0, len(request.POST.getlist('category'))):
+        for i in range(0, len(request.POST.getlist('orders'))):
 
-            category = request.POST.getlist('category')[i]
-            report_type = request.POST.getlist('report_type')[i]
-            product = request.POST.getlist('product')[i]
-            from_month = request.POST.getlist('from_month')[i]
-            to_month = request.POST.getlist('to_month')[i]
-            unit_price = request.POST.getlist('unit_price')[i]
-            total_price = request.POST.getlist('total_price')[i]
+            category = request.POST.get(f'category{i}')
+            report_type = request.POST.get(f'report_type{i}')
+            product = request.POST.getlist('product')
+            from_month = request.POST.get(f'from_month{i}')
+            to_month = request.POST.get(f'to_month{i}')
+            unit_price = request.POST.get(f'unit_price{i}')
+            total_price = request.POST.get(f'total_price{i}')
+            is_lumpsum = request.POST.get(f'is_lumpsum{i}') == 'on'
+            lumpsum_amt = request.POST.get(f'lumpsum_amt{i}')
 
             newOrder = orderList.objects.create(proforma_id = newPI, category=category, report_type=report_type, product=product,
-                                            from_month=from_month, to_month=to_month, unit_price=unit_price, total_price=total_price,
+                                            from_month=from_month, to_month=to_month, unit_price=unit_price, total_price=total_price,is_lumpsum=is_lumpsum, lumpsum_amt=lumpsum_amt
                                             )
 
-        return HttpResponseRedirect(request.path_info)
+        return HttpResponseRedirect(target_url)
     
     context = {
         'bank_choice': bank_choice,
@@ -327,6 +337,8 @@ def edit_pi(request, pi):
 
             company_name = request.POST.get('company_name')
             gstin = request.POST.get('gstin')
+            is_sez = request.POST.get('is_sez') == 'on'
+            lut_no = request.POST.get('lut_no')
             currency = request.POST.get('currency')
             po_no = request.POST.get('po_no')
             po_date_str = request.POST.get('po_date')
@@ -352,6 +364,7 @@ def edit_pi(request, pi):
 
             pi_instance.company_name = company_name
             pi_instance.gstin = gstin
+            pi_instance.is_sez = is_sez
             pi_instance.currency = currency
             pi_instance.po_no = po_no
             pi_instance.po_date = po_date
@@ -372,40 +385,39 @@ def edit_pi(request, pi):
 
             existing_orders = pi_instance.orderlist_set.all()
 
-            categories = request.POST.getlist('category')
-            report_types = request.POST.getlist('report_type')
-            products = request.POST.getlist('product')
-            from_months = request.POST.getlist('from_month')
-            to_months = request.POST.getlist('to_month')
-            unit_prices = request.POST.getlist('unit_price')
-            total_prices = request.POST.getlist('total_price')
+            totalOrders = request.POST.getlist('orders')
 
             for i, order in enumerate(existing_orders):
 
-                if i < len(categories):
-                    order.category = categories[i]
-                    order.report_type = report_types[i]
-                    order.product = products[i]
-                    order.from_month = from_months[i]
-                    order.to_month = to_months[i]
-                    order.unit_price = unit_prices[i]
-                    order.total_price = total_prices[i]
+                if i < len(totalOrders):
+                    order.category = request.POST.get(f'category{i}')
+                    order.report_type = request.POST.get(f'report_type{i}')
+                    order.product = request.POST.get(f'product{i}')
+                    order.from_month = request.POST.get(f'from_month{i}')
+                    order.to_month = request.POST.get(f'to_month{i}')
+
+                    order.unit_price = request.POST.get(f'unit_price{i}')
+                    order.total_price = request.POST.get(f'total_price{i}')
+                    order.is_lumpsum = request.POST.get(f'is_lumpsum{i}') == 'on'
+                    order.lumpsum_amt = request.POST.get(f'lumpsum_amt{i}')
                     order.save()
                 else:
                     order.delete()
 
-            for i in range(len(existing_orders), len(request.POST.getlist('category'))):
+            for i in range(len(existing_orders), len(request.POST.getlist('orders'))):
 
-                category = request.POST.getlist('category')[i]
-                report_type = request.POST.getlist('report_type')[i]
-                product = request.POST.getlist('product')[i]
-                from_month = request.POST.getlist('from_month')[i]
-                to_month = request.POST.getlist('to_month')[i]
-                unit_price = request.POST.getlist('unit_price')[i]
-                total_price = request.POST.getlist('total_price')[i]
+                category = request.POST.get(f'category{i}')
+                report_type = request.POST.get(f'report_type{i}')
+                product = request.POST.get(f'product{i}')
+                from_month = request.POST.get(f'from_month{i}')
+                to_month = request.POST.get(f'to_month{i}')
+                unit_price = request.POST.get(f'unit_price{i}')
+                total_price = request.POST.get(f'total_price{i}')
+                is_lumpsum = request.POST.get(f'is_lumpsum{i}') == 'on'
+                lumpsum_amt = request.POST.get(f'lumpsum_amt{i}')
 
                 newOrder = orderList.objects.create(proforma_id = pi_instance, category=category, report_type=report_type, product=product,
-                                                from_month=from_month, to_month=to_month, unit_price=unit_price, total_price=total_price,
+                                                from_month=from_month, to_month=to_month, unit_price=unit_price, total_price=total_price, is_lumpsum=is_lumpsum, lumpsum_amt=lumpsum_amt
                                                 )
 
     
@@ -885,6 +897,8 @@ def download_pdf(request, pi_id):
     total_price_h = Paragraph(f"<b><font>Total ({pi.currency.upper()})</font></b>", font_s_c)
 
     basedir = Path(__file__).resolve().parent.parent
+
+    
     imagepath = os.path.join(basedir,'static/becrm/image/PI_LOGO.png')
     logo = Im(imagepath,0.85*inch,0.85*inch)
 
@@ -979,26 +993,28 @@ def download_pdf(request, pi_id):
     nr = 0
     s = 1
     order_list = []
+    lumpsumRow = 0
     
-    net_total = 0
+    net_total = total_order_value(pi)
+    lumpsumAmt = total_lumpsums(pi)
 
-    for order in orders:
-        cat = dict(CATEGORY).get(str(order.category))
-        report = dict(REPORT_TYPE).get(str(order.report_type))
-        product = order.product
-        from_month = datetime.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
-        to_month = datetime.strptime(order.to_month, '%Y-%m').strftime("%b'%y")
-        period = f'{from_month} - {to_month}'
+    for order in filter_by_lumpsum(orders,True):
+        if order.is_lumpsum:
+            cat = dict(CATEGORY).get(str(order.category))
+            report = dict(REPORT_TYPE).get(str(order.report_type))
+            product = order.product
+            from_month = datetime.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
+            to_month = datetime.strptime(order.to_month, '%Y-%m').strftime("%b'%y")
+            period = f'{from_month} - {to_month}'
 
-        if pi.currency == 'inr':
-            unitPrice = f'Rs. {order.unit_price}'
-            totalPrice = f'{order.total_price:.2f}'
-        else:
-            unitPrice = f'Usd. {order.unit_price}'
-            totalPrice = f'{order.total_price:.2f}'
+            if pi.currency == 'inr':
+                unitPrice = f'Lumpsum'
+                totalPrice = f'{lumpsumAmt:.2f}'
+            else:
+                unitPrice = f'Lumpsum'
+                totalPrice = f'{lumpsumAmt:.2f}'
 
-        net_total+=order.total_price
-        sac = f'SAC: 998399'
+            sac = f'SAC: 998399'
 
         from_m = datetime.strptime(order.from_month, '%Y-%m')
         to_m = datetime.strptime(order.to_month, '%Y-%m')
@@ -1008,13 +1024,47 @@ def download_pdf(request, pi_id):
         total_m = f'Total: {no_months}'
 
         order_list.extend([
-            [s,cat,'','','','',sac,unitPrice,'',totalPrice],
+            [s,cat,'','','','',sac,'','',''],
             ['','News:',report,'','','','','','',''],
             ['','Product/HSN:',product,'','','','','','',''],
             ['','Period:',period,'','','',total_m,'','',''],
             ])
         nr+= 4
         s+= 1
+        lumpsumRow+=4
+
+    for order in filter_by_lumpsum(orders,False):
+            cat = dict(CATEGORY).get(str(order.category))
+            report = dict(REPORT_TYPE).get(str(order.report_type))
+            product = order.product
+            from_month = datetime.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
+            to_month = datetime.strptime(order.to_month, '%Y-%m').strftime("%b'%y")
+            period = f'{from_month} - {to_month}'
+
+            if pi.currency == 'inr':
+                unitPrice = f'Rs. {order.unit_price}'
+                totalPrice = f'{order.total_price:.2f}'
+            else:
+                unitPrice = f'Usd. {order.unit_price}'
+                totalPrice = f'{order.total_price:.2f}'
+
+            sac = f'SAC: 998399'
+
+            from_m = datetime.strptime(order.from_month, '%Y-%m')
+            to_m = datetime.strptime(order.to_month, '%Y-%m')
+
+            no_months = (to_m.year - from_m.year)*12 + to_m.month - from_m.month + 1
+
+            total_m = f'Total: {no_months}'
+
+            order_list.extend([
+                [s,cat,'','','','',sac,unitPrice,'',totalPrice],
+                ['','News:',report,'','','','','','',''],
+                ['','Product/HSN:',product,'','','','','','',''],
+                ['','Period:',period,'','','',total_m,'','',''],
+                ])
+            nr+= 4
+            s+= 1
 
 
     words_amt = Paragraph(f"<b>Amount Payable</b><br/><i><font size='8'>(in words)</font></i>", font_s_c)
@@ -1024,7 +1074,10 @@ def download_pdf(request, pi_id):
 
     igst = net_total*0.18
 
-    total_inc_tax = net_total*1.18 
+    if pi.is_sez:
+        total_inc_tax = net_total
+    else:
+        total_inc_tax = net_total*1.18 
 
     if pi.currency == 'inr':
         total_val_words = Paragraph(f'<b><font>Rs. {num2words(total_inc_tax, lang='en').replace(',', '').title()} Only</font></b>', font_s)
@@ -1040,15 +1093,28 @@ def download_pdf(request, pi_id):
     ])
 
     if str(pi.state) == pi.bank.biller_id.biller_gstin[0:2]:
-        order_list.extend([
-            ['','','','','','','','CGST(9%):','',f'{cgst:.2f}'],
-            ['','','','','','','','SGST(9%):','',f'{sgst:.2f}'],
-        ])
+        if pi.is_sez:
+            order_list.extend([
+                ['','','','','','','','CGST(9%):','',f'N/A'],
+                ['','','','','','','','SGST(9%):','',f'N/A'],
+            ])
+        else:
+            order_list.extend([
+                ['','','','','','','','CGST(9%):','',f'{cgst:.2f}'],
+                ['','','','','','','','SGST(9%):','',f'{sgst:.2f}'],
+            ])
     else:
-        order_list.extend([
-            ['','','','','','','','IGST(18%):','',f'{igst:.2f}'],
-            ['','','','','','','','','',''],
-        ])
+        if pi.is_sez:
+            order_list.extend([
+                ['','','','','','','','IGST(18%):','',f'N/A'],
+                ['','','','','','','','','',''],
+            ])
+        else:
+            order_list.extend([
+                ['','','','','','','','IGST(18%):','',f'{igst:.2f}'],
+                ['','','','','','','','','',''],
+            ])
+
 
 
     order_list.extend([
@@ -1063,15 +1129,31 @@ def download_pdf(request, pi_id):
         ['Yes/No:','NO','','','','','','Sign and Stamp','',''],
     ])
 
-    order_table = Table(order_list, col_widths, (nr+12)*[0.21*inch])
     
     order_style = []
+
+    if lumpsumRow>0:
+        for r in range(0, lumpsumRow, 4):
+            end_row = min(lumpsumRow - 1, r + 3)
+            order_list[0][7] = "Lumpsum"
+            order_list[0][9] = f'{lumpsumAmt:.2f}'
+            for i in range(r + 1, end_row + 1):
+                order_list[i][7] = ''
+                order_list[i][8] = ''
+                order_list[i][9] = ''
+            order_style.extend([
+                ('SPAN',(7,r),(8, lumpsumRow-1)),
+                ('SPAN',(9,r),(9, lumpsumRow-1)),])
+            
+    if nr>lumpsumRow:
+        for r in range(lumpsumRow,nr, 4):
+            order_style.extend([
+                ('SPAN',(7,r),(8, r+3)),
+                ('SPAN',(9,r),(9, r+3)),])
 
     for r in range(0, nr, 4):
         order_style.extend([
             ('SPAN',(0,r),(0, r+3)),
-            ('SPAN',(7,r),(8, r+3)),
-            ('SPAN',(9,r),(9, r+3)),
             ('FONT',(1,r),(6, r),'Helvetica-Bold',10),
             ('FONT',(1,r+1),(1, r+3),'Helvetica',8),
             ('VALIGN',(0,r),(0, r+3), 'MIDDLE'),
@@ -1113,6 +1195,8 @@ def download_pdf(request, pi_id):
         order_style.append(('SPAN',(9,nr+1), (9,nr+2)))
 
 
+    order_table = Table(order_list, col_widths, (nr+12)*[0.21*inch])
+
     order_table.setStyle(TableStyle(order_style))
 
     elements = []
@@ -1129,4 +1213,28 @@ def download_pdf(request, pi_id):
 
     return response
 
-    # return render(request, 'invoices/proforma-pdf.html', context)
+
+
+def send_test_mail(request):
+
+    smtp_settings = {
+        'host': 'smtp.gmail.com',
+        'port': '587',
+        'username': 'info@besmartexim.com',
+        'password': 'exmi ohwd dyjy begh',
+        'use_tls': True,
+    }
+
+    email_backend = CustomEmailBackend(**smtp_settings)
+
+    try:
+        send_mail(
+            subject='Test Email',
+            message='This is a test email from Django.',
+            from_email='info@besmartexim.com',
+            recipient_list=['anand@bhawanienclaves.com'],  # Replace with actual recipient
+            connection= email_backend
+        )
+        return JsonResponse({'status': 'success', 'message': 'Test email sent successfully!'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

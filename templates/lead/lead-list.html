@@ -78,37 +78,43 @@ add Contact Form as Popup Modal {% endcomment %}
 {% comment %} Popup ended here {% endcomment %}
 
 <div class="container-fluid my-3">
-  <div class="d-flex justify-content-between mt-5 mb-3">
-    <div class="d-flex w-75">
-      <form class="d-flex w-50" action="" method="get" role="search">
-        <input type="text" class="form-control" name="q" placeholder="Search" />
-        <button class="btn btn-outline-success mx-1" type="submit">
-          Search
-        </button>
-      </form>
-      <div>
+  <div class="mt-5 mb-3">
+    <div class="row g-3">
+      <div class="col-lg-5 col-md-5">
+        <form class="row g-3" action="" method="get" role="search">
+          <div class="col-lg-10 col-md-10">
+            <input type="text" class="form-control form-control-sm" name="q" placeholder="Search" />
+          </div>
+          <div class="col-lg-2 col-md-2">
+            <button class="btn btn-sm btn-outline-success mx-1" type="submit">
+              Search
+            </button>
+          </div>
+        </form>
+      </div>
+      <div class="col-lg-4 col-md-4">
         <a
           href="{% url 'lead:leads_list' %}"
-          class="btn btn-outline-warning mx-1"
+          class="btn btn-sm btn-outline-warning mx-1"
           >Clear Filter</a
         >
-        <a href="{% url 'lead:add_lead' %}" class="btn btn-outline-primary mx-1"
+        <a href="{% url 'lead:add_lead' %}" class="btn btn-sm btn-outline-primary mx-1"
           >Add Lead</a
         >
       </div>
-    </div>
-    <div class="float-end">
-      <a
-        href="{% url 'lead:export_lead' %}"
-        class="btn btn-outline-success mx-1"
-        ><i class="ti ti-download"></i> Export Lead</a
-      >
-      <a
-        class="btn btn-outline-primary mx-1"
-        data-bs-toggle="modal"
-        data-bs-target="#uploadLeads"
-        ><i class="ti ti-upload"></i> Upload Lead</a
-      >
+      <div class="col-lg-3 col-md-3">
+        <a
+          href="{% url 'lead:export_lead' %}"
+          class="btn btn-sm btn-outline-success mx-1"
+          ><i class="ti ti-download"></i> Export Lead</a
+        >
+        <a
+          class="btn btn-sm btn-outline-primary mx-1"
+          data-bs-toggle="modal"
+          data-bs-target="#uploadLeads"
+          ><i class="ti ti-upload"></i> Upload Lead</a
+        >
+      </div>
     </div>
   </div>
   <div
@@ -132,18 +138,18 @@ add Contact Form as Popup Modal {% endcomment %}
         {% for lead in user_leads %}
         <tr>
           <th scope="row">{{ forloop.counter }}</th>
-          <td class="text-wrap">{{ lead.company_name }}</td>
-          <td class="text-wrap">
+          <td class="text-nowrap">{{ lead.company_name }}</td>
+          <td class="text-nowrap">
             {% if lead.gstin != None %}{{ lead.gstin }}{% endif %}
           </td>
-          <td class="text-wrap">
+          <td class="text-nowrap">
             {{ lead.address1 }} {{ lead.address2 }} {{ lead.city }}
             {{lead.state}} {{ lead.country }}
           </td>
-          <td class="text-wrap">{{ lead.industry }}</td>
-          <td class="text-wrap">{{ lead.created_at }}</td>
+          <td class="text-nowrap">{{ lead.industry }}</td>
+          <td class="text-nowrap text-capitalize">{{ lead.created_at }}</td>
           <td class="text-nowrap">{{ lead.user }}</td>
-          <td>
+          <td class="text-nowrap">
             <a
               class="btn p-0 text-primary mx-1"
               href="{% url 'lead:lead' lead.id %}"

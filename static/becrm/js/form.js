@@ -33,6 +33,33 @@ const add_item = (el) => {
   item.setAttribute("id", new_id);
 
   item.innerHTML = el.innerHTML;
+  let lumsum_check = item.querySelector("input[type=checkbox]")
+  let category = item.querySelector("#category")
+  let reportType = item.querySelector("#report-type")
+  let product = item.querySelector("#product")
+  let fromMonth = item.querySelector("#from-month")
+  let toMonth = item.querySelector("#to-month")
+  let unitPrice = item.querySelector("#unit-price")
+  let totalPrice = item.querySelector("#total-price")
+  let lumpsumAmt = item.querySelector("#lumpsum-amt")
+  let newCheckName = "is_lumpsum" + document.querySelectorAll(".order-list").length
+  let newCateName = "category" + document.querySelectorAll(".order-list").length
+  let newReportName = "report_type" + document.querySelectorAll(".order-list").length
+  let newProductName = "product" + document.querySelectorAll(".order-list").length
+  let newFromMonthName = "from_month" + document.querySelectorAll(".order-list").length
+  let newToMonthName = "to_month" + document.querySelectorAll(".order-list").length
+  let newUnitPriceName = "unit_price" + document.querySelectorAll(".order-list").length
+  let newTotalPriceName = "total_price" + document.querySelectorAll(".order-list").length
+  let newLumpSumName = "lumpsum_amt" + document.querySelectorAll(".order-list").length
+  lumsum_check.setAttribute("name", newCheckName)
+  category.setAttribute("name", newCateName)
+  reportType.setAttribute("name", newReportName)
+  product.setAttribute("name", newProductName)
+  fromMonth.setAttribute("name", newFromMonthName)
+  toMonth.setAttribute("name", newToMonthName)
+  unitPrice.setAttribute("name", newUnitPriceName)
+  totalPrice.setAttribute("name", newTotalPriceName)
+  lumpsumAmt.setAttribute("name", newLumpSumName)
   el.after(item);
 
   let remove_btn = item.querySelector("button>i");
@@ -76,28 +103,30 @@ for (let i = 1; i < add_btn.length; i++) {
 
 const ls_check = (el) => {
   let parentDiv = el.closest(".order-list");
-  let lumpsumPrice = parentDiv.querySelector("#item-price");
-
-  let newDiv = document.createElement("div");
-  newDiv.setAttribute("class", "col-md-5");
-
-  newDiv.innerHTML =
-    "<div class='col-md-5'><label>Lumpsum Price</label><input class='form-control form-control-sm' type='text' name='lumpsum_amt' required /></div>";
-
-  lumpsumPrice.innerHTML = newDiv.innerHTML;
-  lumpsumPrice.setAttribute("id", "lumpsum-price");
+  let itemPrice = parentDiv.querySelector("#item-price");
+  let lumpsumPrice = parentDiv.querySelector("#lumpsum-price");
 };
 
 const handleLumpsumCheck = (e) => {
   let parentDiv = e.closest(".order-list");
-  let ls_div = parentDiv.querySelector("#lumpsum-price");
+  let itemPrice = parentDiv.querySelector("#item-price");
+  let lumpsumPrice = parentDiv.querySelector("#lumpsum-price");
 
-  if (e.checked && !ls_div) {
-    ls_check(e);
-  } else if (!e.checked && ls_div) {
-    let item = `<div class='col-md-5'><label>Unit Price</label><input class='form-control form-control-sm' type='text' name='unit_price' required /></div><div class='col-md-5'><label>Total Price</label><input  class='form-control form-control-sm'  type='text'  name='total_price'  required/></div>`;
-    ls_div.innerHTML = item;
-    ls_div.setAttribute("id", "item-price");
+  let unitPrice = parentDiv.querySelector("#unit-price");
+  let totalPrice = parentDiv.querySelector("#total-price");
+  let lumpsumAmt = parentDiv.querySelector("#lumpsum-amt");
+
+  if (e.checked) {
+    itemPrice.style.display = "none";
+    unitPrice.value = 0;
+    totalPrice.value = 0;
+    lumpsumPrice.style.display = "flex";
+    e.value = "on"
+  } else if (!e.checked) {
+    itemPrice.style.display = "flex";
+    lumpsumPrice.style.display = "none";
+    lumpsumAmt.value = 0;
+    e.value="off"
   }
 };
 

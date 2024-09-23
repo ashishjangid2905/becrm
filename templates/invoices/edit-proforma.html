@@ -5,9 +5,6 @@
       <i class="ti ti-clipboard-plus"></i>Edit Proforma Invoice
     </h1>
   </div>
-  <div class="loader-body" id="loader" style="display: none">
-    <div class="loader"></div>
-  </div>
   <div class="container">
     <form
       class="row g-3 d-flex justify-content-center my-2 shadow p-3 mb-5 rounded-4"
@@ -40,8 +37,18 @@
             type="checkbox"
             id="is-sez"
             name="gstin"
+            {% if pi_instance.is_sez %}checked{% endif %}
           />
           <label class="form-check-label">Is SEZ</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-10">
+        <div class="row g-3">
+          <div class="col-lg-4">
+            <label>Vendor Code</label>
+            <input class="form-control form-control-sm text-capitalize" type="text" name="vendor_code" />
           </div>
         </div>
       </div>
@@ -215,12 +222,15 @@
                         class="form-check-input is-lumpsum"
                         type="checkbox"
                         id="is-lumpsum"
-                        name="is_lumpsum"
+                        name="is_lumpsum{{forloop.counter0}}"
                         {% if order.is_lumpsum %}checked{% endif %}
                       />
                       <label class="form-check-label ps-2" for="is_lumpsum">
                         Lumpsum
                       </label>
+                    </div>
+                    <div class="col-md-5">
+                      <input type="hidden" name="orders" value="0">
                     </div>
                   </div>
                 </div>
@@ -231,7 +241,8 @@
                       <select
                         class="form-select form-select-sm"
                         type="text"
-                        name="category"
+                        id="category"
+                        name="category{{forloop.counter0}}"
                       >
                         {% for value, label in category_choice %}
                         <option value="{{value}}" {% if order.category == value %}selected{% endif %}>{{label}}</option>
@@ -243,7 +254,8 @@
                       <select
                         class="form-select form-select-sm"
                         type="text"
-                        name="report_type"
+                        id="report-type"
+                        name="report_type{{forloop.counter0}}"
                       >
                         {% for value, label in report_choice %}
                         <option value="{{value}}" {% if order.report_type == value %}selected{% endif %}>{{label}}</option>
@@ -259,7 +271,8 @@
                       <input
                         class="form-control form-control-sm"
                         type="text"
-                        name="product"
+                        id="product"
+                        name="product{{forloop.counter0}}"
                         value="{{order.product}}"
                       />
                     </div>
@@ -272,7 +285,8 @@
                       <input
                         class="form-control form-control-sm"
                         type="month"
-                        name="from_month"
+                        id="from-month"
+                        name="from_month{{forloop.counter0}}"
                         value="{{order.from_month}}"
                       />
                     </div>
@@ -281,7 +295,8 @@
                       <input
                         class="form-control form-control-sm"
                         type="month"
-                        name="to_month"
+                        id="to-month"
+                        name="to_month{{forloop.counter0}}"
                         value="{{order.to_month}}"
                       />
                     </div>
@@ -294,9 +309,9 @@
                       <input
                         class="form-control form-control-sm"
                         type="text"
-                        name="unit_price"
+                        id="unit-price"
+                        name="unit_price{{forloop.counter0}}"
                         value="{{order.unit_price}}"
-                        required
                       />
                     </div>
                     <div class="col-md-5">
@@ -304,9 +319,22 @@
                       <input
                         class="form-control form-control-sm"
                         type="text"
-                        name="total_price"
+                        id="total-price"
+                        name="total_price{{forloop.counter0}}"
                         value="{{order.total_price}}"
-                        required
+                      />
+                    </div>
+                  </div>
+                  <div class="row" id="lumpsum-price">
+                    <div class="col-md-5">
+                      <label>Lumpsum Price</label>
+                      <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        id="lumpsum-amt"
+                        type="text"
+                        name="lumpsum_amt{{forloop.counter0}}"
+                        value="{{order.lumpsum_amt}}"
                       />
                     </div>
                   </div>

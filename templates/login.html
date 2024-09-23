@@ -1,26 +1,60 @@
 {% extends 'base.html' %} {% load static %} {% block content %}
-  <div class="alert z-3 position-absolute container" tabindex="1" id="myAlert">
-    {% if messages %}
-      {% for message in messages %}
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-          <strong>{{ message }}</strong>
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
+<div class="alert z-3 position-absolute container" tabindex="1" id="myAlert">
+  {% if messages %} {% for message in messages %}
+  <div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <strong>{{ message }}</strong>
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="alert"
+      aria-label="Close"
+    ></button>
   </div>
-  <div class="container-fluid login_page">
-    <div class="container-fluid d-flex justify-content-center align-items-center">
-      <div class="login_dtl">
-        <img src="{% static 'becrm/image/logo.png' %}" alt="brand-logo" width="140" />
-        <h3>Login</h3>
-        <form class="login_form" action="" method="post">
-          {% csrf_token %}
-          <input class="email_in form-control" type="email" name="email" id="email" placeholder="Email" required />
-          <input class="pass_in form-control" type="password" name="password" id="password" placeholder="password" />
-          <button class="login_btn" type="submit">Login</button>
-        </form>
-      </div>
+  {% endfor %} {% endif %}
+</div>
+<div
+  class="container-fluid d-flex align-item-center min-vh-100 bg-secondary-subtle"
+>
+  <div class="form-signin m-auto bg-light-subtle rounded-4 p-5">
+    <div
+      class="p-3 d-flex flex-column justify-content-center align-item-center"
+    >
+      <h2 class="text-center">
+        <img
+          src="{% static 'becrm/image/logo.png' %}"
+          alt="brand-logo"
+          style="width: 200px"
+        />
+      </h2>
+      <form class="row g-3 justify-content-center" action="" method="post">
+        {% csrf_token %}
+        <div class="col-lg-10 col-md-10">
+          <h3 class="mb-3 fw-medium">Login</h3>
+          <input
+            class="form-control col-10 text-lowercase"
+            type="email"
+            name="email"
+            id="email"
+            placeholder="Email"
+            required
+          />
+        </div>
+        <div class="col-lg-10 col-md-10">
+          <input
+            class="pass_in form-control"
+            type="password"
+            name="password"
+            id="password"
+            placeholder="password"
+          />
+        </div>
+        <div class="col-lg-10 col-md-10">
+          <button class="btn btn-primary text-uppercase" type="submit">
+            Sign In
+          </button>
+        </div>
+      </form>
     </div>
   </div>
+</div>
 {% endblock %}

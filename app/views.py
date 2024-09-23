@@ -19,7 +19,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 # Create your views here.
 
 
-@login_required(login_url='app:home')
+@login_required(login_url='app:login')
 def home(request):
     if not request.user.is_authenticated:
         return redirect('app:login')
@@ -30,7 +30,7 @@ def home(request):
 
     return render(request, 'dashboard/dashboard.html', context)
 
-@login_required(login_url='app:home')
+@login_required(login_url='app:login')
 def dashboard(request):
     if not request.user.is_authenticated:
         return redirect('app:login')
@@ -56,6 +56,7 @@ def dashboard(request):
             'pi_status': pi.status,
             'pi_user': pi.user_id,
             'closed_at': pi.closed_at,
+            'totalValue': total_order_value(pi),
             'order_list': []
         }
 
@@ -77,7 +78,7 @@ def dashboard(request):
 
 
 
-@login_required(login_url='app:home')
+@login_required(login_url='app:login')
 def sample_chart(request):
 
     if not request.user.is_authenticated:

@@ -180,9 +180,14 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # Directory where uploaded media is
 MEDIA_URL = 'media/' # Public URL at the browser
 
 
+# Manually Added/Changes
 
-# custom session time out
+# Email Backend added
 
-# SESSION_COOKIE_AGE = 60   #SESSION TIME IS 30MIN
+Email_BACKEND = 'teams.custom_email_backend.CustomEmailBackend' 
 
-# SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'additional.ashish@gmail.com'
+EMAIL_HOST_PASSWORD = 'jjcz artm csuu colt'

@@ -26,33 +26,30 @@ document.addEventListener("DOMContentLoaded", function () {
             userSales[month] = 0;
           }
 
-          pi.order_list.forEach((order) => {
-            if (pi.pi_status === "closed") {
-              totalSales[month] += order.total_price;
-              teamsales += order.total_price;
+          if (pi.pi_status === "closed") {
+              totalSales[month] += pi.totalValue;
+              teamsales += pi.totalValue;
 
               if (pi.pi_user === USER_ID) {
-                userSales[month] += order.total_price;
-                usersale += order.total_price;
+                userSales[month] += pi.totalValue;
+                usersale += pi.totalValue;
               }
             }
-          });
         }
 
         // not depends on Closed_Date
         const piStatus = pi.pi_status.toLocaleString("default");
 
-        if (status[piStatus]) {
+        if (!status[piStatus]) {
+          status[piStatus] = 0;
+        }
+
+        if (pi.pi_user === USER_ID) {
           status[piStatus] += 1;
-        } else {
-          status[piStatus] = 1; // Initialize count if first occurrence
         }
       });
 
       months.sort((a, b) => new Date("1 " + a) - new Date("1 " + b));
-
-      console.log(totalSales);
-      console.log(teamsales);
 
       let numFormat = new Intl.NumberFormat("en-IN", {
         minimumFractionDigits: 2,
@@ -69,7 +66,7 @@ document.addEventListener("DOMContentLoaded", function () {
       user_sales.innerHTML = numFormat.format(usersale / 1000) + "K";
       closedPi.innerHTML = status["closed"];
 
-      const sales = document.querySelector("#sample-chart").getContext("2d");
+      const sales = document.querySelector("#sales-chart").getContext("2d");
       const pi = document.querySelector("#pi-pieChart").getContext("2d");
 
       // Sales comparison chart monthwise
@@ -98,7 +95,6 @@ document.addEventListener("DOMContentLoaded", function () {
           layout: {
             padding: 10,
           },
-          responsive: true,
           scales: {
             y: {
               beginAtZero: true,
@@ -206,4 +202,4 @@ document.addEventListener("DOMContentLoaded", function () {
         },
       });
     });
-});
+  });

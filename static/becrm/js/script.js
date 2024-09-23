@@ -91,10 +91,15 @@ $(document).ready(function () {
     }
   });
 
+
+  
+
+
   // loader implimentation
 
   $("form").on("submit", function () {
     $("#loader").show();
+    $(":submit").prop('disabled', true);
   });
 
   // Fetch the sample data

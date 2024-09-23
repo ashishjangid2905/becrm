@@ -47,6 +47,14 @@
       </div>
       <div class="col-lg-10">
         <div class="row g-3">
+          <div class="col-lg-4">
+            <label>Vendor Code</label>
+            <input class="form-control form-control-sm text-capitalize" type="text" name="vendor_code">
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-10">
+        <div class="row g-3">
           <div class="col-md-4">
             <label>PO No</label>
             <input
@@ -141,6 +149,7 @@
               class="form-control form-control-sm"
               type="text"
               name="contact_no"
+              value="{{ contact_info.contact_no|default_if_none:'' }}"
             />
           </div>
         </div>
@@ -220,11 +229,14 @@
                       class="form-check-input is-lumpsum"
                       type="checkbox"
                       id="is-lumpsum"
-                      name="is_lumpsum"
+                      name="is_lumpsum0"
                     />
                     <label class="form-check-label ps-2" for="is_lumpsum">
                       Lumpsum
                     </label>
+                  </div>
+                  <div class="col-md-5">
+                    <input type="hidden" name="orders" value="0">
                   </div>
                 </div>
               </div>
@@ -235,7 +247,8 @@
                     <select
                       class="form-select form-select-sm"
                       type="text"
-                      name="category"
+                      id="category"
+                      name="category0"
                       required
                     >
                       {% for value, label in category_choice %}
@@ -248,7 +261,8 @@
                     <select
                       class="form-select form-select-sm"
                       type="text"
-                      name="report_type"
+                      id="report-type"
+                      name="report_type0"
                       required
                     >
                       {% for value, label in report_choice %}
@@ -265,7 +279,8 @@
                     <input
                       class="form-control form-control-sm"
                       type="text"
-                      name="product"
+                      id="product"
+                      name="product0"
                       required
                     />
                   </div>
@@ -278,7 +293,8 @@
                     <input
                       class="form-control form-control-sm"
                       type="month"
-                      name="from_month"
+                      id="from-month"
+                      name="from_month0"
                       required
                     />
                   </div>
@@ -287,7 +303,8 @@
                     <input
                       class="form-control form-control-sm"
                       type="month"
-                      name="to_month"
+                      id="to-month"
+                      name="to_month0"
                       required
                     />
                   </div>
@@ -300,7 +317,9 @@
                     <input
                       class="form-control form-control-sm"
                       type="text"
-                      name="unit_price"
+                      id="unit-price"
+                      name="unit_price0"
+                      value="0"
                       required
                     />
                   </div>
@@ -309,7 +328,23 @@
                     <input
                       class="form-control form-control-sm"
                       type="text"
-                      name="total_price"
+                      id="total-price"
+                      name="total_price0"
+                      value="0"
+                      required
+                    />
+                  </div>
+                </div>
+                <div class="row" id="lumpsum-price">
+                  <div class="col-md-5">
+                    <label>Lumpsum Price</label>
+                    <input
+                      type="text"
+                      class="form-control form-control-sm"
+                      id="lumpsum-amt"
+                      type="text"
+                      name="lumpsum_amt0"
+                      value="0"
                       required
                     />
                   </div>
