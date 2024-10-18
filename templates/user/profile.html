@@ -1,4 +1,4 @@
-{% extends 'home.html' %} {% load static %} {% block content %}
+{% extends 'admin/settings.html' %} {% load static %} {% block settings %}
 <section class="container-fluid">
   <div class="container py-5">
     <div class="row d-flex justify-content-center align-items-center h-100">
@@ -11,7 +11,7 @@
             >
               <img
                 class="rounded-circle"
-                src="{{ profile.profile_img.url }}"
+                src="{% if profile.profile_img.url %} {{ profile.profile_img.url }} {% else %} {% static 'becrm/image/user-default-96.png' %} {% endif %}"
                 alt="profile photo"
                 style="height: 150px"
               />

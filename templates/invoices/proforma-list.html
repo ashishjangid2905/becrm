@@ -1,20 +1,91 @@
 {% extends 'home.html' %} {% load static %}
 {% load custom_filters %} {% block content %}
+
 <div class="container d-flex justify-content-center">
   <h5 class="fs-3 text-primary mt-3">Proforma Invoice List</h5>
 </div>
 <div class="container-fluid my-2">
   <div class="row ">
-    <div class="col-lg-6 col-md-6">
+    <div class="col-lg-4 col-md-6 col-sm-8 mt-2">
       <div class="row g-2">
-        <form method="GET" class="col-lg-7 col-md-7 gap-2 d-flex justify-content-between">
+        <form method="GET" class="col-md-9 col-sm-8 gap-2 d-flex justify-content-between">
           <input type="text" class="form-control form-control-sm" name="q" placeholder="Search" />
-          <button type="submit" class="btn btn-primary">Search</button>
+          {% for param, value in request.GET.items %}
+            {% if param != 'q' %}
+              <input type="hidden" name="{{ param }}" value="{{ value }}">
+            {% endif %}
+          {% endfor %}
+          <button type="submit" class="btn btn-sm btn-primary">Search</button>
         </form>
-        <div class="col-md-2">
-          <h4 class="m-0"><a href="{% url 'invoice:pi_list' %}" class="btn btn-warning">Clear Filter</a></h4>
+        <div class="col-md-3 col-sm-3">
+          <a href="{% url 'invoice:pi_list' %}" class="btn btn-sm btn-warning text-nowrap">Clear Filter</a>
         </div>
       </div>
+    </div>
+    <div class="col-md-2 mt-2 pe-4">
+      {% if request.user.role == 'admin' %}
+      <form class="row justify-content-end" id="selectUser" action="{% url 'invoice:pi_list' %}" method="get">
+        <div class="col-lg-12 col-md-12">
+          <select class="form-select form-select-sm" name="user" id="userChoise">
+            <option value='' selected>Select User</option>
+            {% for user in all_users %}
+            <option value="{{ user.id }}">{{user}}</option>
+            {% endfor %}
+          </select>
+          {% for param, value in request.GET.items %}
+            {% if param != 'user'%}
+              <input type="hidden" name="{{ param }}" value="{{ value }}">
+            {% endif %}
+          {% endfor %}
+        </div>
+      </form>
+      {% endif %}
+    </div>
+    <div class="col-md-2 mt-2 pe-4">
+      <form class="row justify-content-end" id="piApprove" action="{% url 'invoice:pi_list' %}" method="get">
+        <div class="col-lg-12 col-md-12">
+          <select class="form-select form-select-sm" name="ap" id="isApChoise">
+              <option value='' selected>Select</option>
+              <option value=True>Approved</option>
+              <option value=False>Pending</option>
+          </select>
+          {% for param, value in request.GET.items %}
+            {% if param != 'ap' %}
+              <input type="hidden" name="{{ param }}" value="{{ value }}">
+            {% endif %}
+          {% endfor %}
+        </div>
+      </form>
+    </div>
+    <div class="col-md-2 mt-2 pe-4">
+      <form class="row justify-content-end" id="piStatus" action="{% url 'invoice:pi_list' %}" method="get">
+        <div class="col-lg-12 col-md-12">
+          <select class="form-select form-select-sm" name="status" id="statusChoise">
+            <option value='' selected>Select Status</option>
+            {% for value,label in status_choices %}
+              <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{label}}</option>
+            {% endfor %}
+          </select>
+          {% for param, value in request.GET.items %}
+            {% if param != 'status' %}
+              <input type="hidden" name="{{ param }}" value="{{ value }}">
+            {% endif %}
+          {% endfor %}
+        </div>
+      </form>
+    </div>
+    <div class="col-md-2 mt-2 pe-4">
+      <form class="row justify-content-end" id="selectFy" action="{% url 'invoice:pi_list' %}" method="get">
+        <div class="col-lg-12 col-md-12">
+          <select class="form-select form-select-sm" name="fy" id="fychoise">
+            {% for fy in fiscal_years %}
+              <option value="{{ fy }}" {% if selected_fy == value %}selected{% endif %}>Fy {{fy}}</option>
+            {% endfor %}
+            <option value="2023-2024">Fy 23-24</option>
+            <option value="2022-2023">Fy 22-23</option>
+          </select>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -46,23 +117,23 @@
           <td class="text-wrap">
             {% total_order_value proforma %}
           </td>
-          <td class="text-wrap"> <span class="badge {% if proforma.is_Approved == True %} bg-success {% else %} bg-warning {% endif %} p-2">{% if proforma.is_Approved == True %}Approved {% else %}Pending{% endif %}</span></td>
-          <td class="text-wrap"><span class="badge {% if proforma.status == 'open' %} bg-warning {% elif proforma.status == 'closed' %} bg-success {% else %} bg-danger {% endif %} p-2">{{ proforma.status }}</span></td>
+          <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.is_Approved == True %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.is_Approved == True %}Approved {% else %}Pending{% endif %}</span></td>
+          <td class="text-wrap"><span class="badge rounded-pill text-bg-{% if proforma.status == 'open' %}warning{% elif proforma.status == 'closed' %}success{% else %}danger{% endif %} pb-1 px-2">{{ proforma.status }}</span></td>
           <td class="text-nowrap">
             <!-- <a href="" class="edit-btn"><i class="ti ti-details"></i></a> -->
             <a href="{% url 'invoice:edit_pi' proforma.slug %}" class="btn p-0 text-primary"><i class="ti ti-edit"></i></a>
             <a href="" class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.pi_no}}"><i class="ti ti-eye"></i></a>
             {% if proforma.is_Approved == True %}
-            <a href="{% url 'invoice:download_pdf' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-file-type-pdf"></i></a>
-            <a href="{% url 'invoice:download_xls' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-file-type-xls"></i></a>
-            <a href="" class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.id}}"><i class="ti ti-status-change"></i></a>
+              <a href="{% url 'invoice:download_pdf' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-file-type-pdf"></i></a>
+              <a class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.id}}"><i class="ti ti-status-change"></i></a>
+              <a href="{% url 'invoice:email_form' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-settings-cog"></i></a>
             {% endif %}
           </td>
         </tr>
       
       <!-- Modal -->
         <div class="modal fade" id="{{proforma.pi_no}}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-          <div class="modal-dialog modal-lg">
+          <div class="modal-dialog modal-lg modal-dialog-scrollable" style="scrollbar-width: thin;">
             <div class="modal-content">
               <div class="modal-header">
                 <h1 class="modal-title fs-4" >{{proforma.company_name}}</h1>
@@ -120,7 +191,7 @@
                   </div>
                   <div class="row">
                     <div class="col-lg-7">
-                      <p class="text-capitalize"><span class="fw-semibold">details: </span>{{proforma.details}}</p>
+                      <p class="text-capitalize"><span class="fw-semibold">details: </span>{{proforma.details|safe}}</p>
                     </div>
                   </div>
                   <hr/>
@@ -201,7 +272,7 @@
                 </div>
               </div>
               <div class="modal-footer">
-                {% if proforma.is_Approved != True and request.user.role == 'admin' %}
+                {% if not proforma.is_Approved and request.user.role == 'admin' %}
                   <form action="{% url 'invoice:approve_pi' proforma.id %}" method="post">
                     {% csrf_token %}
                     <input type="hidden" name="is_approved" value="true">
@@ -254,6 +325,97 @@
       {% endfor %}
     </tbody>
   </table>
-
 </div>
+
+<nav class="mt-4">
+  <ul class="pagination pagination-sm justify-content-end flex-row ">
+    <form class="me-5" method='GET' id='page-size'>
+      {% for param, value in request.GET.items %}
+        {% if param != 'pageSize' %}
+          <input type="hidden" name="{{ param }}" value="{{ value }}">
+        {% endif %}
+      {% endfor %}
+      <select class="form-select form-select-sm mx-2 text-primary-emphasis bg-primary-subtle" type="search" id='pageSize' name='pageSize'>
+        <option value="20">20/page</option>
+        <option value="30">30/page</option>
+        <option value="40">40/page</option>
+        <option value="50">50/page</option>
+      </select>
+    </form>
+    {% if all_pi.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page={{ all_pi.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{all_pi.previous_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{all_pi.previous_page_number}}</a></li>
+    {% endif %}
+    <li class="page-item active"><a class="page-link" href="?page={{all_pi.number}}">{{all_pi.number}}</a></li>
+    {% if all_pi.has_next %}
+    <li class="page-item"><a class="page-link" href="?page={{all_pi.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{all_pi.next_page_number}}</a></li>
+    <li class="page-item"><a class="page-link" href="?page={{all_pi.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a></li>
+    {% endif %}
+  </ul>
+</nav>
+
+<script>
+
+    let userbtn = document.querySelector('#userChoise');
+    let userForm = document.querySelector('#selectUser');
+
+    userbtn.addEventListener('change', function() {
+      // Automatically submit the form when the fiscal year is changed
+      userForm.submit();
+    });
+    let selected_user = "{{ selected_user|default_if_none:'' }}";  // Handle None values in Django
+    if (selected_user) {
+      userbtn.value = selected_user;
+    }
+
+    let apbtn = document.querySelector('#isApChoise');
+    let apForm = document.querySelector('#piApprove');
+
+    apbtn.addEventListener('change', function() {
+      // Automatically submit the form when the fiscal year is changed
+      apForm.submit();
+    });
+    let selected_Ap = "{{ selected_Ap|default_if_none:'' }}";  // Handle None values in Django
+    if (selected_Ap) {
+      apbtn.value = selected_Ap;
+    }
+
+
+    let statusBtn = document.querySelector('#statusChoise');
+    let statusForm = document.querySelector('#piStatus');
+    
+    statusBtn.addEventListener('change', function() {
+      // Automatically submit the form when the fiscal year is changed
+      statusForm.submit();
+    });
+    let selected_status = "{{ selected_status|default_if_none:'' }}";  // Handle None values in Django
+    if (selected_status) {
+      statusBtn.value = selected_status;
+    }
+
+    let fybtn = document.querySelector('#fychoise');
+    let form = document.querySelector('#selectFy');
+    
+    fybtn.addEventListener('change', function() {
+      // Automatically submit the form when the fiscal year is changed
+      form.submit();
+    });
+    let selectedFy = "{{ selected_fy|default_if_none:'' }}";  // Handle None values in Django
+    if (selectedFy) {
+      fybtn.value = selectedFy;
+    }
+    
+    let entryPerPage = document.querySelector('#pageSize');
+    let pageRecord = document.querySelector('#page-size');
+
+    entryPerPage.addEventListener('change', ()=>{
+      pageRecord.submit()
+    });
+
+    let pagesize = "{{pageSize|default_if_none:''}}"
+    if (pagesize){
+      entryPerPage.value = pagesize
+    }
+
+</script>
 {% endblock %}

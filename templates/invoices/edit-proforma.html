@@ -1,4 +1,4 @@
-{% extends "home.html" %} {% load static %} {% block content %}
+{% extends "home.html" %} {% load static %} {% load custom_filters %} {% block content %}
 <div class="container-fluid d-flex flex-column">
   <div class="container my-2">
     <h1 class="text-primary fs-5">
@@ -36,7 +36,7 @@
             class="form-check-input"
             type="checkbox"
             id="is-sez"
-            name="gstin"
+            name="is_sez"
             {% if pi_instance.is_sez %}checked{% endif %}
           />
           <label class="form-check-label">Is SEZ</label>
@@ -193,157 +193,296 @@
           </div>
           <div class="col-md-7">
             <label>Details<span class="text-danger">*</span></label>
-            <textarea
-              class="form-control form-control-sm"
-              type="textarea"
-              name="details"
-              rows="4"
-            >{{pi_instance.details}}</textarea>
+            <div id="details" style="height: 100px; width: 100%;">{{pi_instance.details|safe}}</div>
+            <input type="hidden" name="details" required>
           </div>
         </div>
       </div>
       <hr class="my-5" />
-      {% for order in existing_orders %}
-      
-        <div class="col-lg-10 order-list" id="order-item">
-          <div class="row g-3">
-            <div class="col-lg-12">
-              <h5 class="d-inline fs-6">Item Details</h5>
-              <button class="btn btn-sm btn-secondary" id="add-items">
-                <i class="ti ti-plus"></i>
-              </button>
-            </div>
-            <div class="col-lg-12 border p-3 rounded">
+      <div class="col-lg-10">
+        <div class="row orders-container">
+          {% for order in existing_orders|filter_by_lumpsum:'True' %}
+            <div class="col-lg-10 order-list my-2" id="order-item">
               <div class="row g-3">
                 <div class="col-lg-12">
-                  <div class="row g-3">
-                    <div class="col-md-5">
-                      <input
-                        class="form-check-input is-lumpsum"
-                        type="checkbox"
-                        id="is-lumpsum"
-                        name="is_lumpsum{{forloop.counter0}}"
-                        {% if order.is_lumpsum %}checked{% endif %}
-                      />
-                      <label class="form-check-label ps-2" for="is_lumpsum">
-                        Lumpsum
-                      </label>
-                    </div>
-                    <div class="col-md-5">
-                      <input type="hidden" name="orders" value="0">
-                    </div>
-                  </div>
+                  <h5 class="d-inline fs-6">Item Details</h5>
+                  <button class="btn btn-sm btn-secondary" id="add-items">
+                    <i class="ti ti-plus"></i>
+                  </button>
                 </div>
-                <div class="col-lg-12">
+                <div class="col-lg-12 border p-3 rounded">
                   <div class="row g-3">
-                    <div class="col-md-5">
-                      <label>Name of Report</label>
-                      <select
-                        class="form-select form-select-sm"
-                        type="text"
-                        id="category"
-                        name="category{{forloop.counter0}}"
-                      >
-                        {% for value, label in category_choice %}
-                        <option value="{{value}}" {% if order.category == value %}selected{% endif %}>{{label}}</option>
-                        {% endfor %}
-                      </select>
+                    <div class="col-lg-12">
+                      <div class="row g-3">
+                        <div class="col-md-5">
+                          <input
+                            class="form-check-input is-lumpsum"
+                            type="checkbox"
+                            id="is-lumpsum"
+                            name="is_lumpsum"
+                            {% if order.is_lumpsum %}checked{% endif %}
+                          />
+                          <label class="form-check-label ps-2" for="is_lumpsum">
+                            Lumpsum
+                          </label>
+                        </div>
+                        <div class="col-md-5">
+                          <input type="hidden" name="orders" value="0">
+                        </div>
+                      </div>
                     </div>
-                    <div class="col-md-5">
-                      <label>Type of Report</label>
-                      <select
-                        class="form-select form-select-sm"
-                        type="text"
-                        id="report-type"
-                        name="report_type{{forloop.counter0}}"
-                      >
-                        {% for value, label in report_choice %}
-                        <option value="{{value}}" {% if order.report_type == value %}selected{% endif %}>{{label}}</option>
-                        {% endfor %}
-                      </select>
+                    <div class="col-lg-12">
+                      <div class="row g-3">
+                        <div class="col-md-5">
+                          <label>Name of Report</label>
+                          <select
+                            class="form-select form-select-sm"
+                            type="text"
+                            id="category"
+                            name="category"
+                          >
+                            {% for value, label in category_choice %}
+                            <option value="{{value}}" {% if order.category == value %}selected{% endif %}>{{label}}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                        <div class="col-md-5">
+                          <label>Type of Report</label>
+                          <select
+                            class="form-select form-select-sm"
+                            type="text"
+                            id="report-type"
+                            name="report_type"
+                          >
+                            {% for value, label in report_choice %}
+                            <option value="{{value}}" {% if order.report_type == value %}selected{% endif %}>{{label}}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div class="col-lg-12">
-                  <div class="row g-3">
-                    <div class="col-md-5">
-                      <label>Product/HSN</label>
-                      <input
-                        class="form-control form-control-sm"
-                        type="text"
-                        id="product"
-                        name="product{{forloop.counter0}}"
-                        value="{{order.product}}"
-                      />
+                    <div class="col-lg-12">
+                      <div class="row g-3">
+                        <div class="col-md-5">
+                          <label>Product/HSN</label>
+                          <input
+                            class="form-control form-control-sm"
+                            type="text"
+                            id="product"
+                            name="product"
+                            value="{{order.product}}"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div class="col-lg-12">
-                  <div class="row g-3">
-                    <div class="col-md-5">
-                      <label>From Month</label>
-                      <input
-                        class="form-control form-control-sm"
-                        type="month"
-                        id="from-month"
-                        name="from_month{{forloop.counter0}}"
-                        value="{{order.from_month}}"
-                      />
+                    <div class="col-lg-12">
+                      <div class="row g-3">
+                        <div class="col-md-5">
+                          <label>From Month</label>
+                          <input
+                            class="form-control form-control-sm"
+                            type="month"
+                            id="from-month"
+                            name="from_month"
+                            value="{{order.from_month}}"
+                          />
+                        </div>
+                        <div class="col-md-5">
+                          <label>To Month</label>
+                          <input
+                            class="form-control form-control-sm"
+                            type="month"
+                            id="to-month"
+                            name="to_month"
+                            value="{{order.to_month}}"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div class="col-md-5">
-                      <label>To Month</label>
-                      <input
-                        class="form-control form-control-sm"
-                        type="month"
-                        id="to-month"
-                        name="to_month{{forloop.counter0}}"
-                        value="{{order.to_month}}"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div class="col-lg-12">
-                  <div class="row g-3" id="item-price">
-                    <div class="col-md-5">
-                      <label>Unit Price</label>
-                      <input
-                        class="form-control form-control-sm"
-                        type="text"
-                        id="unit-price"
-                        name="unit_price{{forloop.counter0}}"
-                        value="{{order.unit_price}}"
-                      />
-                    </div>
-                    <div class="col-md-5">
-                      <label>Total Price</label>
-                      <input
-                        class="form-control form-control-sm"
-                        type="text"
-                        id="total-price"
-                        name="total_price{{forloop.counter0}}"
-                        value="{{order.total_price}}"
-                      />
-                    </div>
-                  </div>
-                  <div class="row" id="lumpsum-price">
-                    <div class="col-md-5">
-                      <label>Lumpsum Price</label>
-                      <input
-                        type="text"
-                        class="form-control form-control-sm"
-                        id="lumpsum-amt"
-                        type="text"
-                        name="lumpsum_amt{{forloop.counter0}}"
-                        value="{{order.lumpsum_amt}}"
-                      />
+                    <div class="col-lg-12">
+                      <div class="row g-3" id="item-price">
+                        <div class="col-md-5">
+                          <label>Unit Price</label>
+                          <input
+                            class="form-control form-control-sm"
+                            type="text"
+                            id="unit-price"
+                            name="unit_price"
+                            value="{{order.unit_price}}"
+                          />
+                        </div>
+                        <div class="col-md-5">
+                          <label>Total Price</label>
+                          <input
+                            class="form-control form-control-sm"
+                            type="text"
+                            id="total-price"
+                            name="total_price"
+                            value="{{order.total_price}}"
+                          />
+                        </div>
+                      </div>
+                      <div class="row" id="lumpsum-price">
+                        <div class="col-md-5">
+                          <label>Lumpsum Price</label>
+                          <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            id="lumpsum-amt"
+                            type="text"
+                            name="lumpsum_amt"
+                            value="{{order.lumpsum_amt}}"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          {% endfor %}
+          {% for order in existing_orders|filter_by_lumpsum:'False' %}
+            <div class="col-lg-10 order-list my-2" id="order-item">
+              <div class="row g-3">
+                <div class="col-lg-12">
+                  <h5 class="d-inline fs-6">Item Details</h5>
+                  <button class="btn btn-sm btn-secondary" id="add-items">
+                    <i class="ti ti-plus"></i>
+                  </button>
+                </div>
+                <div class="col-lg-12 border p-3 rounded">
+                  <div class="row g-3">
+                    <div class="col-lg-12">
+                      <div class="row g-3">
+                        <div class="col-md-5">
+                          <input
+                            class="form-check-input is-lumpsum"
+                            type="checkbox"
+                            id="is-lumpsum"
+                            name="is_lumpsum"
+                            {% if order.is_lumpsum %}checked{% endif %}
+                          />
+                          <label class="form-check-label ps-2" for="is_lumpsum">
+                            Lumpsum
+                          </label>
+                        </div>
+                        <div class="col-md-5">
+                          <input type="hidden" name="orders" value="0">
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-lg-12">
+                      <div class="row g-3">
+                        <div class="col-md-5">
+                          <label>Name of Report</label>
+                          <select
+                            class="form-select form-select-sm"
+                            type="text"
+                            id="category"
+                            name="category"
+                          >
+                            {% for value, label in category_choice %}
+                            <option value="{{value}}" {% if order.category == value %}selected{% endif %}>{{label}}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                        <div class="col-md-5">
+                          <label>Type of Report</label>
+                          <select
+                            class="form-select form-select-sm"
+                            type="text"
+                            id="report-type"
+                            name="report_type"
+                          >
+                            {% for value, label in report_choice %}
+                            <option value="{{value}}" {% if order.report_type == value %}selected{% endif %}>{{label}}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-lg-12">
+                      <div class="row g-3">
+                        <div class="col-md-5">
+                          <label>Product/HSN</label>
+                          <input
+                            class="form-control form-control-sm"
+                            type="text"
+                            id="product"
+                            name="product"
+                            value="{{order.product}}"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-lg-12">
+                      <div class="row g-3">
+                        <div class="col-md-5">
+                          <label>From Month</label>
+                          <input
+                            class="form-control form-control-sm"
+                            type="month"
+                            id="from-month"
+                            name="from_month"
+                            value="{{order.from_month}}"
+                          />
+                        </div>
+                        <div class="col-md-5">
+                          <label>To Month</label>
+                          <input
+                            class="form-control form-control-sm"
+                            type="month"
+                            id="to-month"
+                            name="to_month"
+                            value="{{order.to_month}}"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-lg-12">
+                      <div class="row g-3" id="item-price">
+                        <div class="col-md-5">
+                          <label>Unit Price</label>
+                          <input
+                            class="form-control form-control-sm"
+                            type="text"
+                            id="unit-price"
+                            name="unit_price"
+                            value="{{order.unit_price}}"
+                          />
+                        </div>
+                        <div class="col-md-5">
+                          <label>Total Price</label>
+                          <input
+                            class="form-control form-control-sm"
+                            type="text"
+                            id="total-price"
+                            name="total_price"
+                            value="{{order.total_price}}"
+                          />
+                        </div>
+                      </div>
+                      <div class="row" id="lumpsum-price">
+                        <div class="col-md-5">
+                          <label>Lumpsum Price</label>
+                          <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            id="lumpsum-amt"
+                            type="text"
+                            name="lumpsum_amt"
+                            value="{{order.lumpsum_amt}}"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
         </div>
-      {% endfor %}
+      </div>
       <div class="col-lg-10">
         <button type="submit" class="btn btn-primary">Update</button>
         <a href="{% url 'invoice:pi_list' %}" class="btn btn-warning">Back to List</a>
@@ -351,5 +490,34 @@
     </form>
   </div>
 </div>
+
+<script>
+
+  const toolbarOptions = [
+    // [{ 'font': [] }],
+    [{ 'size': ['small', false, 'large', 'huge'] }],  // custom dropdown
+    ['bold', 'italic', 'underline', 'strike'],        // toggled buttons
+    [{ 'color': [] }, { 'background': [] }],          // dropdown with defaults from theme
+    [{ 'align': [] }],
+    [{ 'indent': '-1'}, { 'indent': '+1' }],          // outdent/indent
+    // ['link'],
+    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+    [{ 'script': 'sub'}, { 'script': 'super' }],      // superscript/subscript
+  ];
+
+
+  const quill = new Quill('#details', {
+    modules: {
+      toolbar: toolbarOptions,
+    },
+    theme: 'snow',
+  });
+
+  const form = document.querySelector('form');
+  form.onsubmit = () => {
+    let detail = document.querySelector('input[name=details]')
+    detail.value = quill.root.innerHTML
+  }
+</script>
 <script src="{% static 'becrm/js/form.js' %}"></script>
 {% endblock %}

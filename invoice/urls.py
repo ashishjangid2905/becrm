@@ -11,12 +11,13 @@ urlpatterns = [
     path('add-biller', views.add_biller, name='add_biller'),
     path('proforma-invoice', views.pi_list, name='pi_list'),
     path('create-pi', views.create_pi, name='create_pi'),
+    path('create-pi/<int:lead_id>', views.create_pi, name='create_pi_lead_id'),
     path('approve-pi/<int:pi_id>', views.approve_pi, name='approve_pi'),
     path('update-status/<int:pi_id>', views.update_pi_status, name='update_pi_status'),
     path('edit-pi/<slug:pi>', views.edit_pi, name='edit_pi'),
-    path('create-pi/<int:lead_id>', views.create_pi, name='create_pi_lead_id'),
-    path('pdf/<int:pi_id>', views.download_pdf, name='download_pdf'),
-    path('xls/<int:pi_id>', views.download_xls, name='download_xls'),
-    path('send-test-email', views.send_test_mail, name='send_test_mail'),
+    path('pdf/<int:pi_id>', views.download_pdf2, name='download_pdf'),
+    # path('xls/<int:pi_id>', views.download_doc, name='download_xls'),
+    path('email/<int:pi>', views.email_form, name='email_form'),
+    path('send-test-email/<int:pi>', views.send_test_mail, name='send_test_mail'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

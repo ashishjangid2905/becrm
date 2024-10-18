@@ -157,6 +157,13 @@ def logout_user(request):
     messages.success(request,"You have Logged Out")
     return redirect('app:login')
 
+@login_required
+def settings(request):
+    if request.user.role != 'admin':
+        return redirect('app:home')
+    
+    return render(request,'admin/settings.html')
+
 
 def custom_page_not_found(request, exception):
     return render(request, 'error/page404.html', status=404)

@@ -2,26 +2,37 @@
 {% block leadContent %}
 
 <div class="container-fluid p-0 mt-2">
-  <div class="row g-3 justify-content-between">
+  <div class="row g-2 justify-content-between">
     <div class="col-lg-6 col-md-6">
-      <form class="row g-3" action="" method="get" role="search">
+      <form class="row g-2" action="" method="get" role="search">
         <div class="col-lg-8 col-md-8">
-          <input type="text" class="form-control" name="q" placeholder="Search" />
+          <input type="text" class="form-control form-control-sm" name="q" placeholder="Search" />
         </div>
         <div class="col-lg-4 col-md-4">
-          <button class="btn btn-outline-success mx-1" type="submit">Search</button>
+          <button class="btn btn-sm btn-outline-success mx-1" type="submit">Search</button>
         </div>
       </form>
     </div>
-    {% if company.user == request.user.id %}
-    <div class="col-lg-2 col-md-2 ps-2">
-      <a
-        href="{% url 'invoice:create_pi_lead_id' company.id %}"
-        class="btn btn-outline-success"
-        >Create PI</a
-      >
+    <div class="col-lg-4 col-md-5 ps-2">
+      <div class="row justify-content-end">
+        {% if company.user == request.user.id %}
+          <div class="col-md-4 col-6">
+            <a href="{% url 'invoice:create_pi_lead_id' company.id %}" class="btn btn-sm btn-outline-success">Create PI</a>
+          </div>
+        {% endif %}
+        <form class="col-md-6 col-6 justify-content-end" method="get">
+          <div class="row">
+            <div class="col-md-12">
+              <select class="form-select form-select-sm" name="fy" id="">
+                <option value="">Fy 24-25</option>
+                <option value="">Fy 23-24</option>
+                <option value="">Fy 22-23</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
-    {% endif %}
   </div>
   <div class="container-fluid my-3" style="height: 400px; overflow-y: auto">
     <table class="table table-light align-middle table-hover">
@@ -32,6 +43,7 @@
           <th class="fw-medium text-nowrap" scope="col">Gstin</th>
           <th class="fw-medium" scope="col">PI No</th>
           <th class="fw-medium" scope="col">PI Date</th>
+          <th class="fw-medium" scope="col">Is Approved</th>
           <th class="fw-medium" scope="col">Status</th>
           <th class="fw-medium" scope="col">Amount</th>
           <th class="fw-medium" scope="col">Action</th>
@@ -46,7 +58,8 @@
           <td>{{proforma.gstin}}</td>
           <td class="text-nowrap">{{proforma.pi_no}}</td>
           <td class="text-nowrap">{{proforma.pi_date}}</td>
-          <td><span class="badge text-bg-{% if proforma.status == 'closed' %}success{% elif proforma.status == 'open' %}warning{% else %}danger{% endif %}">{{proforma.status}}</span></td>
+          <td class="text-nowrap"><span class="badge rounded-pill {% if proforma.is_Approved %} text-bg-success {% else %} text-bg-warning {% endif %}px-2 py-1">{% if proforma.is_Approved == True %}Approved {% else %}Pending{% endif %}</span></td>
+          <td class="text-capitalize"><span class="badge rounded-pill px-2 py-1 text-bg-{% if proforma.status == 'closed' %}success{% elif proforma.status == 'open' %}warning{% else %}danger{% endif %}">{{proforma.status}}</span></td>
           <td>{% total_order_value proforma %}</td>
           <td class="text-nowrap">
             <a

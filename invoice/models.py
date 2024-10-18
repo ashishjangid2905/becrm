@@ -10,7 +10,8 @@ import fiscalyear, datetime
 class biller(models.Model):
     biller_name = models.CharField(_("Biller Name"), max_length=150)
     brand_name = models.CharField(_("Brand Name"), max_length=150, null=True, blank=True)
-    biller_gstin = models.CharField(_("Biller Gstin"), max_length=150, blank=True, null=True)
+    biller_gstin = models.CharField(_("Biller Gstin"), max_length=20, blank=True, null=True)
+    biller_pan = models.CharField(_("Biller Pan"), max_length=15, blank=True, null=True)
     biller_msme = models.CharField(_("Biller MSME"), max_length=150, blank=True, null=True)
     reg_address1 = models.CharField(_("Reg. Address Line1"), max_length=254)
     reg_address2 = models.CharField(_("Reg. Address Line2"), max_length=254)
@@ -148,7 +149,7 @@ class orderList(models.Model):
     proforma_id = models.ForeignKey(proforma, on_delete=models.RESTRICT)
     category = models.CharField(_("Category"), max_length=50, blank=False, null=False)
     report_type = models.CharField(_("Report Type"), max_length=50)
-    product = models.CharField(_("Product"), max_length=50)
+    product = models.CharField(_("Product"), max_length=500)
     from_month = models.CharField(_("From Month"), max_length=50)
     to_month = models.CharField(_("To Month"), max_length=50)
     unit_price = models.IntegerField(_("Unit Price"), blank=True, null=True)

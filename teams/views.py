@@ -13,11 +13,22 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 @login_required(login_url='app:login')
 def user_list(request):
 
-    user_branch = Profile.objects.get(user=request.user).branch
+    profile_instance = get_object_or_404(Profile, user=request.user)
+    user_branch = profile_instance.branch
     all_users = Profile.objects.filter(user__profile__branch=user_branch.id)
+
+    role_choices = User.ROLE
+    department_choices = User.DEPARTMENT
+
+    branch = Branch.objects.all()
 
     context = {
         'all_users': all_users,
+        'role_choices':role_choices,
+        'department_choices': department_choices,
+        'user_branch': user_branch,
+        'profile_instance': profile_instance,
+        'branch':branch,
     }
 
     if not request.user.is_authenticated:
@@ -61,8 +72,9 @@ def add_user(request):
                 
                 branch_name = request.POST.get('chooseBranch')
                 branch = get_object_or_404(Branch, branch_name=branch_name)
+                phone = request.POST.get('contact')
 
-                profile = Profile.objects.create(user=user, branch=branch)
+                profile = Profile.objects.create(user=user, branch=branch, phone=phone)
                 return redirect('teams:users')
             return render(request, 'admin/add-user.html', context)
         return redirect('app:home')
@@ -110,8 +122,10 @@ def edit_user(request, user_id):
 
                 branch_name = request.POST.get('chooseBranch')
                 branch_instance = get_object_or_404(Branch, branch_name=branch_name)
+                phone = request.POST.get('contact')
                 user_profile = Profile.objects.get(user=user_instance)
                 user_profile.branch = branch_instance
+                user_profile.phone = phone
 
                 user_profile.save()
 

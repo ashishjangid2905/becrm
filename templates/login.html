@@ -1,5 +1,5 @@
 {% extends 'base.html' %} {% load static %} {% block content %}
-<div class="alert z-3 position-absolute container" tabindex="1" id="myAlert">
+<div class="alert z-3 position-absolute container-fluid" tabindex="1" id="myAlert">
   {% if messages %} {% for message in messages %}
   <div class="alert alert-warning alert-dismissible fade show" role="alert">
     <strong>{{ message }}</strong>

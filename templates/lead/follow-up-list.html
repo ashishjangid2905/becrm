@@ -55,7 +55,7 @@
         <td class="text-nowrap">{{ lead.chat_no.company_id.user }}</td>
         <td class="text-nowrap">
           <a
-            href="{% url 'lead:lead' lead.chat_no.company_id.id %}?chat={{lead.chat_no.id}}"
+            href="{% url 'lead:leads_chat' lead.chat_no.company_id.id %}?chat={{lead.chat_no.id}}"
             class="edit-btn"
             ><i class="ti ti-details"></i
           ></a>
