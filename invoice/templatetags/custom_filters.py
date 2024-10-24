@@ -40,6 +40,31 @@ def total_order_value(proforma):
     total_sum+=sum(unique_lumpsum_amt)
     return total_sum
 
+@register.simple_tag
+def total_pi_value_inc_tax(proforma):
+
+    total_value = total_order_value(proforma)
+    tax_value = 0
+
+    if not proforma.bank.biller_id.biller_gstin or proforma.is_sez:
+        cgst = 0
+        sgst = 0
+        igst = 0
+        total_inc_tax = total_value
+    else:
+        if str(proforma.state) == proforma.bank.biller_id.biller_gstin[0:2]:
+            cgst = total_value*0.09
+            sgst = total_value*0.09
+            igst = 0
+            total_inc_tax = total_value*1.18
+        else:
+            cgst = 0
+            sgst = 0
+            igst = total_value*0.18
+            total_inc_tax = total_value*1.18
+
+    return f'{round(total_inc_tax,0):.0f}'
+
 @register.filter
 def filter_by_lumpsum(queryset, is_lumpsum):
     return queryset.filter(is_lumpsum=is_lumpsum)

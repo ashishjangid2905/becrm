@@ -28,6 +28,28 @@ REPORT_TYPE = {
     ('domestic', _('Market Research')),
 }
 
+REPORT_FORMAT ={
+    ('monthly', _('Monthly')),
+    ('weekly', _('weekly')),
+    ('10 days', _('10 Days')),
+    ('sez', _('SEZ')),
+    ('sez(weekly)', _('SEZ (Weekly)')),
+    ('incoterm', _('Incoterm')),
+}
+
+
+ORDER_STATUS = {
+    ('complete', _('Complete')),
+    ('pending', _('Pending')),
+}
+
+PAYMENT_STATUS = {
+    ('full', _('Full')),
+    ('credit', _('Credit')),
+    ('partial', _('Partial')),
+}
+
+
 COUNTRY_CHOICE ={
     ('IN', _('INDIA')),
     ('US', _('UNITED STATES')),

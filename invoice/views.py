@@ -5,10 +5,10 @@ from django.http import HttpResponseRedirect, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from .models import biller, bankDetail, proforma, orderList, pi_number
+from .models import biller, bankDetail, proforma, orderList, convertedPI, processedOrder, pi_number
 from lead.models import leads, contactPerson
 from teams.models import User, Profile
-from .utils import SUBSCRIPTION_MODE, STATUS_CHOICES, PAYMENT_TERM, COUNTRY_CHOICE, STATE_CHOICE, CATEGORY, REPORT_TYPE
+from .utils import SUBSCRIPTION_MODE, STATUS_CHOICES, PAYMENT_TERM, COUNTRY_CHOICE, STATE_CHOICE, CATEGORY, REPORT_TYPE, PAYMENT_STATUS, REPORT_FORMAT, ORDER_STATUS
 from django.db import IntegrityError
 from django.db.models import Q, Min, Max
 from django.contrib import messages
@@ -41,11 +41,12 @@ from openpyxl.drawing.image import Image
 from openpyxl.cell.text import InlineFont
 from openpyxl.cell.rich_text import TextBlock, CellRichText
 from openpyxl.worksheet.page import PageMargins
+from openpyxl.utils import get_column_letter
 # Create your views here.
 
 from django.core.mail import EmailMultiAlternatives
 from teams.custom_email_backend import CustomEmailBackend
-from .templatetags.custom_filters import total_order_value, total_lumpsums, filter_by_lumpsum
+from .templatetags.custom_filters import total_order_value, total_lumpsums, filter_by_lumpsum, total_pi_value_inc_tax
 
 
 @login_required(login_url='app:login')
@@ -189,6 +190,9 @@ def pi_list(request):
         all_proforma = all_proforma
 
     status_choices = STATUS_CHOICES
+    payment_status = PAYMENT_STATUS
+    report_type = REPORT_TYPE
+    report_format = REPORT_FORMAT
 
     if request.user.role == 'admin':
         all_pi = all_proforma
@@ -248,6 +252,9 @@ def pi_list(request):
         'all_users': all_users,
         'all_pi': piList,
         'status_choices': status_choices,
+        'payment_status': payment_status,
+        'report_type': report_type,
+        'report_format': report_format,
         'fiscal_years': fiscal_years,
         'selected_user': selected_user,
         'selected_Ap': selected_Ap,
@@ -534,6 +541,363 @@ def edit_pi(request, pi):
             'existing_orders': existing_orders,
             }
         return render(request, 'invoices/edit-proforma.html', context)
+
+
+@login_required(login_url='app:login')
+def process_pi(request, pi):
+    
+    pi_instance = get_object_or_404(proforma, pk=pi)
+
+    target_url = reverse('invoice:pi_list' )
+
+    if request.user.id == pi_instance.user_id and request.method == 'POST':
+        pi_status = request.POST.get('pi_status')
+        closed_at = request.POST.get('closingDate')
+        pi_instance.closed_at = closed_at
+        pi_instance.status = pi_status
+        pi_instance.save()
+
+        
+        is_taxInvoice = request.POST.get('is_taxInvoice') == 'on'
+        payment_status = request.POST.get('payment_status')
+        payment1_date = request.POST.get('payment1_date')
+        payment1_amt = request.POST.get('payment1_amt')
+        is_closed = True
+        if pi_instance.status == 'closed':
+            try:
+                closed_pi_instance = get_object_or_404(convertedPI, pi_id = pi_instance)
+                closed_pi_instance.is_invoiceRequire = is_taxInvoice
+                closed_pi_instance.is_closed = is_closed
+                closed_pi_instance.is_cancel = False
+                closed_pi_instance.payment_status = payment_status
+                closed_pi_instance.payment1_date = payment1_date
+                closed_pi_instance.payment1_amt = payment1_amt
+                closed_pi_instance.save()
+            except:
+                convertedPI.objects.create(pi_id=pi_instance, is_taxInvoice=is_taxInvoice, is_closed=is_closed, payment_status=payment_status, payment1_date=payment1_date, payment1_amt=payment1_amt)
+        elif pi_instance.status == 'open':
+            try:
+                closed_pi_instance = get_object_or_404(convertedPI, pi_id = pi_instance)
+                closed_pi_instance.is_hold = True
+                closed_pi_instance.save()
+            except:
+                pass
+        else:
+            try:
+                closed_pi_instance = get_object_or_404(convertedPI, pi_id = pi_instance)
+                closed_pi_instance.is_cancel = True
+                closed_pi_instance.save()
+            except:
+                pass
+
+            messages.success(request, "PI processed successfully!")
+        return HttpResponseRedirect(target_url)
+
+
+
+@login_required(login_url='app:login')
+def processed_list(request):
+
+    today = timezone.now().date()
+
+    date_range = processedOrder.objects.aggregate(min_date = Min('order_date'), max_date = Max('order_date'))
+
+    if date_range['min_date'] and ['max_date']:
+        min_year = date_range['min_date'].year
+        max_year = date_range['max_date'].year
+    else:
+        min_year = today.year
+        max_year = today.year
+
+    fiscal_years = []
+    for year in range(min_year, max_year + 1):
+        fy_label = f"{year}-{year + 1}"
+        fiscal_years.append(fy_label)
+
+    selected_fy = request.GET.get('fy', None)
+
+    if selected_fy:
+        # Parse the selected fiscal year from the format '2023-2024'
+        fy_start_year = int(selected_fy.split('-')[0])
+        fy_end_year = fy_start_year + 1
+        
+        fy_start = datetime(fy_start_year, 4, 1).date()
+        fy_end = datetime(fy_end_year, 3, 31).date()
+    else:
+        # Default to the current fiscal year
+        if today.month >= 4:  # We're in the current fiscal year
+            fy_start = datetime(today.year, 4, 1).date()
+            fy_end = datetime(today.year + 1, 3, 31).date()
+        else:  # We're in the previous fiscal year
+            fy_start = datetime(today.year - 1, 4, 1).date()
+            fy_end = datetime(today.year, 3, 31).date()
+
+    profile_instance = get_object_or_404(Profile, user=request.user)
+    user_branch = profile_instance.branch
+    all_users = Profile.objects.filter(user__profile__branch=user_branch.id)
+
+    all_processed_orders = processedOrder.objects.filter(Q(order_date__gte=fy_start) & Q(order_date__lte=fy_end)).order_by('-order_date')
+
+    selected_user = request.GET.get("user", None)
+    selected_Ap = request.GET.get("ap", None)
+    selected_status = request.GET.get("status", None)
+
+    if selected_user:
+        all_processed_orders = all_processed_orders.filter(pi_id__user_id=selected_user)
+
+    if selected_Ap:
+        all_processed_orders = all_processed_orders.filter(pi_id__convertedpi__is_hold=selected_Ap)
+    
+    if selected_status:
+        all_processed_orders = all_processed_orders.filter(order_status=selected_status)
+
+    else:
+        all_processed_orders = all_processed_orders
+
+    status_choices = ORDER_STATUS
+    payment_status = PAYMENT_STATUS
+    report_type = REPORT_TYPE
+    report_format = REPORT_FORMAT
+
+    if request.user.role == 'admin' or request.user.role == 'production':
+        processed_orders = all_processed_orders
+
+
+    query = request.GET.get('q')
+
+    search_fields = [
+        'company_name', 'gstin', 'state', 'country', 'requistioner','email_id', 'contact', 'status',
+        'pi_no', 'orderlist__product', 'orderlist__report_type'
+    ]
+
+    search_objects = Q()
+
+    if query:
+        # Build the Q object for searching leads
+        for field in search_fields:
+            search_objects |= Q(**{f'{field}__icontains': query})
+
+        processedOrderList = processed_orders.filter(search_objects).distinct()
+    else:
+        processedOrderList = processed_orders
+
+    if processedOrderList:
+        for pi in processedOrderList:
+            pi.pi_id.user_id = get_object_or_404(User, pk=pi.pi_id.user_id)
+
+    pageSize = request.GET.get('pageSize', 20)
+
+    pi_per_page = Paginator(processedOrderList, pageSize)
+    page = request.GET.get('page')
+
+    try:
+        processedOrderList = pi_per_page.get_page(page)
+    except PageNotAnInteger:
+        processedOrderList = pi_per_page.get_page(1)
+    except EmptyPage:
+        processedOrderList = pi_per_page.get_page(pi_per_page.num_pages)
+
+    context = {
+        'processed_orders': processedOrderList,
+        'all_users': all_users,
+        'selected_user': selected_user,
+        'selected_Ap':selected_Ap,
+        'selected_status': selected_status,
+        'selected_fy': selected_fy,
+        'status_choices': status_choices,
+        'fiscal_years': fiscal_years,
+    }
+
+    return render(request, 'invoices/processed-orders.html', context)
+
+@login_required(login_url='app:login')
+def invoice_list(request):
+
+    today = timezone.now().date()
+
+    date_range = convertedPI.objects.aggregate(min_date = Min('invoice_date'), max_date = Max('invoice_date'))
+
+    if date_range['min_date'] and ['max_date']:
+        min_year = date_range['min_date'].year
+        max_year = date_range['max_date'].year
+    else:
+        min_year = today.year
+        max_year = today.year
+
+    fiscal_years = []
+    for year in range(min_year, max_year + 1):
+        fy_label = f"{year}-{year + 1}"
+        fiscal_years.append(fy_label)
+
+    selected_fy = request.GET.get('fy', None)
+
+    if selected_fy:
+        # Parse the selected fiscal year from the format '2023-2024'
+        fy_start_year = int(selected_fy.split('-')[0])
+        fy_end_year = fy_start_year + 1
+        
+        fy_start = datetime(fy_start_year, 4, 1).date()
+        fy_end = datetime(fy_end_year, 3, 31).date()
+    else:
+        # Default to the current fiscal year
+        if today.month >= 4:  # We're in the current fiscal year
+            fy_start = datetime(today.year, 4, 1).date()
+            fy_end = datetime(today.year + 1, 3, 31).date()
+        else:  # We're in the previous fiscal year
+            fy_start = datetime(today.year - 1, 4, 1).date()
+            fy_end = datetime(today.year, 3, 31).date()
+
+    profile_instance = get_object_or_404(Profile, user=request.user)
+    user_branch = profile_instance.branch
+    all_users = Profile.objects.filter(user__profile__branch=user_branch.id)
+
+    requestedInvoices = convertedPI.objects.filter(is_invoiceRequire = True)
+    
+    all_invoices = requestedInvoices.filter(Q(requested_at__gte=fy_start) & Q(requested_at__lte=fy_end)).order_by('-invoice_no')
+
+    selected_user = request.GET.get("user", None)
+    selected_Ap = request.GET.get("ap", None)
+    selected_status = request.GET.get("status", None)
+
+    if selected_user:
+        all_invoices = all_invoices.filter(pi_id__user_id=selected_user)
+
+    if selected_Ap:
+        all_invoices = all_invoices.filter(is_invoiceRequire=selected_Ap)
+    
+    if selected_status:
+        all_invoices = all_invoices.filter(is_taxInvoice=selected_status)
+
+    else:
+        all_invoices = all_invoices
+
+    status_choices = ORDER_STATUS
+    payment_status = PAYMENT_STATUS
+    report_type = REPORT_TYPE
+    report_format = REPORT_FORMAT
+
+    if request.user.role == 'admin' or request.user.role == 'accounts':
+        taxInvoices = all_invoices
+    else:
+        taxInvoices = all_invoices.filter(pi_id__user_id = request.user.id)
+    
+    query = request.GET.get('q')
+
+    search_fields = [
+        'company_name', 'gstin', 'state', 'country', 'requistioner','email_id', 'contact', 'status',
+        'pi_no', 'orderlist__product', 'orderlist__report_type'
+    ]
+
+    search_objects = Q()
+
+    if query:
+        # Build the Q object for searching leads
+        for field in search_fields:
+            search_objects |= Q(**{f'{field}__icontains': query})
+
+        taxInvoicesList = taxInvoices.filter(search_objects).distinct()
+    else:
+        taxInvoicesList = taxInvoices
+
+    if taxInvoicesList:
+        for pi in taxInvoicesList:
+            pi.pi_id.user_id = get_object_or_404(User, pk=pi.pi_id.user_id)
+
+    if request.GET.get('export') == 'excel':
+        return exportInvoicelist(taxInvoicesList)
+
+
+    pageSize = request.GET.get('pageSize', 20)
+
+    pi_per_page = Paginator(taxInvoicesList, pageSize)
+    page = request.GET.get('page')
+
+    try:
+        taxInvoicesList = pi_per_page.get_page(page)
+    except PageNotAnInteger:
+        taxInvoicesList = pi_per_page.get_page(1)
+    except EmptyPage:
+        taxInvoicesList = pi_per_page.get_page(pi_per_page.num_pages)
+
+    context = {
+        'taxInvoicesList': taxInvoicesList,
+        'all_users': all_users,
+        'selected_user': selected_user,
+        'selected_Ap':selected_Ap,
+        'selected_status': selected_status,
+        'selected_fy': selected_fy,
+        'status_choices': status_choices,
+        'fiscal_years': fiscal_years,
+        'payment_status': payment_status,
+    }
+
+    return render(request, 'invoices/invoices-list.html', context)
+
+
+def exportInvoicelist(invoices):
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Invoices'
+
+    headers = [
+        'S.N','Team Member','Company Name', 'GSTIN', 'Address', 'State', 'Country',
+        'PI No', 'PI Date', 'Contact Person Name', 'Email', 'Contact Number', 'Bank', 'A/C No', 'Beneficry Name', 'Payment Status','1st Payment', '1st Payment Date','2nd Payment',
+        '2nd Payment Date','3rd Payment', '3rd Payment Date', 'Amount',
+        'Amount (inc. tax)', 'Total Received','Is Generated', 'Invoice No', 'Invoice Date'
+    ]
+
+    ws.append(headers)
+
+    header_fill = PatternFill(fill_type='solid', start_color="0099CCFF", end_color="0099CCFF")
+    header_font = Font(name='Calibri', size=11, bold=True, color="00000000")
+
+    for col in range(1, len(headers)+1):
+        cell = ws.cell(row=1, column=col)
+        cell.fill = header_fill
+        cell.font = header_font
+
+    s = 1
+
+    for invoice in invoices:
+        total_received = int(invoice.payment1_amt if invoice.payment1_amt != None else 0) + int(invoice.payment2_amt if invoice.payment2_amt != None else 0) + int(invoice.payment3_amt if invoice.payment3_amt != None else 0)
+
+        row = [
+            s ,invoice.pi_id.user_id.first_name +" "+ invoice.pi_id.user_id.last_name, invoice.pi_id.company_name, invoice.pi_id.gstin, invoice.pi_id.address, dict(STATE_CHOICE).get(int(invoice.pi_id.state)),
+            invoice.pi_id.country, invoice.pi_id.pi_no, invoice.pi_id.pi_date, invoice.pi_id.requistioner, invoice.pi_id.email_id,
+            invoice.pi_id.contact, invoice.pi_id.bank.bank_name, invoice.pi_id.bank.ac_no, invoice.pi_id.bank.bnf_name, 
+            invoice.payment_status, invoice.payment1_amt, invoice.payment1_date, invoice.payment2_amt, invoice.payment2_date,
+            invoice.payment3_amt, invoice.payment3_date, total_order_value(invoice.pi_id), total_pi_value_inc_tax(invoice.pi_id),
+            total_received, invoice.is_taxInvoice, invoice.invoice_no, invoice.invoice_date
+        ]
+
+        ws.append(row)
+        s+=1
+
+    for column in ws.columns:
+        max_length = 0
+        column = list(column)
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+
+        adjusted_width = (max_length+2)
+        ws.column_dimensions[get_column_letter(column[0].column)].width = adjusted_width
+
+    today = timezone.now().date()
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=invoice-list{today}.xlsx'
+
+    # Save the workbook to the response object
+    wb.save(response)
+
+    return response
+
+    
 
 
 def int_to_roman(num):

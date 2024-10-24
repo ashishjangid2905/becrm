@@ -140,4 +140,12 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
+const today = new Date()
 
+const formattedDate = today.toISOString().split('T')[0]
+
+let dateForms = document.querySelectorAll('input[type=date]')
+
+dateForms.forEach(element => {
+  element.setAttribute('max', formattedDate)
+  });

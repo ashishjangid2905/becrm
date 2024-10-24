@@ -4,6 +4,7 @@ from django.utils.text import slugify
 from lead.models import contactPerson, leads
 from teams.models import Profile
 import fiscalyear, datetime
+from .utils import STATUS_CHOICES, REPORT_FORMAT, REPORT_TYPE, ORDER_STATUS, PAYMENT_STATUS
 
 # Create your models here.
 
@@ -124,7 +125,7 @@ class proforma(models.Model):
     is_Approved = models.BooleanField(_("Is_Approved"), default=False)
     approved_by = models.IntegerField(_("Approved By"), blank=True, null=True)
     approved_at = models.DateTimeField(_("Approved At"), auto_now=True)
-    status = models.CharField(_("Status"), max_length=50, default='open')
+    status = models.CharField(_("Status"), max_length=50, default='open', choices=STATUS_CHOICES)
     closed_at = models.DateField(_("Closing Date"), auto_now=False, auto_now_add=False, null=True, blank=True)
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     edited_by = models.IntegerField(_("Edited By"), blank=True, null=True)
@@ -168,3 +169,52 @@ class orderList(models.Model):
     def __str__(self):
         return self.report_type
     
+class convertedPI(models.Model):
+    pi_id = models.OneToOneField(proforma, verbose_name=_("PI ID"), on_delete=models.CASCADE)
+    is_processed = models.BooleanField(_("Is Processed"), default=False)
+    is_invoiceRequire = models.BooleanField(_("Is Invoice Required"), default=False)
+    is_taxInvoice = models.BooleanField(_("Is Tax Invoice"), default=False)
+    is_closed = models.BooleanField(_("Is Closed"), default=False)
+    is_cancel = models.BooleanField(_("Is Cancelled"), default=False)
+    is_hold = models.BooleanField(_("Is Hold"), default=False)
+    payment_status = models.CharField(_("Payment Status"), max_length=50, choices=PAYMENT_STATUS)
+    payment1_date = models.DateField(_("Payment 1 Date"), blank=True, null=True)
+    payment1_amt = models.IntegerField(_("Payment 1 Amount"), blank=True, null=True)
+    payment2_date = models.DateField(_("Payment 2 Date"), blank=True, null=True)
+    payment2_amt = models.IntegerField(_("Payment 2 Amount"), blank=True, null=True)
+    payment3_date = models.DateField(_("Payment 3 Date"), blank=True, null=True)
+    payment3_amt = models.IntegerField(_("Payment 3 Amount"), blank=True, null=True)
+    requested_at = models.DateField(_("Requested At"), auto_now_add=True )
+    invoice_no = models.CharField(_("Invoice No"), max_length=50, blank=True, null=True)
+    irn = models.CharField(_("IRN"), max_length=250, blank=True, null=True)
+    invoice_date = models.DateField(_("Invoice Date"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Converted PI")
+        verbose_name_plural = _("Converted PIs")
+        db_table = "Converted_PI"
+
+class processedOrder(models.Model):
+    pi_id = models.ForeignKey(proforma, verbose_name=_("PI ID"), on_delete=models.CASCADE)
+    report_type = models.CharField(_("Report Type"), max_length=150, choices=REPORT_TYPE)
+    format = models.CharField(_("Format"), max_length=250, choices=REPORT_FORMAT)
+    country = models.CharField(_("Country"), max_length=150, blank=True, null=True)
+    hsn = models.CharField(_("HSN"), max_length=150, blank=True, null=True)
+    product = models.CharField(_("Product"), max_length=550, blank=True, null=True)
+    iec = models.CharField(_("IEC"), max_length=150, blank=True, null=True)
+    exporter = models.CharField(_("Exporter"), max_length=250, blank=True, null=True)
+    importer = models.CharField(_("Importer"), max_length=250, blank=True, null=True)
+    foreign_country = models.CharField(_("Foreign Country"), max_length=250, blank=True, null=True)
+    port = models.CharField(_("Port"), max_length=250, blank=True, null=True)
+    from_month = models.CharField(_("From Month"), max_length=50)
+    to_month = models.CharField(_("To Month"), max_length=50)
+    last_dispatch_month = models.CharField(_("Last Dispatch Month"), max_length=50, blank=True, null=True)
+    last_dispatch_date = models.DateField(_("Last Dispatch Date"), blank=True, null=True)
+    order_status = models.CharField(_("Order Status"), max_length=50, default='pending', choices=ORDER_STATUS)
+    last_sent_date = models.DateField(_("last_sent_date"), blank=True, null=True)
+    order_date = models.DateTimeField(_("last_sent_date"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Order Process")
+        verbose_name_plural = _("Order Process")
+        db_table = "Processed_Order"
