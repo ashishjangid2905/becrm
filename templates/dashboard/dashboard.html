@@ -9,12 +9,6 @@
             class="card py-2 bg-info bg-gradient bg-opacity-75 text-white text-center"
           >
             <div class="card-body">
-              <!-- <img
-                src="{% static 'becrm/image/img.svg' %}"
-                class="card-img-absolute position-absolute bottom-0 left-0"
-                alt="circle"
-                width="145px"
-              /> -->
               <h4 class="">Team Sales</h4>
               <h2 class="card-text" id="team-sales"></h2>
             </div>
@@ -27,12 +21,6 @@
             class="card py-2 bg-success bg-gradient bg-opacity-75 text-white text-center"
           >
             <div class="card-body">
-              <!-- <img
-                src="{% static 'becrm/image/img.svg' %}"
-                class="card-img-absolute position-absolute bottom-0 left-0"
-                alt="circle"
-                width="145px"
-              /> -->
               <h4 class="">User Sale</h4>
               <h2 class="card-text" id="user-sales"></h2>
             </div>
@@ -45,12 +33,6 @@
             class="card py-2 bg-danger bg-gradient bg-opacity-75 text-white text-center"
           >
             <div class="card-body">
-              <!-- <img
-                src="{% static 'becrm/image/img.svg' %}"
-                class="card-img-absolute position-absolute bottom-0 left-0"
-                alt="circle"
-                width="145px"
-              /> -->
               <h4 class="">Closed PI</h4>
               <h2 class="card-text" id="closed-pi"></h2>
             </div>
@@ -60,7 +42,7 @@
       <div class="col-lg-3 col-md-3 mt-1 align-middle">
         <div class="container text-left py-2">
           <h4>Monthly Sales Target</h4>
-          <h2><i class="ti ti-currency-rupee"></i>450K</h2>
+          <h2><i class="ti ti-currency-rupee"></i>{{user_target}}K</h2>
         </div>
       </div>
     </div>

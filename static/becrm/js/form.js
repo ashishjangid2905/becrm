@@ -26,7 +26,7 @@ is_sez.addEventListener("change", () => {
 const add_item = (el) => {
   let item = document.createElement("div");
 
-  let item_classess = "col-lg-10 order-list my-2";
+  let item_classess = "col-lg-12 order-list my-2";
   item.setAttribute("class", item_classess);
 
   let new_id = "order-item" + document.querySelectorAll(".order-list").length;
@@ -37,8 +37,8 @@ const add_item = (el) => {
   let category = item.querySelector("#category")
   let reportType = item.querySelector("#report-type")
   let product = item.querySelector("#product")
-  let fromMonth = item.querySelector("#from-month")
-  let toMonth = item.querySelector("#to-month")
+  let fromMonth = item.querySelector("#from_month")
+  let toMonth = item.querySelector("#to_month")
   let unitPrice = item.querySelector("#unit-price")
   let totalPrice = item.querySelector("#total-price")
   let lumpsumAmt = item.querySelector("#lumpsum-amt")
@@ -69,6 +69,11 @@ const add_item = (el) => {
   lumpsum_check.addEventListener("change", () =>
     handleLumpsumCheck(lumpsum_check)
   );
+
+  let from_month_inputs = item.querySelectorAll("#from_month")
+  let to_month_inputs = item.querySelectorAll("#to_month")
+
+  updateMonthConstraints(from_month_inputs, to_month_inputs)
   
 };
 
@@ -130,16 +135,15 @@ lumpsum_checks.forEach((lumpsum_check) => {
 });
 
 
-document.addEventListener('DOMContentLoaded', function() {
-  let fybtn = document.querySelector('#fychoise');
-  let form = document.querySelector('#selectFy');
+// Updateing Month Constraints
+let from_month_inputs = document.querySelectorAll("#from_month")
+let to_month_inputs = document.querySelectorAll("#to_month")
 
-  fybtn.addEventListener('change', function() {
-      // Automatically submit the form when the fiscal year is changed
-      form.submit();
-  });
-});
+updateMonthConstraints(from_month_inputs, to_month_inputs)
 
+
+
+// Set input Date Value is Today
 const today = new Date()
 
 const formattedDate = today.toISOString().split('T')[0]

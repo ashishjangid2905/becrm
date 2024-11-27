@@ -4,7 +4,7 @@
     class="container mt-3 shadow-sm p-3 mb-2 bg-primary bg-opacity-10 rounded"
   >
     <div class="row g-3 position-relative">
-      <div class="col-lg-6">
+      <div class="col-md-5">
         <div class="p-3 lead-detail rounded rounded-5 text-success">
           <h3 class="m-0 fs-3 fw-semibold">
             {{biller_dtl.biller_name}}<a href="" class="btn text-success"
@@ -17,22 +17,14 @@
           </p>
           <p class="p-0 m-0">
             <span class="fw-semibold">Reg Address:</span>
-            {{biller_dtl.reg_address1}}
+            {{biller_dtl.get_reg_full_address}}
           </p>
-          <p class="p-0 m-0">
-            {{biller_dtl.reg_address2}}, {{biller_dtl.reg_city}},
-            {{biller_dtl.reg_state}} ({{biller_dtl.reg_pincode}}),
-            {{biller_dtl.reg_country}}
-          </p>
+          {% if biller_dtl.get_corp_full_address %}
           <p class="p-0 m-0">
             <span class="fw-semibold">Corp Address:</span>
-            {{biller_dtl.corp_address1}},
+            {{biller_dtl.get_corp_full_address}}
           </p>
-          <p class="p-0 m-0">
-            {{biller_dtl.corp_address2}},{{biller_dtl.corp_city}},
-            {{biller_dtl.corp_state}} ({{biller_dtl.corp_pincode}}),
-            {{biller_dtl.corp_country}}
-          </p>
+          {% endif %}
         </div>
         <a
           href="{% url 'invoice:add_bank' biller_dtl.id %}"
@@ -63,7 +55,7 @@
         <div class="modal-body">
           <div class="row g-3 d-flex justify-content-center">
             <form
-              class="row g-3 d-flex justify-content-center my-2 p-3 mb-5 rounded-3"
+              class="row g-3 d-flex justify-content-center my-2 p-3 rounded-3"
               action="{% url 'invoice:add_bank' biller_dtl.id %}"
               method="post"
             >
@@ -118,25 +110,20 @@
                   name="swift_code"
                 />
               </div>
-              <div class="col-lg-10">
+              <div class="modal-footer">
                 <button class="btn btn-primary px-5" type="submit">
                   Submit
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  data-bs-dismiss="modal"
+                >
+                  Close
                 </button>
               </div>
             </form>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary px-5" type="submit">
-            Submit
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            data-bs-dismiss="modal"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>

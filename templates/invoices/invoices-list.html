@@ -1,6 +1,15 @@
 {% extends 'home.html' %} {% load static %}
 {% load custom_filters %} {% block content %}
 
+<div class="alert z-3 position-absolute container-fluid" tabindex="1" id="myAlert">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert {% if message.tags == 'success' %}alert-success {% else %}{% endif %}alert-danger alert-dismissible fade show" role="alert">
+        <strong>{{ message.tags }}: </strong>{{message}}
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
 <div class="container d-flex justify-content-center">
   <h5 class="fs-3 text-primary mt-3">Tax Invoice List</h5>
 </div>
@@ -23,13 +32,13 @@
       </div>
     </div>
     <div class="col-md-2 mt-2 pe-4">
-      {% if request.user.role == 'admin' %}
+      {% if request.user.role == 'admin' or request.user.department == 'account' %}
       <form class="row justify-content-end" id="selectUser" action="{% url 'invoice:invoice_list' %}" method="get">
         <div class="col-lg-12 col-md-12">
           <select class="form-select form-select-sm" name="user" id="userChoise">
             <option value='' selected>Select User</option>
             {% for user in all_users %}
-            <option value="{{ user.id }}">{{user}}</option>
+            <option value="{{ user.user.id }}">{{user}}</option>
             {% endfor %}
           </select>
           {% for param, value in request.GET.items %}
@@ -92,6 +101,8 @@
         <th scope="col">Invoice Date</th>
         <th scope="col">Amount</th>
         <th scope="col">Amount (inc. tax)</th>
+        <th scope="col">Received Amount</th>
+        <th scope="col">Received Date</th>
         <th scope="col">Bank</th>
         <th scope="col">status</th>
         <th scope="col">Action</th>
@@ -114,16 +125,18 @@
           <td class="text-wrap">
             {% total_pi_value_inc_tax proforma.pi_id %}
           </td>
-          <td class="text-wrap">{{proforma.pi_id.bank}} ({{proforma.pi_id.bank.bnf_name}})</td>
-          <td class="text-wrap"><span class="badge rounded-pill text-bg-{% if proforma.is_taxInvoice %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.is_taxInvoice == True %}Generated {% else %}Pending{% endif %}</span></td>
+          <td class="text-wrap">{{ proforma.payment1_amt }}</td>
+          <td class="text-nowrap">{{ proforma.payment1_date }}</td>
+          <td class="text-nowrap">{{proforma.pi_id.bank}} ({{proforma.pi_id.bank.bnf_name}})</td>
+          <td class="text-wrap"><span class="badge rounded-pill text-bg-{% if proforma.is_taxInvoice %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.is_taxInvoice == True %}Generated {% elif proforma.is_hold == True %}Hold{% else %}Pending{% endif %}</span></td>
           <td class="text-nowrap">
-            <!-- <a href="" class="edit-btn"><i class="ti ti-details"></i></a> -->
-            <a href="" class="btn p-0 text-primary"><i class="ti ti-edit"></i></a>
+            {% if not proforma.is_taxInvoice and request.user.department == 'account' %}
+              <a href="" class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#generate-{{proforma.id}}"><i class="ti ti-edit"></i></a>
+            {% endif %}
             <a href="" class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.id}}"><i class="ti ti-eye"></i></a>
-            {% if proforma.is_Approved == True %}
-              <a href="{% url 'invoice:download_pdf' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-file-type-pdf"></i></a>
-              <a class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.id}}"><i class="ti ti-status-change"></i></a>
-              <a href="{% url 'invoice:email_form' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-settings-cog"></i></a>
+            {% if proforma.is_taxInvoice == True %}
+              <a href="{% url 'invoice:download_pdf' proforma.pi_id.id %}" class="btn p-0 text-primary"><i class="ti ti-file-type-pdf"></i></a>
+              {% comment %} <a href="{% url 'invoice:email_form' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-settings-cog"></i></a> {% endcomment %}
             {% endif %}
           </td>
         </tr>
@@ -152,6 +165,16 @@
                       <p><span class="fw-semibold">PI Date: </span>{{proforma.pi_id.pi_date}}</p>
                     </div>
                   </div>
+                  {% if proforma.is_taxInvoice %}
+                  <div class="row">
+                    <div class="col-lg-5">
+                      <p><span class="fw-semibold">Invoice No.: </span>{{proforma.invoice_no}}</p>
+                    </div>
+                    <div class="col-lg-7">
+                      <p><span class="fw-semibold">Invoice Date: </span>{{proforma.invoice_date}}</p>
+                    </div>
+                  </div>
+                  {% endif %}
                   {% if proforma.pi_id.po_no and proforma.pi_id.po_no != "" %}
                   <div class="row">
                     <div class="col-lg-5">
@@ -281,43 +304,65 @@
             </div>
           </div>
         </div>
-        <div class="modal fade" id="{{proforma.id}}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-          <div class="modal-dialog">
+        <div class="modal fade" id="generate-{{proforma.id}}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-lg">
             <div class="modal-content">
               <div class="modal-header">
-                <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+                <h6 class="modal-title text-primary" id="exampleModalLabel"><i class="ti ti-clipboard-plus"></i> Generate Tax Invoice</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body">
                 <div class="row g-3 d-flex justify-content-center">
-                
-                  <form class="row g-3 d-flex justify-content-center" action="{% url 'invoice:update_pi_status' proforma.id %}" method="post">
+                  <div class="row">
+                    <div class="col-lg-12">
+                      <h6 class="mt-2">{{proforma.pi_id.company_name}}</h6>
+                      <p class="text-capitalize"><span class="fw-semibold">GSTIN: </span>{{proforma.pi_id.gstin}}</p>
+                      <p><span class="fw-semibold">ADDRESS: </span>{{proforma.pi_id.address}}</p>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-lg-4">
+                      <p><span class="fw-semibold">PI No.: </span>{{proforma.pi_id.pi_no}}</p>
+                    </div>
+                    <div class="col-lg-4">
+                      <p><span class="fw-semibold">PI Date: </span>{{proforma.pi_id.pi_date}}</p>
+                    </div>
+                    <div class="col-lg-4">
+                      <p><span class="fw-semibold">Amount Inc. tax: </span>₹ {% total_pi_value_inc_tax proforma.pi_id %}</p>
+                    </div>
+                    <div class="col-lg-4">
+                      <p><span class="fw-semibold">Bank Name: </span>{{proforma.pi_id.bank}}</p>
+                    </div>
+                    <div class="col-lg-4">
+                      <p><span class="fw-semibold">Payment Received: </span>{{proforma.payment1_amt}}</p>
+                    </div>
+                    <div class="col-lg-4">
+                      <p><span class="fw-semibold">Payment Date: </span>{{proforma.payment1_date}}</p>
+                    </div>
+                  </div>
+                  <form class="row g-3 d-flex justify-content-center" action="{% url 'invoice:generate_invoice' proforma.id %}" method="post">
                     {% csrf_token %}
-                    <div class="col-7">
-                      <label class="form-label">Status</label>
-                      <select class="form-select form-select-sm" name="pi_status" id="">
-                        {% for value, label in status_choices %}
-                          <option value="{{value}}">{{label}}</option>                    
-                        {% endfor %}
-                      </select>
+                    <div class="col-5">
+                      <label class="form-label">Invoice No</label>
+                      <input class="form-control form-control-sm" type='text' name='invoice_no'>
                     </div>
-                    <div class="col-7">
+                    <div class="col-5">
                       <label class="form-label">Date</label>
-                      <input class="form-control form-control-sm" type="date" name="closingDate" id="">
+                      <input class="form-control form-control-sm" type="date" name="invoice_date" id="">
                     </div>
-                    <div class="col-7"><button type="submit" class="btn btn-outline-primary">Update</button></div>
+                    <div class="modal-footer">
+                      <button type="submit" class="btn btn-outline-primary">Generate</button>
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
                   </form>
                 </div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
               </div>
             </div>
           </div>
         </div>
       {% empty %}
         <tr>
-          <td colspan="12">No Proforma Invoice Added</td>
+          <td colspan="13">No Tax Invoice Added</td>
         </tr>
       {% endfor %}
     </tbody>
@@ -339,14 +384,14 @@
         <option value="50">50/page</option>
       </select>
     </form>
-    {% if all_pi.has_previous %}
-      <li class="page-item"><a class="page-link" href="?page={{ all_pi.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{all_pi.previous_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{all_pi.previous_page_number}}</a></li>
+    {% if taxInvoicesList.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page={{ taxInvoicesList.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{taxInvoicesList.previous_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{taxInvoicesList.previous_page_number}}</a></li>
     {% endif %}
-    <li class="page-item active"><a class="page-link" href="?page={{all_pi.number}}">{{all_pi.number}}</a></li>
-    {% if all_pi.has_next %}
-    <li class="page-item"><a class="page-link" href="?page={{all_pi.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{all_pi.next_page_number}}</a></li>
-    <li class="page-item"><a class="page-link" href="?page={{all_pi.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a></li>
+    <li class="page-item active"><a class="page-link" href="?page={{taxInvoicesList.number}}">{{taxInvoicesList.number}}</a></li>
+    {% if taxInvoicesList.has_next %}
+    <li class="page-item"><a class="page-link" href="?page={{taxInvoicesList.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{taxInvoicesList.next_page_number}}</a></li>
+    <li class="page-item"><a class="page-link" href="?page={{taxInvoicesList.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a></li>
     {% endif %}
   </ul>
 </nav>
@@ -356,13 +401,16 @@
     let userbtn = document.querySelector('#userChoise');
     let userForm = document.querySelector('#selectUser');
 
-    userbtn.addEventListener('change', function() {
-      // Automatically submit the form when the fiscal year is changed
-      userForm.submit();
-    });
-    let selected_user = "{{ selected_user|default_if_none:'' }}";  // Handle None values in Django
-    if (selected_user) {
-      userbtn.value = selected_user;
+    if (userbtn) {
+     
+      userbtn.addEventListener('change', function() {
+        // Automatically submit the form when the fiscal year is changed
+        userForm.submit();
+      });
+      let selected_user = "{{ selected_user|default_if_none:'' }}";  // Handle None values in Django
+      if (selected_user) {
+        userbtn.value = selected_user;
+      }
     }
 
     // let apbtn = document.querySelector('#isApChoise');

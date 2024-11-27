@@ -7,7 +7,10 @@ register = template.Library()
 @register.filter
 def format_month(value):
     try:
-        return datetime.strptime(value, '%Y-%m').strftime('%b-%y')
+        if value == None or value == '':
+            return ''
+        else:
+            return datetime.strptime(value, '%Y-%m').strftime("%b'%y")
     except ValueError:
         return value
     

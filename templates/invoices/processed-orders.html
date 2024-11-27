@@ -29,7 +29,7 @@
           <select class="form-select form-select-sm" name="user" id="userChoise">
             <option value='' selected>Select User</option>
             {% for user in all_users %}
-            <option value="{{ user.id }}">{{user}}</option>
+            <option value="{{ user.user.id }}">{{user}}</option>
             {% endfor %}
           </select>
           {% for param, value in request.GET.items %}
@@ -92,7 +92,7 @@
 
 
 <div class="container-fluid pi-table">
-  <table class="table">
+  <table class="table" style="overflow-y: scroll;">
     <thead>
       <tr class="table-primary position-sticky top-0">
         <th scope="col">S.No</th>
@@ -100,18 +100,8 @@
         <th scope="col">Company Name</th>
         <th scope="col">PI No</th>
         <th scope="col">Date</th>
-        <th scope="col">Type</th>
-        <th scope="col">Format</th>
-        <th scope="col">Hsn (Product)</th>
-        <th scope="col">IEC</th>
-        <th scope="col">Exporter</th>
-        <th scope="col">Importer</th>
-        <th scope="col">Foreign Country</th>
-        <th scope="col">Ports</th>
-        <th scope="col">Period</th>
-        <th scope="col">Last Dispatch Month</th>
-        <th scope="col">Last Dispatch Date</th>
         <th scope="col">Is Processed</th>
+        <th scope="col">No. of Orders</th>
         <th scope="col">Order Status</th>
         <th scope="col">Delivery Date</th>
         <th scope="col">Processed Date</th>
@@ -119,187 +109,25 @@
       </tr>
     </thead>
     <tbody>
-      {% for proforma in processed_orders %}
+      {% for pi in processed_pi %}
         <tr class="table-light">
           <td>{{ forloop.counter }}</td>
-          <td class="text-nowrap">{{ proforma.pi_id.user_id }}</td>
-          <td class="text-nowrap">{{ proforma.pi_id.company_name }}</td>
-          <td class="text-nowrap">{{ proforma.pi_id.pi_no }}</td>
-          <td class="text-nowrap">{{ proforma.pi_id.pi_date }}</td>
-          <td class="text-nowrap">{{ proforma.report_type }}</td>
-          <td class="text-nowrap">{{ proforma.format }}</td>
-          <td class="text-nowrap">{{ proforma.hsn }} ({{ proforma.product }})</td>
-          <td class="text-nowrap">{{ proforma.iec }}</td>
-          <td class="text-nowrap">{{ proforma.exporter }}</td>
-          <td class="text-nowrap">{{ proforma.importer }}</td>
-          <td class="text-nowrap">{{ proforma.foreign_country }}</td>
-          <td class="text-nowrap">{{ proforma.port }}</td>
-          <td class="text-nowrap">{% if proforma.from_month == proforma.to_month %} {{ proforma.from_month|format_month }} {% else %}{{ proforma.from_month|format_month }} - {{ proforma.to_month|format_month }}{% endif %}</td>
-          <td class="text-nowrap">{% if proforma.last_dispatch_month != None %}{{ proforma.last_dispatch_month|format_month }}{% endif %}</td>
-          <td class="text-nowrap">{{ proforma.last_dispatch_date }}</td>
-          <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.pi_id.convertedpi.is_processed == True and proforma.pi_id.convertedpi.is_hold == False %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.pi_id.convertedpi.is_processed == True and proforma.pi_id.convertedpi.is_hold == False %}Processed {% elif proforma.pi_id.convertedpi.is_hold == True %}Hold{% endif %}</span></td>
-          <td class="text-wrap"><span class="badge rounded-pill text-bg-{% if proforma.order_status == 'pending' %}warning{% elif proforma.order_status == 'complete' %}success{% else %}danger{% endif %} pb-1 px-2">{{ proforma.order_status }}</span></td>
-          <td class="text-nowrap">{{ proforma.last_sent_date }}</td>
-          <td class="text-nowrap">{{ proforma.order_date }}</td>
+          <td class="text-nowrap">{{ pi.user_id }}</td>
+          <td class="text-nowrap">{{ pi.company_name }}</td>
+          <td class="text-nowrap">{{ pi.pi_no }}</td>
+          <td class="text-nowrap">{{ pi.pi_date }}</td>
+          <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if pi.convertedpi.is_processed == True and pi.convertedpi.is_hold == False %}success{% else %}warning{% endif %} pb-1 px-2">{% if pi.convertedpi.is_processed == True and pi.convertedpi.is_hold == False %}Processed {% elif pi.convertedpi.is_hold == True %}Hold{% endif %}</span></td>
+          <td class="text-nowrap"><span class="fw-medium">{{ pi.processedorder_set.count }}</span></td>
+          <td class="text-nowrap"><span class="badge rounded-pill text-bg-{% if order.order_status == 'pending' %}warning{% else %}success{% endif %} pb-1 px-2">{{ order.order_status }}</span></td>
+          <td class="text-nowrap">{{ pi.processedorder_set.last.last_sent_date }}</td>
+          <td class="text-nowrap">{{ pi.convertedpi.requested_at }}</td>
           <td class="text-nowrap">
-            <!-- <a href="" class="edit-btn"><i class="ti ti-details"></i></a> -->
-            <a href="" class="btn p-0 text-primary"><i class="ti ti-edit"></i></a>
-            <a href="" class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.id}}"><i class="ti ti-eye"></i></a>
-            {% if proforma.is_Approved == True %}
-              <a href="" class="btn p-0 text-primary"><i class="ti ti-file-type-pdf"></i></a>
-              <!-- <a class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.id}}"><i class="ti ti-status-change"></i></a> -->
-              <a href="" class="btn p-0 text-primary"><i class="ti ti-settings-cog"></i></a>
-            {% endif %}
+            <a href="{% url 'invoice:processed_pi_order' pi.id %}" class="btn py-0 text-primary"><i class="ti ti-eye"></i></a>
           </td>
         </tr>
-      
-      <!-- Modal -->
-        <div class="modal fade" id="{{proforma.id}}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-          <div class="modal-dialog modal-lg modal-dialog-scrollable" style="scrollbar-width: thin;">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h1 class="modal-title fs-4" >{{proforma.pi_id.company_name}}</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body">
-                <div class="container">
-                  <div class="row">
-                    <div class="col-lg-12">
-                      <p class="text-capitalize"><span class="fw-semibold">GSTIN: </span>{{proforma.gstin}}</p>
-                      <p><span class="fw-semibold">ADDRESS: </span>{{proforma.address}}</p>
-                    </div>
-                  </div>
-                  <div class="row">
-                    <div class="col-lg-5">
-                      <p><span class="fw-semibold">PI No.: </span>{{proforma.pi_no}}</p>
-                    </div>
-                    <div class="col-lg-7">
-                      <p><span class="fw-semibold">PI Date: </span>{{proforma.pi_date}}</p>
-                    </div>
-                  </div>
-                  {% if proforma.po_no and proforma.po_no != "" %}
-                  <div class="row">
-                    <div class="col-lg-5">
-                      <p><span class="fw-semibold">PO No.: </span>{{proforma.po_no}}</p>
-                    </div>
-                    <div class="col-lg-7">
-                      <p><span class="fw-semibold">PO Date: </span>{{proforma.po_date}}</p>
-                    </div>
-                  </div>
-                  {% endif %}
-                  <div class="row">
-                    <div class="col-lg-5">
-                      <p><span class="fw-semibold">Requistioner: </span>{{proforma.requistioner}}</p>
-                    </div>
-                    <div class="col-lg-7">
-                      <p><span class="fw-semibold">Team Member: </span>{{proforma.user_id}}</p>
-                    </div>
-                  </div>
-                  <div class="row">
-                    <div class="col-lg-5">
-                      <p><span class="fw-semibold">Contact: </span>{{proforma.contact}}</p>
-                    </div>
-                    <div class="col-lg-7">
-                      <p><span class="fw-semibold">Email: </span>{{proforma.email_id}}</p>
-                    </div>
-                  </div>
-                  <div class="row">
-                    <div class="col-lg-5">
-                      <p class="text-capitalize"><span class="fw-semibold">Subscription: </span>{{proforma.subscription}}</p>
-                    </div>
-                    <div class="col-lg-7">
-                      <p class="text-capitalize"><span class="fw-semibold">Payment Term: </span>{{proforma.payment_term}}</p>
-                    </div>
-                  </div>
-                  <div class="row">
-                    <div class="col-lg-7">
-                      <p class="text-capitalize"><span class="fw-semibold">details: </span>{{proforma.details|safe}}</p>
-                    </div>
-                  </div>
-                  <hr/>
-                  <h5>Item Details</h5>
-                  <div class="row g-3">
-                    {% for order in proforma.processedorder_set.all %}
-                        <div class="col-lg-9 col-md-9">
-                          <div class="row">
-                            <div class="col-lg-6">
-                              <p class="text-capitalize"><span class="fw-semibold">Category: </span>{{order.category}}</p>
-                            </div>
-                            <div class="col-lg-6">
-                              <p class="text-capitalize"><span class="fw-semibold">Report Type: </span>{{order.report_type}}</p>
-                            </div>
-                          </div>
-                          <div class="row">
-                            <div class="col-lg-6">
-                              <p class="text-capitalize"><span class="fw-semibold">Product/HSN: </span>{{order.product}}</p>
-                            </div>
-                            <div class="col-lg-6">
-                              <p class="text-capitalize"><span class="fw-semibold">Period: </span>{{order.from_month|format_month}} to {{order.to_month|format_month}}</p>
-                            </div>
-                          </div>
-                        </div>
-                    {% endfor %}
-                    {% if proforma.is_Approved == True %}
-                      <div class="row">
-                        <div class="col-lg-6">
-                          <p class="text-capitalize m-0"><span class="fw-semibold">Approved By: </span>{{proforma.approved_by}}</p>
-                          <p class="text-capitalize p-0"><span class="fw-semibold">Approved Date: </span>{{proforma.approved_at}}</p>
-                        </div>
-                      </div>
-                    {% endif %}
-                  </div>
-                </div>
-              </div>
-              <div class="modal-footer">
-                {% if not proforma.is_Approved and request.user.role == 'admin' %}
-                  <form action="{% url 'invoice:approve_pi' proforma.id %}" method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="is_approved" value="true">
-                    <button type="submit" class="btn btn-primary" >Approved</button>
-                  </form>
-                {%endif%}
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="modal fade" id="{{proforma.id}}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-          <div class="modal-dialog">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body">
-                <div class="row g-3 d-flex justify-content-center">
-                
-                  <form class="row g-3 d-flex justify-content-center" action="{% url 'invoice:update_pi_status' proforma.id %}" method="post">
-                    {% csrf_token %}
-                    <div class="col-7">
-                      <label class="form-label">Status</label>
-                      <select class="form-select form-select-sm" name="pi_status" id="">
-                        {% for value, label in status_choices %}
-                          <option value="{{value}}">{{label}}</option>                    
-                        {% endfor %}
-                      </select>
-                    </div>
-                    <div class="col-7">
-                      <label class="form-label">Date</label>
-                      <input class="form-control form-control-sm" type="date" name="closingDate" id="">
-                    </div>
-                    <div class="col-7"><button type="submit" class="btn btn-outline-primary">Update</button></div>
-                  </form>
-                </div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-              </div>
-            </div>
-          </div>
-        </div>
       {% empty %}
         <tr>
-          <td colspan="12">No Proforma Invoice Added</td>
+          <td colspan="21">No Proforma Invoice Added</td>
         </tr>
       {% endfor %}
     </tbody>
@@ -321,14 +149,14 @@
         <option value="50">50/page</option>
       </select>
     </form>
-    {% if all_pi.has_previous %}
-      <li class="page-item"><a class="page-link" href="?page={{ all_pi.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{all_pi.previous_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{all_pi.previous_page_number}}</a></li>
+    {% if processed_orders.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page={{ processed_orders.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{processed_orders.previous_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{processed_orders.previous_page_number}}</a></li>
     {% endif %}
-    <li class="page-item active"><a class="page-link" href="?page={{all_pi.number}}">{{all_pi.number}}</a></li>
-    {% if all_pi.has_next %}
-    <li class="page-item"><a class="page-link" href="?page={{all_pi.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{all_pi.next_page_number}}</a></li>
-    <li class="page-item"><a class="page-link" href="?page={{all_pi.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a></li>
+    <li class="page-item active"><a class="page-link" href="?page={{processed_orders.number}}">{{processed_orders.number}}</a></li>
+    {% if processed_orders.has_next %}
+    <li class="page-item"><a class="page-link" href="?page={{processed_orders.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{processed_orders.next_page_number}}</a></li>
+    <li class="page-item"><a class="page-link" href="?page={{processed_orders.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a></li>
     {% endif %}
   </ul>
 </nav>
@@ -338,13 +166,15 @@
     let userbtn = document.querySelector('#userChoise');
     let userForm = document.querySelector('#selectUser');
 
-    userbtn.addEventListener('change', function() {
-      // Automatically submit the form when the fiscal year is changed
-      userForm.submit();
-    });
-    let selected_user = "{{ selected_user|default_if_none:'' }}";  // Handle None values in Django
-    if (selected_user) {
-      userbtn.value = selected_user;
+    if (userbtn){
+      userbtn.addEventListener('change', function() {
+        // Automatically submit the form when the fiscal year is changed
+        userForm.submit();
+      });
+      let selected_user = "{{ selected_user|default_if_none:'' }}";  // Handle None values in Django
+      if (selected_user) {
+        userbtn.value = selected_user;
+      }
     }
 
     let apbtn = document.querySelector('#isApChoise');

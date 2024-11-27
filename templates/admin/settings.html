@@ -24,12 +24,14 @@
                         <li class="nav-item">
                           <a class="nav-link text-primary-emphasis" href="{% url 'teams:profile' %}">Profile <i class="ti ti-arrow-narrow-right"></i></a>
                         </li>
-                        <li class="nav-item">
-                          <a class="nav-link text-primary-emphasis" href="{% url 'invoice:biller_list' %}">Billers <i class="ti ti-arrow-narrow-right"></i></a>
-                        </li>
-                        <li class="nav-item">
-                          <a class="nav-link text-primary-emphasis" href="{% url 'teams:branch_list' %}">Branches <i class="ti ti-arrow-narrow-right"></i></a>
-                        </li>
+                        {% if request.user.role == 'admin' %}
+                          <li class="nav-item">
+                            <a class="nav-link text-primary-emphasis" href="{% url 'invoice:biller_list' %}">Billers <i class="ti ti-arrow-narrow-right"></i></a>
+                          </li>
+                          <li class="nav-item">
+                            <a class="nav-link text-primary-emphasis" href="{% url 'teams:branch_list' %}">Branches <i class="ti ti-arrow-narrow-right"></i></a>
+                          </li>
+                        {% endif %}
                         <li class="nav-item">
                           <a class="nav-link text-primary-emphasis" href="{% url 'teams:user_password' %}">Change Password <i class="ti ti-arrow-narrow-right"></i></a>
                         </li>

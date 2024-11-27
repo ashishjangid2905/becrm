@@ -1,0 +1,78 @@
+{% extends 'home.html' %} {% load static %} {% load custom_filters %} 
+{% block content %}
+
+<div class="container-fluid">
+  <div class="container-fluid mt-3">
+    <div class="row justify-content-between">
+      <div
+        class="col-lg-3 py-3 mb-3 border rounded bg-light bg-gradient pi-orders"
+      >
+        <h5 class="text-info-emphasis mb-3">
+          PI_{{pi.company_name}}_{{pi.pi_no}}_{{pi.pi_date}}
+        </h5>
+        <p class="m-0">Email: <span class="fw-medium">{{pi.email_id}}</span></p>
+        <div class="m-0 details">Details: {{pi.details|safe}}</div>
+        <div class="m-0">
+          <h6 class="my-2">Orders:</h6>
+          {% for order in pi.orderlist_set.all %}
+          <p class="m-0 text-capitalize">
+            {{ forloop.counter }}. {{order.report_type}} | HSN/Product:
+            {{order.product}} | {{order.from_month|format_month}} -
+            {{order.to_month|format_month}}
+          </p>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="col-lg-9">
+        <table class="table table-bordered border-info table-striped">
+          <thead>
+            <tr class="table-primary position-sticky top-0 text-center align-middle">
+              <th scope="col">S.N.</th>
+              <th scope="col">Type</th>
+              <th scope="col">Format</th>
+              <th scope="col">Country</th>
+              <th scope="col">HSN</th>
+              <th scope="col">IEC</th>
+              <th scope="col">Exporter</th>
+              <th scope="col">Importer</th>
+              <th class="text-nowrap" scope="col">Foreign Country</th>
+              <th scope="col">Ports</th>
+              <th scope="col">Period</th>
+              <th scope="col" style="width:100px">Last Dispatch Month</th>
+              <th scope="col" style="width:100px">Last Dispatch Date</th>
+              <th scope="col">Order Status</th>
+              <th scope="col">Delivery Date</th>
+              <th scope="col">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in pi.processedorder_set.all %}
+            <tr class="align-middle">
+              <td>{{forloop.counter}}</td>
+              <td>{{order.report_type}}</td>
+              <td>{{order.format}}</td>
+              <td>{{order.country}}</td>
+              <td style="width:100px">{{order.hsn}}</td>
+              <td>{{order.iec}}</td>
+              <td>{{order.exporter}}</td>
+              <td>{{order.importer}}</td>
+              <td style="width: 100px">{{order.foreign_country}}</td>
+              <td style="width: 100px">{{order.port}}</td>
+              <td class="text-nowrap">{{order.from_month|format_month}} - {{order.to_month|format_month}}</td>
+              <td>{{order.last_dispatch_month|format_month}}</td>
+              <td>{{order.last_dispatch_date}}</td>
+              <td>{{order.order_status}}</td>
+              <td>{{order.last_sent_date}}</td>
+              <td>
+                <a class="btn py-0 text-primary"><i class="ti ti-refresh"></i></a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

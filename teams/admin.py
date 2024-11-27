@@ -3,7 +3,8 @@ from django.contrib import admin
 # Register your models here.
 from django.contrib.auth.admin import UserAdmin
 from .forms import UsersCreationForm, UsersChangeForm
-from .models import User, Branch, Profile
+from .models import User, Branch, Profile, UserVariable, SmtpConfig
+from django.contrib.auth.models import Permission
 
 class CustomUserAdmin(UserAdmin):
     add_form = UsersCreationForm
@@ -49,5 +50,7 @@ class User_Profile(admin.ModelAdmin):
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Branch, Branch_List)
 admin.site.register(Profile, User_Profile)
-
+admin.site.register(UserVariable)
+admin.site.register(SmtpConfig)
+admin.site.register(Permission)
 

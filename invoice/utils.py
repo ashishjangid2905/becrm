@@ -17,8 +17,8 @@ PAYMENT_TERM = {
 }
 
 CATEGORY = {
-    ('online', _('BE USA TRADE PUBLICATIONS')),
-    ('offline', _('BE USA TRADE SUBSCRIPTION'))
+    ('offline', _('BE USA TRADE PUBLICATIONS')),
+    ('online', _('BE USA TRADE SUBSCRIPTION'))
 }
 
 REPORT_TYPE = {
@@ -26,6 +26,11 @@ REPORT_TYPE = {
     ('import', _('Inbound Insight')),
     ('online', _('Subscription')),
     ('domestic', _('Market Research')),
+}
+
+REPORTS = {
+    ('export', _('EXPORT')),
+    ('import', _('IMPORT')),
 }
 
 REPORT_FORMAT ={

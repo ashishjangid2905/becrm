@@ -1,21 +1,30 @@
 import os
 from pathlib import Path
+
+# all Django imports
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseRedirect, HttpResponse, JsonResponse
+from django.http import HttpResponseRedirect, HttpResponse
 from django.urls import reverse
-from django.conf import settings
+# from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from .models import biller, bankDetail, proforma, orderList, convertedPI, processedOrder, pi_number
-from lead.models import leads, contactPerson
-from teams.models import User, Profile
-from .utils import SUBSCRIPTION_MODE, STATUS_CHOICES, PAYMENT_TERM, COUNTRY_CHOICE, STATE_CHOICE, CATEGORY, REPORT_TYPE, PAYMENT_STATUS, REPORT_FORMAT, ORDER_STATUS
 from django.db import IntegrityError
 from django.db.models import Q, Min, Max
 from django.contrib import messages
-from django.contrib.staticfiles import finders
+# from django.contrib.staticfiles import finders
 from django.utils import timezone
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from django.core.mail import EmailMultiAlternatives
 
+# All Import from apps
+from .models import biller, bankDetail, proforma, orderList, convertedPI, processedOrder, pi_number
+from lead.models import leads, contactPerson
+from teams.models import User, Profile, SmtpConfig, UserVariable
+from sample.models import Portmaster, CountryMaster
+from .utils import SUBSCRIPTION_MODE, STATUS_CHOICES, PAYMENT_TERM, COUNTRY_CHOICE, STATE_CHOICE, CATEGORY, REPORT_TYPE, PAYMENT_STATUS, REPORT_FORMAT, ORDER_STATUS, REPORTS
+from teams.custom_email_backend import CustomEmailBackend
+from .templatetags.custom_filters import total_order_value, total_lumpsums, filter_by_lumpsum, total_pi_value_inc_tax
+
+# Third-party imports
 from datetime import datetime
 from num2words import num2words
 from reportlab.lib.pagesizes import A4
@@ -30,23 +39,20 @@ from reportlab.platypus import Image as Im
 from pypdf import PdfReader, PdfWriter
 from io import BytesIO
 
-from docx import Document
-from docx.shared import Pt, RGBColor
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+# from docx import Document
+# from docx.shared import Pt, RGBColor
+# from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 
 
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font, NamedStyle
-from openpyxl.drawing.image import Image
-from openpyxl.cell.text import InlineFont
-from openpyxl.cell.rich_text import TextBlock, CellRichText
-from openpyxl.worksheet.page import PageMargins
+# from openpyxl.drawing.image import Image
+# from openpyxl.cell.text import InlineFont
+# from openpyxl.cell.rich_text import TextBlock, CellRichText
+# from openpyxl.worksheet.page import PageMargins
 from openpyxl.utils import get_column_letter
 # Create your views here.
 
-from django.core.mail import EmailMultiAlternatives
-from teams.custom_email_backend import CustomEmailBackend
-from .templatetags.custom_filters import total_order_value, total_lumpsums, filter_by_lumpsum, total_pi_value_inc_tax
 
 
 @login_required(login_url='app:login')
@@ -169,25 +175,27 @@ def pi_list(request):
 
     profile_instance = get_object_or_404(Profile, user=request.user)
     user_branch = profile_instance.branch
-    all_users = Profile.objects.filter(user__profile__branch=user_branch.id)
-
-    all_proforma = proforma.objects.filter(Q(pi_date__gte=fy_start) & Q(pi_date__lte=fy_end)).order_by('-pi_no')
+    all_users = Profile.objects.filter(user__profile__branch=user_branch.id, user__department="sales")
 
     selected_user = request.GET.get("user", None)
     selected_Ap = request.GET.get("ap", None)
     selected_status = request.GET.get("status", None)
 
+    # Filter option logics
+
+    filters = {'pi_date__gte': fy_start, 'pi_date__lte': fy_end}
     if selected_user:
-        all_proforma = all_proforma.filter(user_id=selected_user)
+        filters['user_id'] = selected_user
 
     if selected_Ap:
-        all_proforma = all_proforma.filter(is_Approved=selected_Ap)
+        filters['is_Approved'] = selected_Ap
 
     if selected_status:
-        all_proforma = all_proforma.filter(status=selected_status)
+        filters['status'] = selected_status
 
-    else:
-        all_proforma = all_proforma
+    # Impliment the applied filters
+
+    all_proforma = proforma.objects.filter(**filters).order_by('-pi_no')
 
     status_choices = STATUS_CHOICES
     payment_status = PAYMENT_STATUS
@@ -210,20 +218,9 @@ def pi_list(request):
     search_objects = Q()
 
     if query:
-        name_parts = query.split()
-        if len(name_parts) == 2:
-            first_name_query, last_name_query = name_parts
-            matching_user_ids = User.objects.filter(Q(first_name__icontains=first_name_query) & Q(last_name__icontains=last_name_query)).values_list('id', flat=True)
-        else:
-            matching_user_ids = User.objects.filter(Q(first_name__icontains=query) | Q(last_name__icontains=query)).values_list('id', flat=True)
-        
         # Build the Q object for searching leads
         for field in search_fields:
             search_objects |= Q(**{f'{field}__icontains': query})
-
-        # Add matching user IDs to the Q object
-        for user_id in matching_user_ids:
-            search_objects |= Q(user_id__exact=user_id)
 
         piList = all_pi.filter(search_objects).distinct()
     else:
@@ -231,7 +228,7 @@ def pi_list(request):
 
     if piList:
         for pi in piList:
-            pi.user_id = User.objects.get(pk = pi.user_id)
+            pi.user_id = get_object_or_404(User,pk = pi.user_id)
 
             if pi.approved_by is not None:
                 pi.approved_by = get_object_or_404(User, pk = pi.approved_by)
@@ -380,24 +377,6 @@ def approve_pi(request, pi_id):
         return redirect('invoice:pi_list')
     return redirect('invoice:pi_list')
 
-@login_required
-def update_pi_status(request, pi_id):
-
-    pi_instance = get_object_or_404(proforma, pk = pi_id)
-
-    if request.user.id != pi_instance.user_id:
-        return redirect('invoice:pi_list')
-
-    if request.method == 'POST':
-
-        status = request.POST.get('pi_status')
-        closed_at = request.POST.get('closingDate')
-        pi_instance.status = status
-        pi_instance.closed_at = closed_at
-        pi_instance.save()
-
-    return redirect('invoice:pi_list')
-
 
 @login_required(login_url='app:login')
 def edit_pi(request, pi):
@@ -418,6 +397,9 @@ def edit_pi(request, pi):
         target_url = reverse('lead:leads_pi', args=[pi_instance.company_ref.id])
     else:
         target_url = reverse('invoice:pi_list' )
+
+    if pi_instance.status == "closed":
+        return redirect('invoice:pi_list')
 
     if pi_instance.user_id == request.user.id or request.user.role == 'admin':
 
@@ -544,7 +526,7 @@ def edit_pi(request, pi):
 
 
 @login_required(login_url='app:login')
-def process_pi(request, pi):
+def update_pi_status(request, pi):
     
     pi_instance = get_object_or_404(proforma, pk=pi)
 
@@ -558,41 +540,119 @@ def process_pi(request, pi):
         pi_instance.save()
 
         
-        is_taxInvoice = request.POST.get('is_taxInvoice') == 'on'
+        is_invoiceRequire = request.POST.get('is_invoiceRequire') == 'on'
         payment_status = request.POST.get('payment_status')
         payment1_date = request.POST.get('payment1_date')
         payment1_amt = request.POST.get('payment1_amt')
         is_closed = True
+
+        closed_pi_instance = convertedPI.objects.filter(pi_id = pi_instance).first()
         if pi_instance.status == 'closed':
+            if closed_pi_instance:
+                try:
+                    closed_pi_instance.is_invoiceRequire = is_invoiceRequire
+                    closed_pi_instance.is_closed = is_closed
+                    closed_pi_instance.is_hold = False
+                    closed_pi_instance.is_cancel = False
+                    closed_pi_instance.payment_status = payment_status
+                    closed_pi_instance.payment1_date = payment1_date
+                    closed_pi_instance.payment1_amt = payment1_amt
+                    closed_pi_instance.save()
+                except Exception as e:
+                    messages.error(request, f'An error occurred: {str(e)}')
+            else:
+                convertedPI.objects.create(pi_id=pi_instance,is_invoiceRequire=is_invoiceRequire, 
+                                           is_closed=is_closed, payment_status=payment_status,
+                                           payment1_date=payment1_date, payment1_amt=payment1_amt)
+
+        elif pi_instance.status == 'open' and closed_pi_instance:
             try:
-                closed_pi_instance = get_object_or_404(convertedPI, pi_id = pi_instance)
-                closed_pi_instance.is_invoiceRequire = is_taxInvoice
-                closed_pi_instance.is_closed = is_closed
-                closed_pi_instance.is_cancel = False
-                closed_pi_instance.payment_status = payment_status
-                closed_pi_instance.payment1_date = payment1_date
-                closed_pi_instance.payment1_amt = payment1_amt
-                closed_pi_instance.save()
-            except:
-                convertedPI.objects.create(pi_id=pi_instance, is_taxInvoice=is_taxInvoice, is_closed=is_closed, payment_status=payment_status, payment1_date=payment1_date, payment1_amt=payment1_amt)
-        elif pi_instance.status == 'open':
-            try:
-                closed_pi_instance = get_object_or_404(convertedPI, pi_id = pi_instance)
                 closed_pi_instance.is_hold = True
                 closed_pi_instance.save()
-            except:
-                pass
-        else:
+            except Exception as e:
+                messages.error(request, f'An error occurred: {str(e)}')
+        elif pi_instance.status == 'lost' and closed_pi_instance:
             try:
-                closed_pi_instance = get_object_or_404(convertedPI, pi_id = pi_instance)
+                closed_pi_instance.is_invoiceRequire = False
+                closed_pi_instance.is_hold = True
                 closed_pi_instance.is_cancel = True
                 closed_pi_instance.save()
-            except:
-                pass
+            except Exception as e:
+                messages.error(request, f'An error occurred: {str(e)}')
 
-            messages.success(request, "PI processed successfully!")
         return HttpResponseRedirect(target_url)
 
+
+@login_required(login_url='app:login')
+def process_pi(request, pi):
+    # Get the proforma instance and check if it's already closed
+    pi_instance = get_object_or_404(proforma, pk=pi)
+    closed_pi_instance = convertedPI.objects.filter(pi_id=pi_instance).first()
+    port_choice = Portmaster.objects.all()
+    country_choice = CountryMaster.objects.all()
+
+    context = {
+        'pi': pi_instance,
+        'report_format':REPORT_FORMAT,
+        'reports': REPORTS
+    }
+
+    if pi_instance.status == 'closed':
+
+        if request.method == 'POST' and closed_pi_instance.is_processed == False:
+            # Retrieve the lists of values from the form
+            report_types = request.POST.getlist('report_type')
+            report_formats = request.POST.getlist('report_format')
+            countries = request.POST.getlist('country')
+            hsns = request.POST.getlist('hsn')
+            products = request.POST.getlist('product')
+            iecs = request.POST.getlist('iec')
+            exporters = request.POST.getlist('exporter')
+            importers = request.POST.getlist('importer')
+            from_months = request.POST.getlist('from_month')
+            to_months = request.POST.getlist('to_month')
+
+            foreign_countries_all = request.POST.getlist('foreign_country[]')
+            ports_all = request.POST.getlist('ports[]')
+
+            fc_index = 0
+            ports_index = 0
+
+            # Loop through each order entry, with index to handle multi-selects uniquely
+            for i in range(len(report_types)):
+                # Calculate the slice for current form entry
+                foreign_countries = foreign_countries_all[fc_index:fc_index + len(report_types)]
+                ports = ports_all[ports_index:ports_index + len(report_types)]
+
+                processedOrder.objects.create(
+                    pi_id=pi_instance,
+                    report_type=report_types[i],
+                    format=report_formats[i],
+                    country=countries[i],
+                    hsn=hsns[i],
+                    product=products[i],
+                    iec=iecs[i],
+                    exporter=exporters[i],
+                    importer=importers[i],
+                    foreign_country=', '.join(foreign_countries),  # Join list into comma-separated string
+                    port=', '.join(ports),  # Join list into comma-separated string
+                    from_month=from_months[i],
+                    to_month=to_months[i]
+                )
+
+                fc_index += len(report_types)
+                ports_index += len(report_types)
+
+            # Mark the converted PI instance as processed
+            if closed_pi_instance:
+                closed_pi_instance.is_processed = True
+                closed_pi_instance.save()
+
+            return redirect('invoice:processed_list')  # Redirect after processing
+
+        return render(request, 'invoices/process-pi.html', context)
+    
+    return redirect('invoice:pi_list')
 
 
 @login_required(login_url='app:login')
@@ -634,22 +694,24 @@ def processed_list(request):
 
     profile_instance = get_object_or_404(Profile, user=request.user)
     user_branch = profile_instance.branch
-    all_users = Profile.objects.filter(user__profile__branch=user_branch.id)
+    all_users = Profile.objects.filter(user__profile__branch=user_branch.id, user__department="sales")
 
-    all_processed_orders = processedOrder.objects.filter(Q(order_date__gte=fy_start) & Q(order_date__lte=fy_end)).order_by('-order_date')
+    processed_pi_list = proforma.objects.filter(convertedpi__is_processed = True)
+
+    all_processed_orders = processed_pi_list.filter(Q(processedorder__order_date__gte=fy_start) & Q(processedorder__order_date__lte=fy_end)).order_by('-convertedpi__requested_at')
 
     selected_user = request.GET.get("user", None)
     selected_Ap = request.GET.get("ap", None)
     selected_status = request.GET.get("status", None)
 
     if selected_user:
-        all_processed_orders = all_processed_orders.filter(pi_id__user_id=selected_user)
+        all_processed_orders = all_processed_orders.filter(user_id=selected_user)
 
     if selected_Ap:
-        all_processed_orders = all_processed_orders.filter(pi_id__convertedpi__is_hold=selected_Ap)
+        all_processed_orders = all_processed_orders.filter(convertedpi__is_hold=selected_Ap)
     
     if selected_status:
-        all_processed_orders = all_processed_orders.filter(order_status=selected_status)
+        all_processed_orders = all_processed_orders.filter(processedorder__order_status=selected_status)
 
     else:
         all_processed_orders = all_processed_orders
@@ -661,13 +723,16 @@ def processed_list(request):
 
     if request.user.role == 'admin' or request.user.role == 'production':
         processed_orders = all_processed_orders
+    else:
+        processed_orders = all_processed_orders.filter(user_id = request.user.id)
+
 
 
     query = request.GET.get('q')
 
     search_fields = [
-        'company_name', 'gstin', 'state', 'country', 'requistioner','email_id', 'contact', 'status',
-        'pi_no', 'orderlist__product', 'orderlist__report_type'
+        'company_name', 'gstin', 'requistioner','email_id', 'processedorder__report_type', 'processedorder__format',
+        'pi_no', 'processedorder__hsn', 'processedorder__product', 'processedorder__port'
     ]
 
     search_objects = Q()
@@ -679,11 +744,11 @@ def processed_list(request):
 
         processedOrderList = processed_orders.filter(search_objects).distinct()
     else:
-        processedOrderList = processed_orders
+        processedOrderList = processed_orders.distinct()
 
     if processedOrderList:
         for pi in processedOrderList:
-            pi.pi_id.user_id = get_object_or_404(User, pk=pi.pi_id.user_id)
+            pi.user_id = get_object_or_404(User, pk=pi.user_id)
 
     pageSize = request.GET.get('pageSize', 20)
 
@@ -698,7 +763,7 @@ def processed_list(request):
         processedOrderList = pi_per_page.get_page(pi_per_page.num_pages)
 
     context = {
-        'processed_orders': processedOrderList,
+        'processed_pi': processedOrderList,
         'all_users': all_users,
         'selected_user': selected_user,
         'selected_Ap':selected_Ap,
@@ -706,9 +771,20 @@ def processed_list(request):
         'selected_fy': selected_fy,
         'status_choices': status_choices,
         'fiscal_years': fiscal_years,
+        'pageSize': pageSize,
     }
 
     return render(request, 'invoices/processed-orders.html', context)
+
+@login_required(login_url='app:login')
+def processed_pi_order(request, pi_id):
+    pi_instance = get_object_or_404(proforma, pk=pi_id)
+
+    context = {
+        'pi': pi_instance
+    }
+    return render(request, 'invoices/processed-pi.html', context)
+
 
 @login_required(login_url='app:login')
 def invoice_list(request):
@@ -749,11 +825,11 @@ def invoice_list(request):
 
     profile_instance = get_object_or_404(Profile, user=request.user)
     user_branch = profile_instance.branch
-    all_users = Profile.objects.filter(user__profile__branch=user_branch.id)
+    all_users = Profile.objects.filter(user__profile__branch=user_branch.id, user__department="sales")
 
     requestedInvoices = convertedPI.objects.filter(is_invoiceRequire = True)
     
-    all_invoices = requestedInvoices.filter(Q(requested_at__gte=fy_start) & Q(requested_at__lte=fy_end)).order_by('-invoice_no')
+    all_invoices = requestedInvoices.filter(Q(requested_at__gte=fy_start) & Q(requested_at__lte=fy_end)).order_by('-requested_at')
 
     selected_user = request.GET.get("user", None)
     selected_Ap = request.GET.get("ap", None)
@@ -776,7 +852,7 @@ def invoice_list(request):
     report_type = REPORT_TYPE
     report_format = REPORT_FORMAT
 
-    if request.user.role == 'admin' or request.user.role == 'accounts':
+    if request.user.role == 'admin' or request.user.department == 'account':
         taxInvoices = all_invoices
     else:
         taxInvoices = all_invoices.filter(pi_id__user_id = request.user.id)
@@ -784,8 +860,8 @@ def invoice_list(request):
     query = request.GET.get('q')
 
     search_fields = [
-        'company_name', 'gstin', 'state', 'country', 'requistioner','email_id', 'contact', 'status',
-        'pi_no', 'orderlist__product', 'orderlist__report_type'
+        'pi_id__company_name', 'pi_id__gstin', 'pi_id__requistioner','pi_id__email_id', 'pi_id__contact',
+        'pi_id__pi_no', 'pi_id__po_no', 'pi_id__vendor_code','invoice_no', 'irn'
     ]
 
     search_objects = Q()
@@ -795,7 +871,7 @@ def invoice_list(request):
         for field in search_fields:
             search_objects |= Q(**{f'{field}__icontains': query})
 
-        taxInvoicesList = taxInvoices.filter(search_objects).distinct()
+        taxInvoicesList = taxInvoices.filter(search_objects)
     else:
         taxInvoicesList = taxInvoices
 
@@ -832,6 +908,41 @@ def invoice_list(request):
     }
 
     return render(request, 'invoices/invoices-list.html', context)
+
+@login_required(login_url='app:login')
+def generate_invoice(request, pi):
+    if request.user.role != 'admin':
+        return redirect('invoice:invoice_list')
+    
+    invoice_instance = get_object_or_404(convertedPI, pk=pi)
+    all_invoices = convertedPI.objects.filter(is_taxInvoice = True).order_by('-invoice_no')
+
+    if not invoice_instance.is_invoiceRequire and invoice_instance.is_hold:
+        return redirect('invoice:invoice_list')
+    
+    if not invoice_instance.pi_id.bank.biller_id.biller_gstin:
+        messages.error(request, "Biller isn't GSTIN registerd, So can't generate Tax Invoice")
+        return redirect('invoice:invoice_list')
+
+    
+    if request.method == 'POST':
+        invoice_no = request.POST.get('invoice_no')
+        invoice_date = request.POST.get('invoice_date')
+
+        if all_invoices.filter(invoice_no=invoice_no).exists():
+            messages.error(request, "Invoice No is already exist")
+            return redirect('invoice:invoice_list')
+
+        try:
+            invoice_instance.invoice_no = invoice_no
+            invoice_instance.invoice_date = invoice_date
+            invoice_instance.is_taxInvoice = True
+            invoice_instance.save()
+            messages.success(request, "Invoice generated Successfully")
+        except FileExistsError:
+            return HttpResponse("error")
+    return redirect('invoice:invoice_list')
+
 
 
 def exportInvoicelist(invoices):
@@ -949,16 +1060,23 @@ def pdf_PI(pi):
         igst = 0
         total_inc_tax = net_total
     else:
-        if str(pi.state) == pi.bank.biller_id.biller_gstin[0:2]:
-            cgst = net_total*0.09
-            sgst = net_total*0.09
-            igst = 0
-            total_inc_tax = net_total*1.18
+        if pi.bank.biller_id.biller_gstin:
+            if str(pi.state) == pi.bank.biller_id.biller_gstin[0:2]:
+                cgst = net_total*0.09
+                sgst = net_total*0.09
+                igst = 0
+                total_inc_tax = net_total*1.18
+            else:
+                cgst = 0
+                sgst = 0
+                igst = net_total*0.18
+                total_inc_tax = net_total*1.18
         else:
             cgst = 0
             sgst = 0
-            igst = net_total*0.18
-            total_inc_tax = net_total*1.18
+            igst = 0
+            total_inc_tax = net_total
+
 
     roundOff = total_inc_tax - round(total_inc_tax,0)
 
@@ -988,7 +1106,7 @@ def pdf_PI(pi):
     pdfmetrics.registerFont(TTFont('Roboto-Light', os.path.join(basedir,'static/becrm/fonts/Roboto-Light.ttf')))
 
 
-    blue_font = ParagraphStyle(name="BlueStyle", fontSize=24, alignment=0, fontName='Helvetica-Bold', underlineWidth=2 )
+    blue_font = ParagraphStyle(name="BlueStyle", fontSize=24, alignment=0, fontName='Helvetica-Bold', leading=20, underlineWidth=2 )
     black_font = ParagraphStyle(name="BlueStyle", fontSize=12, alignment=0, fontName='Montserrat-Light' )
 
     font_xxs = ParagraphStyle(name="font_xxs", fontSize=8, fontName='Quicksand-bold', alignment=0, leading=8, textColor=colors.HexColor("#ffffff"))
@@ -999,8 +1117,12 @@ def pdf_PI(pi):
 
     brand_text = f'{pi.bank.biller_id.brand_name}'
     brand_name = Paragraph(f'<font color="#3182d9">{brand_text}</font>', blue_font)
-    founder_text = f'{pi.bank.biller_id.biller_name}'
-    founder_name = Paragraph(f'<font color="#000000" >founded by {founder_text}</font>', black_font)
+
+    if pi.bank.biller_id.biller_name != pi.bank.biller_id.brand_name:
+        founder_text = f'{pi.bank.biller_id.biller_name}'
+        founder_name = Paragraph(f'<font color="#000000" >founded by {founder_text}</font>', black_font)
+    else:
+        founder_name = ""
 
     imagepath = os.path.join(basedir,'static/becrm/image/pi_back.png')
     logo = Im(imagepath, 8.25*inch,3*inch)
@@ -1009,7 +1131,10 @@ def pdf_PI(pi):
 
     biller_font = ParagraphStyle(name="BlueStyle", fontSize=11, alignment=0, textColor='white', fontName='Roboto-Bold' )
 
-    corpAddress = Paragraph(f'<strong>Corporate Office: </strong><font>{corp_address}</font>', font_xs)
+    if corp_address:
+        corpAddress = Paragraph(f'<strong>Corporate Office: </strong><font>{corp_address}</font>', font_xs)
+    else:
+        corpAddress = ""
     regAddress = Paragraph(f'<b>Reg. Office: </b><font>{reg_address}</font>', font_xs)
     gstin_text = f'<b>GSTIN: </b><font>{pi.bank.biller_id.biller_gstin}</font>' if corp_address else ''
 
@@ -1034,25 +1159,28 @@ def pdf_PI(pi):
 
     unit_price_h = Paragraph(f"<b><font>Unit Price ({pi.currency.upper()})</font></b>", font_s)
     total_price_h = Paragraph(f"<b><font>Total ({pi.currency.upper()})</font></b>", font_s)
-
+    if hasattr(pi, 'convertedpi'):
+        invoice_type = 'TAX INVOICE' if pi.convertedpi.is_taxInvoice else 'PRO FORMA INVOICE'
+    else:
+        invoice_type = 'PRO FORMA INVOICE'
 
     data = [
         [brand_name,'','','','','','','','','',''],
-        [founder_name,'','','','','','','','','','PRO FORMA INVOICE'],
+        [founder_name,'','','','','','','','','', invoice_type],
         ['','','','','','','','','','',''],
         ['','','','','',logo,'','','','',''],
         ['Issued by:','','','','','','','',f'₹ {round(total_inc_tax,0):.2f}','','',],
         [biller_Name,'','','','','','','','','','',],
         [regAddress,'','',corpAddress,'','','','','Total Payable Amount','',''],
         ['','','','','','','','','','',''],
-        ['Customer Details:','','','','','','','','VENDOR CODE:' if pi.vendor_code else '','',''],
-        [pi.company_name.upper(),'','','','','','','','LUT NO:'if pi.lut_no else '','',''],
+        ['Customer Details:','','','','','','','','VENDOR CODE:' if pi.vendor_code else '',pi.vendor_code,''],
+        [pi.company_name.upper(),'','','','','','','','LUT NO:'if pi.lut_no else '',pi.lut_no,''],
         [f'GSTIN: {pi.gstin}','','','','','','','','PO DATE:' if pi.po_date else '','',''],
         [address,'','','','','','','','PO NUMBER:' if pi.po_no else '','',''],
         ['','','','','','','','','PI DATE:',piDate,''],
         [email,'','','','','','','','PI NUMBER:',pi.pi_no,''],
-        [contact,'','','','','','','','','',''],
-        ['','','','','','','','','','',''],
+        [contact,'','','','','','','','Invoice Date:' if invoice_type=='TAX INVOICE' else '',pi.convertedpi.invoice_date if invoice_type=='TAX INVOICE' else '',''],
+        ['','','','','','','','','Invoice No.:' if invoice_type=='TAX INVOICE' else '',pi.convertedpi.invoice_no if invoice_type=='TAX INVOICE' else '',''],
         ['','','','','','','','','','',''],
         ['','','','','','','','','','',''],
         ['','S.N','ITEM DESCRIPTION','','','','','RATE','',f'TOTAL ({curr})',''],
@@ -1249,6 +1377,7 @@ def pdf_PI(pi):
         canvas.rect(30,39, 530, 30, fill=1)
 
 
+
     def add_text(canvas,doc):
         canvas.setFont("Quicksand-Medium", 10)
         canvas.setFillColor(colors.HexColor('#ffffff'))  # Set the font color to a shade of blue
@@ -1334,15 +1463,92 @@ def pdf_PI(pi):
         canvas.drawString(start_point + email_H_width, 50, f'{user.user.email}')
         canvas.drawString(start_point + email_H_width + email_width + contact_H_width, 50, f'{user.phone}')
         canvas.drawString(start_point + email_H_width + email_width + contact_H_width + contact_width + web_H_width, 50, 'www.besmartexim.com')
+        
+        canvas.setFont("Montserrat-Regular", 7)
+        canvas.setFillColor(colors.HexColor('#545454'))
+        canvas.drawCentredString(300, 10, f'This is Computer generated {invoice_type}')
+
+    def add_last_page_text(canvas):
+
+        canvas.setFillColor(colors.HexColor('#004aad'))  # Reset to black or any other color after drawing
+        canvas.setStrokeColor(colors.white)  # Set stroke color for the border
+        canvas.setLineWidth(1)
+        canvas.roundRect(30, 640, 290, 170, 10, fill=1)
+
+        canvas.setFont("Montserrat-Medium", 11)
+        canvas.setFillColor(colors.HexColor('#ffffff'))
+        canvas.drawString(50, 780, "Kindly pay in favor of")
+        canvas.drawRightString(145, 740, "Bank Name: ")
+        canvas.drawRightString(145, 725, "A/C No.: ")
+        canvas.drawRightString(145, 710, "Branch Address: ")
+        canvas.drawRightString(145, 660, "IFSC: ")
+        if pi.country != 'IN':
+            canvas.drawRightString(145, 645, "SWIFT: ")
+        canvas.setFont("Montserrat-Bold", 11)
+        canvas.drawString(50, 760, f'{pi.bank.bnf_name}')
+        canvas.drawString(150, 740, f'{pi.bank}')
+        canvas.drawString(150, 725, f'{pi.bank.ac_no}')
+
+        canvas.drawString(150, 660, f'{pi.bank.ifsc}')
+        if pi.country != 'IN':
+            canvas.drawString(150, 645, f'{pi.bank.swift_code}')
+
+        def wrap_string(string, font_size,wrap_length):
+
+            # Wraping Branch Address
+            string = string.split(" ")
+            line = []
+            current_line = ""
+
+            for word in string:
+                test_line = current_line + word + " "
+                if canvas.stringWidth(test_line,'Montserrat-Bold', font_size) <= wrap_length:
+                    current_line = test_line
+                else:
+                    line.append(current_line.strip())
+                    current_line = word + " "
+            if current_line:
+                line.append(current_line.strip())
+
+            return line
+
+        line = wrap_string(pi.bank.branch_address,11,150)
+        line_height = 13
+        for i, line in enumerate(line):
+            canvas.drawString(150, 710 - (i * line_height), f"{line}")
+
+        canvas.setFont("Montserrat-Bold", 11)
+        canvas.setFillColor(colors.HexColor('#545454'))
+        canvas.drawString(30, 580, f'Other {pi.bank.biller_id.biller_name} Details for future reference')
+        canvas.setFillColor(colors.HexColor('#3182d9'))
+        canvas.drawString(30, 500, f'Terms & Conditions')
+
+        canvas.setFont("Montserrat-Regular", 11)
+        canvas.setFillColor(colors.HexColor('#545454'))
+        canvas.circle(50, 553, 2, stroke=1, fill=1)
+        canvas.drawString(55, 550, f'PAN: {pi.bank.biller_id.biller_pan}')
+        canvas.circle(50, 533, 2, stroke=1, fill=1)
+        canvas.drawString(55, 530, f'Udyam Registration Number: {pi.bank.biller_id.biller_msme}')
+
+        canvas.setFont("Montserrat-Regular", 9)
+        canvas.setFillColor(colors.HexColor('#3182d9'))
+        canvas.circle(50, 483, 2, stroke=1, fill=1)
+        canvas.drawString(55, 480, 'Payment has to be made 100% in advance')
+        canvas.circle(50, 463, 2, stroke=1, fill=1)
+        canvas.drawString(55, 460, f'Company Legal Name is {pi.bank.biller_id.biller_name}')
+        canvas.circle(50, 443, 2, stroke=1, fill=1)
+        canvas.drawString(55, 440, 'Any changes in the order will attract cost once order is sent based on PI approval by the client')
+        canvas.circle(50, 423, 2, stroke=1, fill=1)
+        canvas.drawString(55, 420, f'18% GST will be applicable for all transactions')
+        canvas.circle(50, 403, 2, stroke=1, fill=1)
+        canvas.drawString(55, 400, f'E-Invoice is applicable w.e.f. 1st August 2023 and hence once filed, no changes cannot be made after 24 hrs.')
+
 
 
     elements = []
     elements.append(table)
     elements.append(order_table)
 
-    def add_content(canvas, doc):
-            add_canvas(canvas, doc)
-            add_text(canvas, doc)
     
     buffer.seek(0)
 
@@ -1351,12 +1557,22 @@ def pdf_PI(pi):
     original_pdf = PdfReader(buffer)
     total_pages = len(original_pdf.pages)
 
-    final_buffer = BytesIO()
+    buffer_2 = BytesIO()
 
     pdf_writer = PdfWriter()
 
     for page_num in range(total_pages):
         pdf_page = original_pdf.pages[page_num]
+        packet1 = BytesIO()
+        page_canvas = canvas.Canvas(packet1,pagesize=A4)
+        page_number_text = f"Page {page_num + 1} of {total_pages+1}"
+        page_canvas.setFont("Montserrat-Regular", 8)
+        page_canvas.setFillColor(colors.HexColor("#545454"))
+        page_canvas.drawString(510, 10, page_number_text)
+        page_canvas.save()
+        packet1.seek(0)
+        page_with_number = PdfReader(packet1)
+        pdf_page.merge_page(page_with_number.pages[0])
 
         if page_num == total_pages - 1:
             packet = BytesIO()
@@ -1372,13 +1588,27 @@ def pdf_PI(pi):
         
         pdf_writer.add_page(pdf_page)
 
-    pdf_writer.write(final_buffer)
-    
-    final_buffer.seek(0)
+    packet_new_page = BytesIO()
+    new_page_canvas = canvas.Canvas(packet_new_page, pagesize=A4)
+    add_last_page_text(new_page_canvas)
+
+    new_page_number_text = f"Page {total_pages + 1} of {total_pages + 1}"
+    new_page_canvas.setFont("Montserrat-Regular", 8)
+    new_page_canvas.setFillColor(colors.HexColor("#545454"))
+    new_page_canvas.drawString(510, 10, new_page_number_text)
+
+    new_page_canvas.save()
+    packet_new_page.seek(0)
+    new_pdf_page = PdfReader(packet_new_page)
+    pdf_writer.add_page(new_pdf_page.pages[0])
+
+    pdf_writer.write(buffer_2)
+
+    buffer_2.seek(0)
 
     buffer.close()
 
-    return final_buffer.getvalue()
+    return buffer_2.getvalue()
 
 
 @login_required(login_url='app:login')
@@ -1396,8 +1626,11 @@ def download_pdf2(request, pi_id):
 @login_required(login_url='app:login')
 def email_form(request, pi):
     pi_instance = get_object_or_404(proforma, pk=pi)
+    smtp_details = SmtpConfig.objects.filter(user=request.user).first()
+    password = smtp_details.email_host_password
     context = {
         'pi_instance': pi_instance,
+        'smtp_details': password
     }
 
     if pi_instance.user_id != request.user.id:
@@ -1409,6 +1642,8 @@ def email_form(request, pi):
 def send_test_mail(request, pi):
     pi_instance = get_object_or_404(proforma, pk=pi)
 
+    smtp_details = SmtpConfig.objects.filter(user=request.user).first()
+
     if pi_instance.user_id != request.user.id:
         return HttpResponse("You are not Authorised to Process the order.")
 
@@ -1418,15 +1653,15 @@ def send_test_mail(request, pi):
         msg = request.GET.get('mailMessage')
 
     smtp_settings = {
-        'host': 'smtp.gmail.com',
-        'port': '587',
-        'username': 'info@besmartexim.com',
-        'password': 'exmi ohwd dyjy begh',
-        'use_tls': True,
+        'host': smtp_details.smtp_server,
+        'port': smtp_details.smtp_port,
+        'username': smtp_details.user.email,
+        'password': smtp_details.email_host_password,
+        'use_tls': smtp_details.use_tls,
     }
 
 
-    html_message = f'{msg} Order Details: \n {pi_instance.details}'
+    html_message = f'{msg}'
     recipient_list=[email.strip() for email in to_mail.split(',')]
 
     email_backend = CustomEmailBackend(**smtp_settings)
@@ -1448,7 +1683,7 @@ def send_test_mail(request, pi):
     email.attach(fileName, fileValue, "application/pdf" )
 
     email.send()
-    return HttpResponse(f'status: success, message: {pi_instance.details}')
+    return HttpResponse(f'status: success, message: Email has been sent')
 
 
 # def set_custom_margins(document, left, right, top, bottom):

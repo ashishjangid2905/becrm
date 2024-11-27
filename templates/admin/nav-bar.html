@@ -35,103 +35,96 @@
           <a class="nav-link text-primary-emphasis" href="{% url 'teams:users' %}">User</a>
         </li>
         {% endif %}
-        <li class="nav-item dropdown">
-          <a
-            class="nav-link dropdown-toggle text-primary-emphasis"
-            href="#"
-            role="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-          >
-            Leads
-          </a>
-          <ul class="dropdown-menu">
-            <li>
-              <a class="dropdown-item text-primary-emphasis" href="{% url 'lead:leads_list' %}"
-                >List</a
+        {% if request.user.department != 'production' %}
+          {% if request.user.department != 'account' %}
+            <li class="nav-item dropdown">
+              <a
+                class="nav-link dropdown-toggle text-primary-emphasis"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
               >
+                Leads
+              </a>
+              <ul class="dropdown-menu">
+                <li>
+                  <a class="dropdown-item text-primary-emphasis" href="{% url 'lead:leads_list' %}"
+                    >List</a
+                  >
+                </li>
+                <li>
+                  <a class="dropdown-item text-primary-emphasis" href="{% url 'lead:follow_ups' %}"
+                    >Follow Up</a
+                  >
+                </li>
+              </ul>
             </li>
-            <li>
-              <a class="dropdown-item text-primary-emphasis" href="{% url 'lead:follow_ups' %}"
-                >Follow Up</a
-              >
+          {%endif%}
+
+          {% if request.user.department != 'account' %}
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle text-primary-emphasis"
+              href="#"
+              role="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              Proforma Invoices
+            </a>
+              <ul class="dropdown-menu">
+                <li>
+                  <a class="dropdown-item text-primary-emphasis" href="{% url 'invoice:pi_list' %}">List</a>
+                </li>
+                <li>
+                    <a class="dropdown-item text-primary-emphasis" href="{% url 'invoice:create_pi' %}">Create</a>
+                </li>
+              </ul>
             </li>
-          </ul>
-        </li>
-        <li class="nav-item dropdown">
-          <a
-            class="nav-link dropdown-toggle text-primary-emphasis"
-            href="#"
-            role="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-          >
-            Proforma Invoices
-          </a>
-          <ul class="dropdown-menu">
-            <li>
-              <a class="dropdown-item text-primary-emphasis" href="{% url 'invoice:pi_list' %}">List</a>
-            </li>
-            <li>
-              <a class="dropdown-item text-primary-emphasis" href="{% url 'invoice:create_pi' %}">Create</a>
-            </li>
-          </ul>
-        </li>
-        <li class="nav-item dropdown">
-          <a
-            class="nav-link dropdown-toggle text-primary-emphasis"
-            href="#"
-            role="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-          >
+          {% endif %}
+          <li class="nav-item">
+            <a
+            class="nav-link text-primary-emphasis"
+            href="{% url 'invoice:invoice_list' %}"
+            >
             Tax Invoices
-          </a>
-          <ul class="dropdown-menu">
-            <li>
-              <a class="dropdown-item text-primary-emphasis" href="{% url 'invoice:invoice_list' %}">List</a>
-            </li>
-          </ul>
-        </li>
-        <li class="nav-item dropdown">
-          <a
-            class="nav-link dropdown-toggle text-primary-emphasis"
-            href="#"
-            role="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-          >
-            Processed Orders
-          </a>
-          <ul class="dropdown-menu">
-            <li>
-              <a class="dropdown-item text-primary-emphasis" href="{% url 'invoice:processed_list' %}">List</a>
-            </li>
-          </ul>
-        </li>
-        <li class="nav-item dropdown">
-          <a
-            class="nav-link dropdown-toggle text-primary-emphasis"
-            href="#"
-            role="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-          >
-            Sample
-          </a>
-          <ul class="dropdown-menu">
-            <li>
-              <a class="dropdown-item text-primary-emphasis" href="{% url 'sample:samples' %}"
-                >List</a
-              >
-            </li>
-            <li>
-              <a class="dropdown-item text-primary-emphasis" href="{% url 'sample:sample_request' %}"
-                >Request</a
-              >
-            </li>
-          </ul>
-        </li>
+            </a>
+          </li>
+        {% endif %}
+        {% if request.user.department != 'account' %}
+          <li class="nav-item">
+            <a
+              class="nav-link text-primary-emphasis"
+              href="{% url 'invoice:processed_list' %}"
+            >
+              Processed Orders
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle text-primary-emphasis"
+              href="#"
+              role="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              Sample
+            </a>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item text-primary-emphasis" href="{% url 'sample:samples' %}"
+                  >List</a
+                >
+              </li>
+              <li>
+                <a class="dropdown-item text-primary-emphasis" href="{% url 'sample:sample_request' %}"
+                  >Request</a
+                >
+              </li>
+            </ul>
+          </li>
+        {% endif %}
       </ul>
       <div class="d-flex">
         <ul class="navbar-nav nav me-auto mb-2 mb-lg-0">
@@ -152,13 +145,21 @@
               />
               {{request.user}}
             </a>
-            <ul class="dropdown-menu">
+            <ul class="dropdown-menu dropdown-menu-end">
               <li>
                 <a class="dropdown-item text-primary-emphasis" href="{% url 'teams:profile' %}"
                   >Profile</a
                 >
               </li>
-              <li><a class="dropdown-item text-primary-emphasis" href="{% url 'app:settings' %}">Settings</a></li>
+              {% if request.user.role == 'admin' %}
+                <li>
+                  <a class="dropdown-item text-primary-emphasis" href="{% url 'app:settings' %}">Settings</a>
+                </li>
+              {% else %}
+                <li>
+                  <a class="dropdown-item text-primary-emphasis" href="{% url 'teams:user_password' %}">Change Password</a>
+                </li>
+              {% endif %}
               <li><hr class="dropdown-divider" /></li>
               <li>
                 <a class="dropdown-item text-primary-emphasis" href="{% url 'app:logout' %}"

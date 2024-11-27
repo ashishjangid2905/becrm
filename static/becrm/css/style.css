@@ -7,6 +7,9 @@ body {
     box-sizing: border-box;
 }
 
+.multi-select{
+    padding: 0px;
+}
 
 .multi-select .placeholder {
     display: none;
@@ -20,8 +23,11 @@ body {
     top: 4px;
 }
 
+p, label{
+    font-size: 14px;
+}
 
-table{
+table th,td{
     font-size: 13PX;
 }
 
@@ -95,10 +101,9 @@ table{
     height: 400px;
     overflow-x: auto;
     overflow-y: scroll;
-    font-size: 12px;
     scroll-behavior: smooth;
     scrollbar-width: thin;
-
+    
     th,
     td {
         vertical-align: middle;
@@ -108,4 +113,28 @@ table{
         text-transform: capitalize;
     }
 
+}
+
+
+.pi-orders{
+    height: 550px;
+    @media (max-width: 991px) {
+        height: auto;
+    }
+}
+
+
+.details{
+
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    p{
+        margin: 0;
+
+    }
+    p::after{
+        content: ' |';
+        position: relative;
+    }
 }

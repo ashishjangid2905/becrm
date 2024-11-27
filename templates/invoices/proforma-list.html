@@ -29,7 +29,7 @@
           <select class="form-select form-select-sm" name="user" id="userChoise">
             <option value='' selected>Select User</option>
             {% for user in all_users %}
-            <option value="{{ user.id }}">{{user}}</option>
+            <option value="{{ user.user.id }}">{{user}}</option>
             {% endfor %}
           </select>
           {% for param, value in request.GET.items %}
@@ -100,7 +100,9 @@
         <th scope="col">Date</th>
         <th scope="col">Company Name</th>
         <th scope="col">PI No</th>
+        <th scope="col">Biller</th>
         <th scope="col">Amount</th>
+        <th scope="col">Amount Inc. Tax</th>
         <th scope="col">Is Approved</th>
         <th scope="col">status</th>
         <th scope="col">Is Processed</th>
@@ -116,13 +118,17 @@
           <td class="text-nowrap">{{ proforma.pi_date }}</td>
           <td class="text-nowrap">{{ proforma.company_name }}</td>
           <td class="text-nowrap">{{ proforma.pi_no }}</td>
+          <td class="text-nowrap">{{ proforma.bank.biller_id.biller_name }}</td>
           <td class="text-wrap">
-            {% total_order_value proforma %}
+            ₹ {% total_order_value proforma %}
+          </td>
+          <td class="text-wrap">
+            ₹ {% total_pi_value_inc_tax proforma %}
           </td>
           <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.is_Approved == True %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.is_Approved == True %}Approved {% else %}Pending{% endif %}</span></td>
           <td class="text-wrap"><span class="badge rounded-pill text-bg-{% if proforma.status == 'open' %}warning{% elif proforma.status == 'closed' %}success{% else %}danger{% endif %} pb-1 px-2">{{ proforma.status }}</span></td>
-          <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.convertedpi.is_processed == True %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.convertedpi.is_processed == True %}Processed {% else %}Pending{% endif %}</span></td>
-          <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.convertedpi.is_invoiceRequire == True %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.convertedpi.is_invoiceRequire == True %}Sent {% else %}Pending{% endif %}</span></td>
+          <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.convertedpi.is_processed == True %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.convertedpi.is_processed == True %}Processed {% else %}{% endif %}</span></td>
+          <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.convertedpi.is_taxInvoice == True %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.convertedpi.is_taxInvoice == True %}Received {% elif proforma.convertedpi.is_hold == True %}Hold {% elif proforma.convertedpi.is_invoiceRequire == True %}Requested {% else %}{% endif %}</span></td>
           <td class="text-nowrap">
             <!-- <a href="" class="edit-btn"><i class="ti ti-details"></i></a> -->
             {% if proforma.convertedpi.is_closed != True %}
@@ -130,10 +136,16 @@
             {% endif %}
             <a href="" class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.pi_no}}"><i class="ti ti-eye"></i></a>
             {% if proforma.is_Approved == True %}
-              <a href="{% url 'invoice:download_pdf' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-file-type-pdf"></i></a>
-              <a class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.id}}"><i class="ti ti-status-change"></i></a>
-              <a href="{% url 'invoice:email_form' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-mail"></i></a>
-              <a href="{% url 'invoice:email_form' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-settings-cog"></i></a>
+              {% if not proforma.convertedpi.is_taxInvoice %}
+                <a class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{proforma.id}}"><i class="ti ti-status-change"></i></a>
+              {% endif %}
+                <a href="{% url 'invoice:download_pdf' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-file-type-pdf"></i></a>
+              {% if proforma.user_id == request.user %}
+                  <a href="{% url 'invoice:email_form' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-mail"></i></a>
+                {% if not proforma.convertedpi.is_processed and proforma.status == 'closed' %}
+                  <a href="{% url 'invoice:process_pi' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-settings-cog"></i></a>
+                {% endif %}
+              {% endif %}
             {% endif %}
           </td>
         </tr>
@@ -197,8 +209,20 @@
                     </div>
                   </div>
                   <div class="row">
+                    <div class="col-lg-5">
+                      <p class="text-capitalize"><span class="fw-semibold">Bank: </span>{{proforma.bank}}</p>
+                    </div>
                     <div class="col-lg-7">
-                      <p class="text-capitalize"><span class="fw-semibold">details: </span>{{proforma.details|safe}}</p>
+                      <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>₹ {% total_order_value proforma %}</p>
+                    </div>
+                    <div class="col-lg-7">
+                      <p class="text-capitalize"><span class="fw-semibold">Biller: </span> {{proforma.bank.biller_id.biller_name}}</p>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-lg-7">
+                      <span class="fw-semibold text-capitalize">details: </span>
+                      <div class="m-0 text-capitalize details">{{proforma.details|safe}}</div>
                     </div>
                   </div>
                   <hr/>
@@ -300,7 +324,7 @@
               </div>
               <div class="modal-body">
                 <div class="row g-3 d-flex justify-content-center">
-                  <form class="row g-3 d-flex justify-content-center" action="{% url 'invoice:process_pi' proforma.id %}" method="post">
+                  <form class="row g-3 d-flex justify-content-center" action="{% url 'invoice:update_pi_status' proforma.id %}" method="post">
                     {% csrf_token %}
                     <div class="col-5">
                       <label class="form-label">Status</label>
@@ -316,12 +340,14 @@
                     </div>
                     <div class="col-10 requestTaxInvoice" style="display: none;">
                       <div class="row g-3">
+                        {% if proforma.bank.biller_id.biller_gstin %}
                         <div class="col-5">
-                          <input class="form-check-input" type="checkbox" name="is_taxInvoice" id="is-taxInvoice" />
+                          <input class="form-check-input" type="checkbox" name="is_invoiceRequire" id="is-invoiceRequire" />
                           <label class="form-check-label" for="is-taxInvoice">
                             Tax Invoice
                           </label>
                         </div>
+                        {% endif %}
                       </div>
                       <div class="row g-3 mt-1 paymentForm">
                         <div class="col-md-3 col-sm-4 col-4">
@@ -415,14 +441,17 @@
     let userbtn = document.querySelector('#userChoise');
     let userForm = document.querySelector('#selectUser');
 
-    userbtn.addEventListener('change', function() {
-      // Automatically submit the form when the fiscal year is changed
-      userForm.submit();
-    });
-    let selected_user = "{{ selected_user|default_if_none:'' }}";  // Handle None values in Django
-    if (selected_user) {
-      userbtn.value = selected_user;
+    if (userbtn) {      
+      userbtn.addEventListener('change', function() {
+        // Automatically submit the form when the fiscal year is changed
+        userForm.submit();
+      });
+      let selected_user = "{{ selected_user|default_if_none:'' }}";  // Handle None values in Django
+      if (selected_user) {
+        userbtn.value = selected_user;
+      }
     }
+
 
     let apbtn = document.querySelector('#isApChoise');
     let apForm = document.querySelector('#piApprove');

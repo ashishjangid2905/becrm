@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages, auth
 from django.template import loader
-from teams.models import Profile, Branch, User
+from teams.models import Profile, Branch, User, UserVariable
 from sample.models import sample
 from invoice.models import proforma, orderList
 from invoice.templatetags.custom_filters import total_order_value
@@ -24,8 +24,15 @@ def home(request):
     if not request.user.is_authenticated:
         return redirect('app:login')
     
+    user_profile = get_object_or_404(Profile, user=request.user)
+    
+    user_target_variable = UserVariable.objects.filter(variable_name = 'sales_target', user_profile=user_profile).last()
+
+    user_target = int(user_target_variable.variable_value)/1000 if user_target_variable else 0
+
     context = {
-        'user_id': request.user.id
+        'user_id': request.user.id,
+        'user_target': user_target
     }
 
     return render(request, 'dashboard/dashboard.html', context)
@@ -160,7 +167,7 @@ def logout_user(request):
 @login_required
 def settings(request):
     if request.user.role != 'admin':
-        return redirect('app:home')
+        return redirect('teams:user_password')
     
     return render(request,'admin/settings.html')
 

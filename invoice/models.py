@@ -60,21 +60,27 @@ class biller(models.Model):
 class bankDetail(models.Model):
 
     biller_id = models.ForeignKey(biller, on_delete=models.SET_NULL, null=True)
+    is_active = models.BooleanField(_("Is Active"), default=True)
+    is_upi = models.BooleanField(_("Is UPI"), default=False)
+    upi_id = models.CharField(_("UPI ID"), max_length=50, blank=True, null=True)
+    upi_no = models.CharField(_("UPI No"), max_length=50, blank=True, null=True)
     bnf_name = models.CharField(_("Beneficiary Name"), max_length=150, blank=False, null=False)
     bank_name = models.CharField(_("Bank Name"), max_length=150, blank=False, null=False)
     branch_address = models.CharField(_("Branch Address"), max_length=254, blank=True, null=True)
     ac_no = models.CharField(_("A/c No"), max_length=150, blank=False, null=False)
     ifsc = models.CharField(_("IFSC"), max_length=50, blank=False, null=False)
     swift_code = models.CharField(_("Swift Code"), max_length=50, blank=True, null=True)
+    inserted_at = models.DateTimeField(_("Inserted at"), auto_now_add=True)
+    edited_at = models.DateTimeField(_("Edited at"), auto_now=True)
 
     class Meta:
         verbose_name = _("Bank")
         verbose_name_plural = _("Banks")
         db_table = "Bank_List"
-        unique_together = ('bnf_name', 'bank_name', 'ac_no')
+        unique_together = ('bnf_name', 'bank_name', 'ac_no', 'upi_id', 'upi_no')
 
     def __str__(self):
-        return self.bank_name
+        return f'{self.bank_name}'
 
 def pi_number(user):
     fiscalyear.START_MONTH = 4
@@ -87,7 +93,6 @@ def pi_number(user):
     prefix = 'BE' if branch_id == 1 else 'CE'
 
     n = proforma.objects.filter(pi_no__startswith=f"{py}-{fy}/{prefix}-").order_by('pi_no').last()
-
 
     if n:
         last_no = int(n.pi_no.split('-')[-1])
@@ -184,15 +189,19 @@ class convertedPI(models.Model):
     payment2_amt = models.IntegerField(_("Payment 2 Amount"), blank=True, null=True)
     payment3_date = models.DateField(_("Payment 3 Date"), blank=True, null=True)
     payment3_amt = models.IntegerField(_("Payment 3 Amount"), blank=True, null=True)
-    requested_at = models.DateField(_("Requested At"), auto_now_add=True )
     invoice_no = models.CharField(_("Invoice No"), max_length=50, blank=True, null=True)
     irn = models.CharField(_("IRN"), max_length=250, blank=True, null=True)
     invoice_date = models.DateField(_("Invoice Date"), blank=True, null=True)
+    requested_at = models.DateTimeField(_("Requested At"), auto_now_add=True )
+    edited_at = models.DateTimeField(_("Edited At"), auto_now=True)
 
     class Meta:
         verbose_name = _("Converted PI")
         verbose_name_plural = _("Converted PIs")
         db_table = "Converted_PI"
+
+    def __str__(self):
+        return f'PI No.-{self.pi_id.pi_no}, Invoice No.-{self.invoice_no}'
 
 class processedOrder(models.Model):
     pi_id = models.ForeignKey(proforma, verbose_name=_("PI ID"), on_delete=models.CASCADE)
@@ -218,3 +227,6 @@ class processedOrder(models.Model):
         verbose_name = _("Order Process")
         verbose_name_plural = _("Order Process")
         db_table = "Processed_Order"
+
+    def __str__(self):
+        return f'{self.report_type} {self.format} {self.country}'
