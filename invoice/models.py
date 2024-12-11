@@ -1,10 +1,11 @@
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.text import slugify
 from lead.models import contactPerson, leads
 from teams.models import Profile
 import fiscalyear, datetime
-from .utils import STATUS_CHOICES, REPORT_FORMAT, REPORT_TYPE, ORDER_STATUS, PAYMENT_STATUS
+from .utils import STATUS_CHOICES, REPORT_FORMAT, REPORT_TYPE, ORDER_STATUS, PAYMENT_STATUS, VARIABLES
 
 # Create your models here.
 
@@ -56,6 +57,30 @@ class biller(models.Model):
             self.corp_country
         ]
         return ', '.join(filter(None, address_parts))
+    
+    def __str__(self):
+        return f'{self.biller_name} - {self.reg_state}'
+    
+    
+
+class BillerVariable(models.Model):
+    biller_id = models.ForeignKey(biller, verbose_name=_("Biller Id"), on_delete=models.CASCADE)
+    variable_name = models.CharField(_("Variable Name"), max_length=50, choices=VARIABLES)
+    variable_value = models.CharField(_("Variable Value"), max_length=150)
+    from_date = models.DateField(_("From Date"), null=False, blank=False)
+    to_date = models.DateField(_("To Date"), null=True, blank=True)
+    inserted_by = models.IntegerField(_("Inserted By"))
+    Inserted_at = models.DateTimeField(_("Inserted At"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Biller Variable")
+        verbose_name_plural = _("Biller Variables")
+        db_table = "Biller_Variable"
+
+    def __str__(self):
+        return f'{self.id} - {self.biller_id.biller_name} - {self.variable_name}: {self.variable_value}'
+    
+
 
 class bankDetail(models.Model):
 
@@ -80,27 +105,50 @@ class bankDetail(models.Model):
         unique_together = ('bnf_name', 'bank_name', 'ac_no', 'upi_id', 'upi_no')
 
     def __str__(self):
-        return f'{self.bank_name}'
+        return f'{self.bank_name} - {self.bnf_name}'
+    
+def get_biller_variable(biller_dtl,variable_name):
+    today = timezone.now().date()
 
-def pi_number(user):
+    filters = {'from_date__lte': today, 'biller_id': biller_dtl, 'variable_name': variable_name }
+
+    variable = BillerVariable.objects.filter(
+        Q(to_date__gte=today) | Q(to_date__isnull = True),
+        **filters).last()
+
+    return variable.variable_value if variable else None
+
+def pi_number(user, pi_tag = None, pi_format=None):
     fiscalyear.START_MONTH = 4
     fy = str(fiscalyear.FiscalYear.current())[-2:]
     py = str(int(fy) - 1)
 
-
     branch_id = Profile.objects.get(user=user).branch.id
+    
+    if not pi_tag:
+        pi_tag = 'BE' if branch_id == 1 else 'CE'
+    if not pi_format:
+        pi_format = '{py}-{fy}/{tag}-{num:04d}'
 
-    prefix = 'BE' if branch_id == 1 else 'CE'
+    if not isinstance(pi_format, str):
+        raise ValueError(f"Expected pi_format to be a string, got {type(pi_format)}")
 
-    n = proforma.objects.filter(pi_no__startswith=f"{py}-{fy}/{prefix}-").order_by('pi_no').last()
+    search_prefix = pi_format.format(py=py, fy=fy, tag=pi_tag, num=0).rstrip("0")
 
-    if n:
-        last_no = int(n.pi_no.split('-')[-1])
+    last_pi = proforma.objects.filter(pi_no__startswith=search_prefix).order_by('pi_no').last()
+
+    if last_pi:
+        try:
+            last_no = int(last_pi.pi_no.split(search_prefix)[-1])
+        except:
+            last_no = 0
         new_no = last_no + 1
     else:
         new_no = 1
 
-    return f"{py}-{fy}/{prefix}-{str(new_no).zfill(4)}"
+    pi_no = pi_format.format(py=py, fy=fy, tag=pi_tag, num=new_no)
+
+    return pi_no
 
 
 class proforma(models.Model):
@@ -172,7 +220,7 @@ class orderList(models.Model):
         db_table = "Order_List"
     
     def __str__(self):
-        return self.report_type
+        return f'PI No.: {self.proforma_id.pi_no} - {self.report_type}'
     
 class convertedPI(models.Model):
     pi_id = models.OneToOneField(proforma, verbose_name=_("PI ID"), on_delete=models.CASCADE)

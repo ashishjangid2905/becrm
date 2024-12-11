@@ -1,15 +1,21 @@
+# Import from Django
 from django.shortcuts import render, redirect, HttpResponse, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.http import HttpResponseRedirect, FileResponse
+from django.db.models import OuterRef, Subquery, Max, F, Q
+from django.conf import settings
+
+# Import from  app models, utils
 from .models import leads, contactPerson, Conversation, conversationDetails
 from teams.models import User, Profile
 from invoice.models import proforma, orderList
-from invoice.utils import STATUS_CHOICES
-from django.db.models import OuterRef, Subquery, Max, F, Q
-from datetime import date
-from django.conf import settings
+from invoice.utils import STATUS_CHOICES, STATE_CHOICE, COUNTRY_CHOICE
+
+# Import Third Party Module
 import csv, os
+from datetime import date
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
@@ -62,9 +68,16 @@ def leads_list(request):
         for lead in user_leads:
             lead.user = User.objects.get(pk=lead.user)
 
+    source_choice = leads.SOURCE
+    states = STATE_CHOICE
+    countries = COUNTRY_CHOICE
+
     context = {
         'user_leads': user_leads,
         'user_id': user_id,
+        'source_choice': source_choice,
+        'states': states,
+        'countries': countries
     }
     
     return render(request, 'lead/lead-list.html', context)
@@ -94,6 +107,10 @@ def add_lead(request):
         industry = request.POST.get("industry")
         source = request.POST.get("source")
 
+        if leads.objects.filter(company_name = company_name, gstin=gstin).exists():
+            messages.error(request, f"The company '{company_name}' already exists.")
+            return redirect('lead:leads_list')
+        
         company = leads.objects.create(company_name=company_name, gstin=gstin, address1=address1, address2=address2, city=city, state=state, country=country, pincode=pincode, industry=industry, source=source, user=user)
 
         person_name = request.POST.get("contact_person")
@@ -103,7 +120,12 @@ def add_lead(request):
 
         Contact_person = contactPerson.objects.create(person_name=person_name, email_id=email_id, contact_no=contact_no, is_active=is_active,company=company)
         
-        return redirect('lead:leads_list')
+        print(request.POST.get('action'))
+        if request.POST.get('action') == 'Add & Create_PI':
+            company_id = company.id
+            target_url = reverse('invoice:create_pi_lead_id', args=[company_id])
+            return HttpResponseRedirect(target_url)
+        return redirect(reverse('lead:lead', kwargs={'leads_id': company.id}))
 
     return render(request, 'lead/add-lead.html', context)
 
@@ -166,6 +188,12 @@ def lead(request, leads_id):
     all_pi = proforma.objects.filter(company_ref = company)
 
     status_choices = STATUS_CHOICES
+    states = STATE_CHOICE
+    countries = COUNTRY_CHOICE
+    source_choice = leads.SOURCE
+    company.state = int(company.state) if company.state else None
+    company.source = dict(source_choice).get(company.source) if company.state else None
+
 
     query = request.GET.get('q')
 
@@ -196,6 +224,9 @@ def lead(request, leads_id):
         'contact_person': contact_person,
         'piList': piList,
         'status_choices': status_choices,
+        'source_choice':source_choice,
+        'states': states,
+        'countries': countries
     }
 
     return render(request, 'lead/pi-list.html', context)
@@ -474,7 +505,7 @@ def exportlead(request):
 
         for contact_person in contact_person:
             user_name = User.objects.get(pk=contact_person.company.user).get_full_name()
-            address = f"{contact_person.company.address1}, {contact_person.company.address2}" if contact_person.company.address2 else contact_person.company.address1
+            address = contact_person.company.get_full_address()
             row = [
                 user_name, contact_person.company.company_name, contact_person.company.gstin, address, contact_person.company.city, contact_person.company.state,
                 contact_person.company.country, contact_person.company.pincode, contact_person.company.industry, contact_person.company.source,

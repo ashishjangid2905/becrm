@@ -4,9 +4,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages, auth
 from django.template import loader
 from teams.models import Profile, Branch, User, UserVariable
+from teams.views import get_user_variable
 from sample.models import sample
 from invoice.models import proforma, orderList
-from invoice.templatetags.custom_filters import total_order_value
+from invoice.templatetags.custom_filters import total_order_value, sale_category
 from invoice.utils import STATUS_CHOICES
 from django.db.models import Count
 from django.db.models.functions import ExtractMonth, TruncDate
@@ -26,12 +27,22 @@ def home(request):
     
     user_profile = get_object_or_404(Profile, user=request.user)
     
-    user_target_variable = UserVariable.objects.filter(variable_name = 'sales_target', user_profile=user_profile).last()
+    # user_target_variable = UserVariable.objects.filter(variable_name = 'sales_target', user_profile=user_profile).last()
 
-    user_target = int(user_target_variable.variable_value)/1000 if user_target_variable else 0
+    user_target_variable = get_user_variable(user_profile, 'sales_target')
+
+    user_target = int(user_target_variable)/1000 if user_target_variable else 0
+
+    user_details = {
+        'user_id': request.user.id,
+        'team_member': request.user.full_name(),
+        'role': request.user.role,
+        'department': request.user.department
+    }
 
     context = {
         'user_id': request.user.id,
+        'user_details': user_details,
         'user_target': user_target
     }
 
@@ -47,9 +58,9 @@ def dashboard(request):
 
     all_pi = proforma.objects.all()
 
-    # if all_pi:
-    #     for pi in all_pi:
-    #         pi.user_id = get_object_or_404(Profile, user = pi.user_id)
+    if all_pi:
+        for pi in all_pi:
+            pi.user_id = get_object_or_404(Profile, user = pi.user_id)
 
     all_pi_data = all_pi
 
@@ -61,9 +72,13 @@ def dashboard(request):
             'pi_date': pi.pi_date,
             'pi_no': pi.pi_no,
             'pi_status': pi.status,
-            'pi_user': pi.user_id,
+            'pi_user': pi.user_id.id,
+            'team_member': pi.user_id.user.full_name(),
+            'biller': pi.bank.biller_id.biller_name,
+            'bank': pi.bank.bank_name,
             'closed_at': pi.closed_at,
             'totalValue': total_order_value(pi),
+            'sales_category': sale_category(pi),
             'order_list': []
         }
 

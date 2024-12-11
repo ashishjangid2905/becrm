@@ -7,6 +7,7 @@ app_name = 'teams'
 urlpatterns = [
     path('user', views.user_list, name='users'),
     path('add', views.add_user, name='add_user'),
+    path('set-target/<int:user_id>', views.set_target, name='set_target'),
     path('edit/<int:user_id>', views.edit_user, name='edit_user'),
     path('change-password/<int:user_id>', views.change_password, name='change_password'),
     path('change-password-user/', views.user_password, name='user_password'),

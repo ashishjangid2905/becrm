@@ -1,4 +1,4 @@
-{% extends 'home.html' %} {% load static %} {% block content %}
+{% extends 'home.html' %} {% load static %} {% load teams_custom_filters %} {% block content %}
 <div class="container-fluid px-2">
   <a href="{% url 'teams:add_user' %}" class="btn btn-sm btn-outline-primary ms-3 my-3" data-bs-toggle="modal" data-bs-target="#addUser">
     <i class="ti ti-user-plus"></i> Add User
@@ -121,6 +121,10 @@
               ></a>
               <a
               class="btn p-0 text-primary mx-1"
+              data-bs-toggle="modal" data-bs-target="#setTarget{{member.user.id}}"
+              ><i class="ti ti-target"></i></a>
+              <a
+              class="btn p-0 text-primary mx-1"
               href="{% url 'teams:change_password' member.user.id %}" data-bs-toggle="modal" data-bs-target="#updatePass{{member.user.id}}"
               ><i class="ti ti-password-user"></i
                 ></a>
@@ -188,6 +192,41 @@
                       </div>                    
                       <div class="modal-footer">
                         <button class="btn btn-sm btn-primary" type="submit">Save Changes</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal fade" id="setTarget{{member.user.id}}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content bg-light-subtle">
+                <div class="modal-header">
+                  <h1 class="modal-title fs-5 text-primary fw-normal" id="exampleModalLabel"><i class="ti ti-target"></i> Set Target</h1>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <form class="row g-3" action="{% url 'teams:set_target' member.id %}" method="post">
+                    {% csrf_token %}
+                    <div class="row g-3 justify-content-center">
+                      <div class="col-md-10">
+                        <label for="current-target" class="form-label">Current Target</label>
+                        <p class="form-control form-control-sm fw-medium bg-light">{% get_current_target member %}</p>
+                      </div>
+                      <div class="col-md-10">
+                        <label for="sale-target" class="form-label">Target (Monthly)</label>
+                        <input type="text" class="form-control form-control-sm" name="sale_target" id="sale-target" value="" required/>
+                      </div>
+                      <div class="col-md-10">
+                        <label class="form-label">Applicable From</label>
+                        <input type="date" class="form-control form-control-sm" name="from_date" id="start-date" value=""/>
+                      </div>
+                                          
+                      <div class="modal-footer">
+                        <button class="btn btn-sm btn-primary" type="submit">Save</button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" aria-label="Close">Close</button>
                       </div>
                     </div>
                   </form>

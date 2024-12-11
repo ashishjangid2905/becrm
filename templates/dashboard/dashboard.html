@@ -1,62 +1,100 @@
 {% extends 'home.html' %} {% load static %} {% block content %}
 
-<div class="container-fluid mt-5">
+<div class="container-fluid p-3">
   <div class="container">
-    <div class="row my-2 py-2">
-      <div class="col-lg-3 col-md-3 mt-1">
-        <div class="container">
+    <div class="row py-2">
+      <div class="col-md-3 mt-1">
+        <div class="container p-0 bg-dark rounded-4">
           <div
-            class="card py-2 bg-info bg-gradient bg-opacity-75 text-white text-center"
+            class="card py-2 bg-info bg-gradient bg-opacity-50 text-white text-center rounded-4"
           >
-            <div class="card-body">
+            <div class="card-body p-1">
               <h4 class="">Team Sales</h4>
               <h2 class="card-text" id="team-sales"></h2>
             </div>
           </div>
         </div>
       </div>
-      <div class="col-lg-3 col-md-3 mt-1">
-        <div class="container">
+      <div class="col-md-3 mt-1">
+        <div class="container p-0 bg-warning bg-opacity-50 rounded-4">
           <div
-            class="card py-2 bg-success bg-gradient bg-opacity-75 text-white text-center"
+            class="card py-2 bg-success bg-gradient bg-opacity-50 text-white text-center rounded-4"
           >
-            <div class="card-body">
+            <div class="card-body p-1">
               <h4 class="">User Sale</h4>
               <h2 class="card-text" id="user-sales"></h2>
             </div>
           </div>
         </div>
       </div>
-      <div class="col-lg-3 col-md-3 mt-1">
-        <div class="container">
+      <div class="col-md-3 mt-1">
+        <div class="container p-0 bg-danger rounded-4">
           <div
-            class="card py-2 bg-danger bg-gradient bg-opacity-75 text-white text-center"
+            class="card py-2 bg-primary bg-gradient bg-opacity-25 text-white text-center rounded-4"
           >
-            <div class="card-body">
+            <div class="card-body p-1">
               <h4 class="">Closed PI</h4>
               <h2 class="card-text" id="closed-pi"></h2>
             </div>
           </div>
         </div>
       </div>
-      <div class="col-lg-3 col-md-3 mt-1 align-middle">
-        <div class="container text-left py-2">
-          <h4>Monthly Sales Target</h4>
-          <h2><i class="ti ti-currency-rupee"></i>{{user_target}}K</h2>
+      <div class="col-md-3 mt-1">
+        <div class="container p-0 bg-dark rounded-4">
+          <div
+          class="card py-2 bg-secondary bg-gradient bg-opacity-75 text-white text-center rounded-4"
+        >
+          <div class="card-body p-1">
+            <h4>Monthly Sales Target</h4>
+            <h2 class="card-text"><i class="ti ti-currency-rupee"></i>{{user_target}}K</h2>
+          </div>
+        </div>
         </div>
       </div>
     </div>
 
     <!-- graph section -->
-    <div class="row g-3 my-2">
-      <div class="col-lg-3 col-md-3">
-        <div>
-          <canvas class="rounded rounded-2 p-2" id="pi-pieChart"></canvas>
+    <div class="row my-2">
+      <div class="col-md-8">
+        <table class="table table-sm table-secondary align-middle table-bordered table-hover table-striped" id="monthSaleTable">
+          <thead>
+            <tr class=" table-bordered border-2">
+              <th class="text-center" colspan=7>Nov'24</th>
+            </tr>
+            <tr class="border-2">
+              <th class="text-center" scope="col">S.N</th>
+              <th scope="col">Team Member</th>
+              <th class="text-center" scope="col">Online Sales</th>
+              <th class="text-center" scope="col">Offline Sales</th>
+              <th class="text-center" scope="col">Domestic Sales</th>
+              <th class="text-center" scope="col">Total Sales</th>
+              <th class="text-center" scope="col">Contribution %</th>
+            </tr>
+          </thead>
+          <tbody class="border-2">
+            
+          </tbody>
+        </table>
+      </div>
+
+      <div class="col-md-5 mb-3">
+        <div class="container border bg-light rounded-3">
+          <div id="salesPiChart"></div>
         </div>
       </div>
-      <div class="col-lg-7 col-md-7">
-        <div>
-          <canvas class="rounded rounded-2 p-2" id="sales-chart"></canvas>
+      <div class="col-md-7 mb-3">
+        <div class="container">
+          <canvas class="bg-dark bg-gradient rounded rounded-2" id="sales-chart"></canvas>
+        </div>
+      </div>
+      <div class="col-md-7 mb-3">
+        <div class="container border bg-secondary-subtle rounded-3">
+          <div id="saleschart"></div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-3">
+        <div class="container rounded-4">
+          <canvas class="bg-dark bg-gradient rounded-4 p-4" id="pi-pieChart"></canvas>
         </div>
       </div>
     </div>
@@ -69,5 +107,24 @@
 <script>
   // Pass the user's ID to the chart.js file
   const USER_ID = {{ user_id|safe }};
+  const USER_DETAILS = {{user_details|safe}};
+  console.log(USER_DETAILS)
 </script>
+
+<style>
+  #saleschart, #salesPiChart {
+    width: 100%;
+    height: 400px;
+  }
+
+  </style>
+  
+  <!-- Resources -->
+  <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/percent.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+  
+  <!-- Chart code -->
+
 {% endblock %}

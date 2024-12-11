@@ -1,15 +1,7 @@
 {% extends 'home.html' %} {% load static %}
 {% load custom_filters %} {% block content %}
 
-<div class="alert z-3 position-absolute container-fluid" tabindex="1" id="myAlert">
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert {% if message.tags == 'success' %}alert-success {% else %}{% endif %}alert-danger alert-dismissible fade show" role="alert">
-        <strong>{{ message.tags }}: </strong>{{message}}
-      </div>
-    {% endfor %}
-  {% endif %}
-</div>
+{% include "alert.html" %}
 <div class="container d-flex justify-content-center">
   <h5 class="fs-3 text-primary mt-3">Tax Invoice List</h5>
 </div>
@@ -79,9 +71,36 @@
         </div>
       </form>
     </div>
-    <div class="col-md-2 mt-2 pe-4">
-          <a href="?export=excel{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" class="btn btn-sm btn-outline-primary">Export list</a>
-      </form>
+    <div class="col-md-2 mt-2 pe-2 flex-row">
+      <a href="?export=excel{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" class="btn btn-sm btn-outline-primary">Export list</a>
+      <a href="" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#bulkUpdate">Bulk Update Invoice</a>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="bulkUpdate" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="exampleModalLabel">Bulk Invoice Update</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form action='{% url "invoice:bulkInvoiceUpdate" %}' method="POST" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="formFileSm" class="form-label">Small file input example</label>
+            <input class="form-control form-control-sm" id="formFileSm" type="file" name='file' accept=".xlsx">
+            <div id="uploadHelp" class="form-text">Upload file Format: .xlsx only</div>
+            <div id="uploadHelp" class="form-text">column Invoice No.: Insert Number only, don't insert any Text/Special Char. Invoice No generate automatic as per set Format</div>
+          </div>
+          <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary">Save changes</button>
+      </div>
     </div>
   </div>
 </div>
@@ -344,7 +363,7 @@
                     {% csrf_token %}
                     <div class="col-5">
                       <label class="form-label">Invoice No</label>
-                      <input class="form-control form-control-sm" type='text' name='invoice_no'>
+                      <input class="form-control form-control-sm" type='number' name='invoice_no'>
                     </div>
                     <div class="col-5">
                       <label class="form-label">Date</label>

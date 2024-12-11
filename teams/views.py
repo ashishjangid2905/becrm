@@ -5,9 +5,10 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth import update_session_auth_hash
 from django.contrib import messages, auth
 from django.template import loader
-from teams.models import Profile, Branch, User
+from django.db.models import Q
+from teams.models import Profile, Branch, User, UserVariable, SmtpConfig
 from django.shortcuts import get_object_or_404
-import datetime
+from datetime import datetime, timedelta
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 @login_required(login_url='app:login')
@@ -301,9 +302,51 @@ def profile(request):
         return redirect('app:login')
     user = request.user
     user_profile = Profile.objects.all().filter(user = user)
-
+    
     context = {
         'user_profile': user_profile,
     }
 
     return render(request, 'user/profile.html', context)
+
+
+def get_user_variable(user_profile, variable_name):
+    today = datetime.now().date()
+
+    filters = {'from_date__lte': today, 'user_profile': user_profile, 'variable_name': variable_name }
+
+    variable = UserVariable.objects.filter(
+        Q(to_date__gte=today) | Q(to_date__isnull = True),
+        **filters).last()
+
+    return variable.variable_value if variable else None
+
+
+@login_required(login_url='app:login')
+def set_target(request, user_id):
+
+    if request.user.role != 'admin':
+        return redirect('app:dashboard')
+    
+    user_profile = get_object_or_404(Profile, pk=user_id)
+    
+    if request.method == 'POST':
+        sales_target = request.POST.get('sale_target')
+        from_date_str = request.POST.get('from_date')
+        variable_name = 'sales_target'
+
+        try:
+            from_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            messages.error(request, "Invalid Date format")
+            return redirect('teams:users')
+
+        currentTarget = UserVariable.objects.filter(user_profile=user_profile, variable_name=variable_name).last()
+        if currentTarget:
+            currentTarget.to_date = from_date - timedelta(days=1)
+            currentTarget.save()
+        
+        newTarget = UserVariable.objects.create(user_profile=user_profile, variable_name=variable_name, variable_value=sales_target, from_date=from_date)
+        messages.success(request,f"{user_profile} target {sales_target} is set successfully")
+        return redirect('teams:users')
+

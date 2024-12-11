@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import biller, bankDetail, proforma, orderList, processedOrder, convertedPI
+from .models import biller, bankDetail, proforma, orderList, processedOrder, convertedPI, BillerVariable
 # Register your models here.
 
 admin.site.register(biller)
@@ -8,3 +8,4 @@ admin.site.register(proforma)
 admin.site.register(orderList)
 admin.site.register(convertedPI)
 admin.site.register(processedOrder)
+admin.site.register(BillerVariable)

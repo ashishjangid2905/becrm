@@ -1,5 +1,6 @@
 {% extends 'home.html' %} {% load static %}
 {% load custom_filters %} {% block content %}
+{% include "alert.html" %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <div class="container d-flex justify-content-center">
   <h5 class="fs-3 text-primary mt-3">Proforma Invoice List</h5>
@@ -141,7 +142,7 @@
               {% endif %}
                 <a href="{% url 'invoice:download_pdf' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-file-type-pdf"></i></a>
               {% if proforma.user_id == request.user %}
-                  <a href="{% url 'invoice:email_form' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-mail"></i></a>
+                  {% comment %} <a href="{% url 'invoice:email_form' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-mail"></i></a> {% endcomment %}
                 {% if not proforma.convertedpi.is_processed and proforma.status == 'closed' %}
                   <a href="{% url 'invoice:process_pi' proforma.id %}" class="btn p-0 text-primary"><i class="ti ti-settings-cog"></i></a>
                 {% endif %}
@@ -214,6 +215,7 @@
                     </div>
                     <div class="col-lg-7">
                       <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>₹ {% total_order_value proforma %}</p>
+                      <p class="text-capitalize"><span class="fw-semibold">Total Amount (Inc. Tax): </span>₹ {% total_pi_value_inc_tax proforma %}</p>
                     </div>
                     <div class="col-lg-7">
                       <p class="text-capitalize"><span class="fw-semibold">Biller: </span> {{proforma.bank.biller_id.biller_name}}</p>

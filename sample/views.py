@@ -15,6 +15,42 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 @login_required(login_url='app:login')
 def sample_request(request):
+
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
+    if request.method == 'POST':
+        user = request.user
+        sample_id = sample_no(user)
+        country = request.POST.get('inputCountry')
+        report_format = request.POST.get('formatReport')
+        report_type = request.POST.get('typeReport')
+        hs_code = request.POST.get('inputHSN','%')
+        product = request.POST.get('inputProduct', '%')
+        iec = request.POST.get('inputIEC', '%')
+        shipper = request.POST.get('inputShiper', '%')
+        consignee = request.POST.get('inputForeign', '%')
+        foreign_country = request.POST.getlist('inputForeignCountry', '%')
+        port = request.POST.getlist('inputPort', '%')
+        month = request.POST.get('month')
+        year = request.POST.get('inputyear')
+        client_name = request.POST.get('inputClient')
+        status = request.POST.get('sampleStatus', 'pending')
+
+        ports = ', '.join(port)
+        countries = ', '.join(foreign_country)
+
+        Sample = sample.objects.create(user=user, sample_id =sample_id,country=country,report_format=report_format,report_type=report_type,hs_code=hs_code,product=product,iec=iec,shipper=shipper,consignee=consignee,foreign_country=countries,port=ports,month=month,year=year,client_name=client_name,status=status)
+        messages.success(request, "Sample has been requested")
+        return redirect('sample:samples')
+    return render(request, 'sample/sample-request.html')
+
+    
+@login_required(login_url='app:login')
+def sample_list(request):
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
     format_choices = sample.FORMAT
     type_choices = sample.TYPE
     month_choices = sample.MONTH
@@ -34,52 +70,6 @@ def sample_request(request):
         month_choices = month_choices[:current_month]
     else:
         month_choices = month_choices
-
-    context = {
-        'format_choices': format_choices,
-        'type_choices': type_choices,
-        'month_choices': month_choices,
-        'status_choices': status_choices,
-        'range_year': range_year,
-        'selected_year': selected_year,
-        'port_choice': port_choice,
-        'country_choice': country_choice,
-    }
-
-    if request.user.is_authenticated:
-        if request.method == 'POST':
-            user = request.user
-            sample_id = sample_no(user)
-
-            country = request.POST.get('inputCountry')
-            report_format = request.POST.get('formatReport')
-            report_type = request.POST.get('typeReport')
-            hs_code = request.POST.get('inputHSN','%')
-            product = request.POST.get('inputProduct', '%')
-            iec = request.POST.get('inputIEC', '%')
-            shipper = request.POST.get('inputShiper', '%')
-            consignee = request.POST.get('inputForeign', '%')
-            foreign_country = request.POST.getlist('inputForeignCountry', '%')
-            port = request.POST.getlist('inputPort', '%')
-            month = request.POST.get('month')
-            year = request.POST.get('inputyear')
-            client_name = request.POST.get('inputClient')
-            status = request.POST.get('sampleStatus', 'pending')
-
-            ports = ', '.join(port)
-            countries = ', '.join(foreign_country)
-
-            Sample = sample.objects.create(user=user, sample_id =sample_id,country=country,report_format=report_format,report_type=report_type,hs_code=hs_code,product=product,iec=iec,shipper=shipper,consignee=consignee,foreign_country=countries,port=ports,month=month,year=year,client_name=client_name,status=status)
-            messages.success(request, "Sample Request Submited")
-            return redirect('sample:samples')
-        return render(request, 'sample/sample-request.html', context)
-    else:
-        return redirect('app:login')
-    
-@login_required(login_url='app:login')
-def sample_list(request):
-    if not request.user.is_authenticated:
-        return redirect('app:login')
     
     query = request.GET.get('q')
 
@@ -129,7 +119,15 @@ def sample_list(request):
         'user_samples': user_samples,
         'filtered_samples': filtered_samples,
         'user_branch':user_branch,
-        'user_profile':user_profile
+        'user_profile':user_profile,
+        'format_choices': format_choices,
+        'type_choices': type_choices,
+        'month_choices': month_choices,
+        'status_choices': status_choices,
+        'range_year': range_year,
+        'selected_year': selected_year,
+        'port_choice': port_choice,
+        'country_choice': country_choice,
     }
 
 
@@ -138,72 +136,49 @@ def sample_list(request):
 @login_required(login_url='app:login')
 def edit_sample(request, sample_slug):
     sample_instance = get_object_or_404(sample, slug=sample_slug)
-    format_choices = sample.FORMAT
-    type_choices = sample.TYPE
-    month_choices = sample.MONTH
-    status_choices = sample.STATUS
-    port_choice = Portmaster.objects.all()
-    country_choice = CountryMaster.objects.all()
+    
 
-    start_year = datetime.datetime.now().year - 5
-    current_year = datetime.datetime.now().year
-    range_year = range(current_year, start_year - 1, -1)  # Reverse range
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
+    if sample_instance.user == request.user and sample_instance.status != 'received':
+        if request.method == 'POST':
+            user = request.user
+            country = request.POST.get('inputCountry')
+            report_format = request.POST.get('formatReport')
+            report_type = request.POST.get('typeReport')
+            hs_code = request.POST.get('inputHSN','%')
+            product = request.POST.get('inputProduct', '%')
+            iec = request.POST.get('inputIEC', '%')
+            shipper = request.POST.get('inputShiper', '%')
+            consignee = request.POST.get('inputForeign', '%')
+            foreign_country = request.POST.getlist('inputForeignCountry', '%')
+            port = request.POST.getlist('inputPort', '%')
+            month = request.POST.get('month')
+            year = request.POST.get('inputyear')
+            client_name = request.POST.get('inputClient')
+            status = request.POST.get('sampleStatus')
 
+            ports = ', '.join(port)
+            countries = ', '.join(foreign_country)
 
-    context = {
-        'sample_instance': sample_instance,
-        'format_choices': format_choices,
-        'type_choices': type_choices,
-        'month_choices': month_choices,
-        'status_choices': status_choices,
-        'range_year': range_year,
-        'port_choice': port_choice,
-        'country_choice': country_choice,
-    }
+            # Update the sample object with the new data
+            sample_instance.country = country
+            sample_instance.report_format = report_format
+            sample_instance.report_type = report_type
+            sample_instance.hs_code = hs_code
+            sample_instance.product = product
+            sample_instance.iec = iec
+            sample_instance.shipper = shipper
+            sample_instance.consignee = consignee
+            sample_instance.foreign_country = countries
+            sample_instance.port = ports
+            sample_instance.month = month
+            sample_instance.year = year
+            sample_instance.client_name = client_name
+            sample_instance.status = status
+            sample_instance.save()
 
-    if request.user.is_authenticated:
-        if sample_instance.user == request.user:
-            if sample_instance.status != 'received':
-                if request.method == 'POST':
-                    user = request.user
-                    country = request.POST.get('inputCountry')
-                    report_format = request.POST.get('formatReport')
-                    report_type = request.POST.get('typeReport')
-                    hs_code = request.POST.get('inputHSN','%')
-                    product = request.POST.get('inputProduct', '%')
-                    iec = request.POST.get('inputIEC', '%')
-                    shipper = request.POST.get('inputShiper', '%')
-                    consignee = request.POST.get('inputForeign', '%')
-                    foreign_country = request.POST.getlist('inputForeignCountry', '%')
-                    port = request.POST.getlist('inputPort', '%')
-                    month = request.POST.get('month')
-                    year = request.POST.get('inputyear')
-                    client_name = request.POST.get('inputClient')
-                    status = request.POST.get('sampleStatus')
-
-                    ports = ', '.join(port)
-                    countries = ', '.join(foreign_country)
-
-                    # Update the sample object with the new data
-                    sample_instance.country = country
-                    sample_instance.report_format = report_format
-                    sample_instance.report_type = report_type
-                    sample_instance.hs_code = hs_code
-                    sample_instance.product = product
-                    sample_instance.iec = iec
-                    sample_instance.shipper = shipper
-                    sample_instance.consignee = consignee
-                    sample_instance.foreign_country = countries
-                    sample_instance.port = ports
-                    sample_instance.month = month
-                    sample_instance.year = year
-                    sample_instance.client_name = client_name
-                    sample_instance.status = status
-                    sample_instance.save()
-
-                    messages.success(request, "Sample Update successfully")
-                    return redirect('sample:samples')
-                return render(request, 'sample/edit-sample.html', context)
+            messages.success(request, "Sample request has benn updated successfully")
             return redirect('sample:samples')
-        return redirect('sample:samples')
-    return redirect('app:login')
+    return redirect('sample:samples')

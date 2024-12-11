@@ -14,10 +14,30 @@
     <div class="loader"></div>
   </div>
   <div class="container">
+    {% if not lead_id %}
+    <form class="row g-2 p-3 justify-content-center" action="" method="GET" id="company_ref_form">
+      <div class='col-lg-10'>
+        <div class='row'>
+          <div class="col-md-5">
+            <label class="form-label fw-medium" for="company_ref">Reference Lead</label>
+            <select class="form-select form-select-sm" name="lead_ref" id="company_ref">
+              <option value=>Not Selected</option>
+              {% for lead in all_leads %}
+              <option value="{{lead.id}}">{{lead.company_name}}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+  <div class="container">
     <form
-      class="row g-3 d-flex justify-content-center my-2 shadow p-3 mb-5 rounded-4"
+      class="row g-3 justify-content-center my-2 shadow p-3 mb-5 rounded-4"
       action="#"
       method="post"
+      id="create_pi_form"
     >
       {% csrf_token %}
       <div class="col-lg-10">
@@ -98,7 +118,7 @@
             <select class="form-select form-select-sm" type="text" name="bank">
               {% for bank in bank_choice %}
               <option value="{{bank.id}}">
-                {{bank.bank_name}} ({{bank.bnf_name}})
+                {{bank.bank_name}} ({{bank.biller_id.biller_name}})
               </option>
               {% endfor %}
             </select>
@@ -170,8 +190,9 @@
               name="country"
               required
             >
-              {% for value, label in country_choice %}
-              <option value="{{value}}">{{label}}</option>
+              <option value="" selected disabled>Select Country</option>
+              {% for code, name in country_choice %}
+              <option value="{{code}}" {% if lead_info.country == code %}selected{% endif %}>{{name}}</option>
               {% endfor %}
             </select>
           </div>
@@ -184,8 +205,8 @@
               required
             >
               <option value="" selected disabled>Select State</option>
-              {% for value, label in state_choice %}
-              <option value="{{value}}">{{label}}</option>
+              {% for code, name in state_choice %}
+                <option value="{{code}}" {% if code == lead_info.state %}selected{% endif %}>{{name}}</option>
               {% endfor %}
             </select>
           </div>
@@ -202,13 +223,13 @@
               rows="6"
               required
             >
-{% if lead_info is not None %}{{lead_info.address1| default_if_none:''}}, {{lead_info.address2|default_if_none:''}}, {{lead_info.city|default_if_none:''}}- {{lead_info.pincode|default_if_none:''}}, {{lead_info.state|default_if_none:''}}, {{lead_info.country|default_if_none:''}}{% endif %}</textarea
+{% if lead_info is not None %}{{lead_info.get_full_address| default_if_none:''}}{% endif %}</textarea
             >
           </div>
           <div class="col-md-7">
             <label>Details<span class="text-danger">*</span></label>
             <div id="details" style="height: 100px; width: 100%;"></div>
-            <input type="hidden" name="details" required>
+            <input type="hidden" name="details" id="detail-input" required>
           </div>
         </div>
       </div>
@@ -370,8 +391,20 @@
 
 <script src="{% static 'becrm/js/mainfunctions.js' %}"></script>
 <script>
+
+  let ref_btn = document.querySelector('#company_ref');
+  let ref_Form = document.querySelector('#company_ref_form');
+  
+  ref_btn.addEventListener('change', function() {
+    // Automatically submit the form when the fiscal year is changed
+    ref_Form.submit();
+  });
+  let company_ref = "{{ company_ref|default_if_none:'' }}";  // Handle None values in Django
+  if (company_ref) {
+    ref_btn.value = company_ref;
+  }
+
   const toolbarOptions = [
-    // [{ 'font': [] }],
     [{ 'size': ['small', false, 'large', 'huge'] }],  // custom dropdown
     ['bold', 'italic', 'underline', 'strike'],        // toggled buttons
     [{ 'color': [] }, { 'background': [] }],          // dropdown with defaults from theme
@@ -380,19 +413,19 @@
     // ['link'],
     [{ 'list': 'ordered'}, { 'list': 'bullet' }],
     [{ 'script': 'sub'}, { 'script': 'super' }],      // superscript/subscript
-  ];
-
-
-  const quill = new Quill('#details', {
-    modules: {
-      toolbar: toolbarOptions,
-    },
-    theme: 'snow',
-  });
-
-  const form = document.querySelector('form');
-  form.onsubmit = () => {
-    let detail = document.querySelector('input[name=details]')
+    ];
+    
+    
+    const quill = new Quill('#details', {
+      modules: {
+        toolbar: toolbarOptions,
+      },
+      theme: 'snow',
+    });
+    
+  let pi_Form = document.querySelector('#create_pi_form');
+  pi_Form.onsubmit = () => {
+    let detail = pi_Form.querySelector('#detail-input')
     detail.value = quill.root.innerHTML
   }
 

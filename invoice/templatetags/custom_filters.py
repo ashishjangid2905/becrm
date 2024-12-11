@@ -30,6 +30,37 @@ def multiply(value, arg):
     except (ValueError, TypeError):
         return 0
     
+@register.filter
+def sale_category(proforma):
+    online_sale = 0
+    offline_sale = 0
+    domestic_sale = 0
+    unique_lumpsum_amt_online = set()  # To track unique lumpsum amounts
+    unique_lumpsum_amt_offline = set()  # To track unique lumpsum amounts
+    unique_lumpsum_amt_domestic = set()  # To track unique lumpsum amounts
+    for order in proforma.orderlist_set.all():
+        if not order.is_lumpsum:
+            if order.category == 'online' and order.report_type == 'online':
+                online_sale += order.total_price
+            elif order.category == 'offline' and order.report_type != 'domestic':
+                offline_sale += order.total_price
+            elif order.category == 'offline' and order.report_type == 'domestic':
+                domestic_sale += order.total_price
+        else:
+            if order.category == 'online' and order.report_type == 'online':
+                unique_lumpsum_amt_online.add(order.lumpsum_amt)
+            elif order.category == 'offline' and order.report_type != 'domestic':
+                unique_lumpsum_amt_offline.add(order.lumpsum_amt)
+            elif order.category == 'offline' and order.report_type == 'domestic':
+                unique_lumpsum_amt_domestic.add(order.lumpsum_amt)
+
+    online_sale+=sum(unique_lumpsum_amt_online)
+    offline_sale+=sum(unique_lumpsum_amt_offline)
+    domestic_sale+=sum(unique_lumpsum_amt_domestic)
+
+    sale_category = {'online_sale': online_sale,'offline_sale': offline_sale,'domestic_sale': domestic_sale}
+    return sale_category
+    
 @register.simple_tag
 def total_order_value(proforma):
     total_sum = 0

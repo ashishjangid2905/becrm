@@ -2,7 +2,7 @@ $(document).ready(function () {
   // alert hide automatic after 2sec
   setTimeout(function () {
     $("#myAlert").hide();
-  }, 2000);
+  }, 4000);
 
   // to show and hide password
   $("#show_password").change(function () {
@@ -19,22 +19,33 @@ $(document).ready(function () {
 
   // Multiple port selection
 
-  $(function () {
-    $("#multiPort").multipleSelect({
+  let multiselectinputs = document.querySelectorAll(".multiple-select")
+
+  multiselectinputs.forEach(multiselectinput => {
+    $(multiselectinput).multipleSelect({
       selectAll: false,
       showClear: true,
       filter: true,
+      dropWidth: 250
     });
   });
 
+  // $(function () {
+  //   $("#multiPort").multipleSelect({
+  //     selectAll: false,
+  //     showClear: true,
+  //     filter: true,
+  //   });
+  // });
 
-  $(function () {
-    $("#multiCountries").multipleSelect({
-      selectAll: false,
-      showClear: true,
-      filter: true,
-    });
-  });
+
+  // $(function () {
+  //   $("#multiCountries").multipleSelect({
+  //     selectAll: false,
+  //     showClear: true,
+  //     filter: true,
+  //   });
+  // });
 
   // default Month and Year selection
 

@@ -3,6 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 # Create your models here.
 from teams.models import User, Profile
+from invoice.utils import STATE_CHOICE, COUNTRY_CHOICE
 
 class leads(models.Model):
 
@@ -25,6 +26,17 @@ class leads(models.Model):
     @property
     def user_id(self):
         return Profile.objects.get(pk=self.user)
+    
+    def get_full_address(self):
+        address_parts = [
+            self.address1,
+            self.address2,
+            self.city,
+            self.pincode,
+            dict(STATE_CHOICE).get(int(self.state)),
+            dict(COUNTRY_CHOICE).get(self.country),
+        ]
+        return ', '.join(filter(None, address_parts))
 
     class Meta:
         verbose_name = "Lead"

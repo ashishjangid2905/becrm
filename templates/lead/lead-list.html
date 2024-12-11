@@ -1,5 +1,7 @@
-{% extends 'home.html' %} {% load static %} {% block content %} {% comment %}
-add Contact Form as Popup Modal {% endcomment %}
+{% extends 'home.html' %} {% load static %} {% block content %} 
+
+{% include "alert.html" %}
+
 <div
   class="modal fade"
   id="uploadLeads"
@@ -77,16 +79,152 @@ add Contact Form as Popup Modal {% endcomment %}
 </div>
 {% comment %} Popup ended here {% endcomment %}
 
+<div
+  class="modal fade"
+  id="addLead"
+  tabindex="-1"
+  aria-labelledby="add-Lead-area"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content bg-body-tertiary">
+      <div class="modal-header">
+        <h4 class="modal-title fs-5 text-primary-emphasis" id="add-Lead-area">
+          <i class="ti ti-clipboard-plus"></i> Add Lead
+        </h4>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="container-fluid">
+          <form
+            class="row g-1"
+            action="{% url 'lead:add_lead' %}"
+            method="post"
+          >
+            {% csrf_token %}
+                <div class="col-md-6">
+                  <label class="form-label">Company Name</label>
+                  <input class="form-control form-control-sm" type="text" name="company_name" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">GSTIN</label>
+                  <input class="form-control form-control-sm" type="text" name="gstin" />
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label">Address Line 1</label>
+                  <input class="form-control form-control-sm" type="text" name="address1" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Address Line 2</label>
+                  <input class="form-control form-control-sm" type="text" name="address2" />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">City</label>
+                  <input class="form-control form-control-sm" type="text" name="city" />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">State</label>
+                  <select class="form-select form-select-sm" type="text" name="state" required>
+                    <option value="" disabled selected>Select State</option>
+                    {% for values,labels in states %}
+                      <option value="{{values}}">{{labels}}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Country</label>
+                  <select class="form-select form-select-sm" type="text" name="country" required>
+                    <option value="" disabled selected>Select Country</option>
+                    {% for code,name in countries %}
+                      <option value="{{code}}">{{name}}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Pin Code</label>
+                  <input class="form-control form-control-sm" type="text" name="pincode" />
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label">Industry</label>
+                  <input class="form-control form-control-sm" type="text" name="industry" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Source</label>
+                  <select class="form-select form-select-sm" type="text" name="source">
+                    {% for values,labels in source_choice %}
+                    <option value="{{values}}">{{labels}}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <hr class="my-3" />
+                <div class="col-md-5">
+                  <label class="form-label">Contact Person</label>
+                  <input
+                    class="form-control form-control-sm"
+                    type="text"
+                    name="contact_person"
+                  />
+                </div>
+                <div class="col-md-7">
+                  <label class="form-label">Email</label>
+                  <input class="form-control form-control-sm" type="email" name="email" />
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label">Contact No</label>
+                  <input class="form-control form-control-sm" type="text" name="contact_no" />
+                </div>
+
+                <div class="col-md-8">
+                  <input
+                    class="form-check-input"
+                    id="flexCheckChecked"
+                    type="checkbox"
+                    name="is_active"
+                    checked
+                  />
+                  <label class="form-check-label" for="flexCheckDefault">
+                    Is Active
+                  </label>
+                </div>
+
+                <div class="modal-footer">
+                  <input class="btn btn-sm btn-primary px-5 text-capitalize" type="submit" name="action" value="add" />
+    
+                  <!-- Add & Create_PI Button -->
+                  <input class="btn btn-sm btn-primary" type="submit" name="action" value="Add & Create_PI" />
+
+                  <button class="btn btn-sm btn-warning px-5" type="reset">
+                    Reset
+                  </button>
+                </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="container-fluid my-3">
   <div class="mt-5 mb-3">
     <div class="row g-3">
       <div class="col-lg-5 col-md-5">
         <form class="row g-3 pe-3" action="" method="get" role="search">
           <div class="col-10">
-            <input type="text" class="form-control form-control-sm" name="q" placeholder="Search" />
+            <input
+              type="text"
+              class="form-control form-control-sm"
+              name="q"
+              placeholder="Search"
+            />
           </div>
           <div class="col-2">
-            <button class="btn btn-sm btn-outline-success mx-1" type="submit">
+            <button class="btn btn-sm btn-success mx-1" type="submit">
               Search
             </button>
           </div>
@@ -95,21 +233,25 @@ add Contact Form as Popup Modal {% endcomment %}
       <div class="col-lg-4 col-md-4">
         <a
           href="{% url 'lead:leads_list' %}"
-          class="btn btn-sm btn-outline-warning mx-1"
+          class="btn btn-sm btn-warning mx-1"
           >Clear Filter</a
         >
-        <a href="{% url 'lead:add_lead' %}" class="btn btn-sm btn-outline-primary mx-1"
+        <a
+          href="{% url 'lead:add_lead' %}"
+          data-bs-toggle="modal"
+          data-bs-target="#addLead"
+          class="btn btn-sm btn-primary mx-1"
           >Add Lead</a
         >
       </div>
       <div class="col-lg-3 col-md-3">
         <a
           href="{% url 'lead:export_lead' %}"
-          class="btn btn-sm btn-outline-success mx-1"
+          class="btn btn-sm btn-success mx-1"
           ><i class="ti ti-download"></i> Export Lead</a
         >
         <a
-          class="btn btn-sm btn-outline-primary mx-1"
+          class="btn btn-sm btn-primary mx-1"
           data-bs-toggle="modal"
           data-bs-target="#uploadLeads"
           ><i class="ti ti-upload"></i> Upload Lead</a
@@ -142,10 +284,7 @@ add Contact Form as Popup Modal {% endcomment %}
           <td class="text-nowrap">
             {% if lead.gstin != None %}{{ lead.gstin }}{% endif %}
           </td>
-          <td class="text-nowrap">
-            {{ lead.address1 }} {{ lead.address2 }} {{ lead.city }}
-            {{lead.state}} {{ lead.country }}
-          </td>
+          <td class="text-nowrap">{{lead.get_full_address}}</td>
           <td class="text-nowrap">{{ lead.industry }}</td>
           <td class="text-nowrap text-capitalize">{{ lead.created_at }}</td>
           <td class="text-nowrap">{{ lead.user }}</td>

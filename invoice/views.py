@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 # all Django imports
@@ -16,16 +17,17 @@ from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.core.mail import EmailMultiAlternatives
 
 # All Import from apps
-from .models import biller, bankDetail, proforma, orderList, convertedPI, processedOrder, pi_number
+from .models import biller, bankDetail, proforma, orderList, convertedPI, processedOrder, pi_number, BillerVariable
 from lead.models import leads, contactPerson
 from teams.models import User, Profile, SmtpConfig, UserVariable
 from sample.models import Portmaster, CountryMaster
-from .utils import SUBSCRIPTION_MODE, STATUS_CHOICES, PAYMENT_TERM, COUNTRY_CHOICE, STATE_CHOICE, CATEGORY, REPORT_TYPE, PAYMENT_STATUS, REPORT_FORMAT, ORDER_STATUS, REPORTS
+from .utils import SUBSCRIPTION_MODE, STATUS_CHOICES, PAYMENT_TERM, COUNTRY_CHOICE, STATE_CHOICE, CATEGORY, REPORT_TYPE, PAYMENT_STATUS, REPORT_FORMAT, ORDER_STATUS, REPORTS, FORMAT
 from teams.custom_email_backend import CustomEmailBackend
 from .templatetags.custom_filters import total_order_value, total_lumpsums, filter_by_lumpsum, total_pi_value_inc_tax
 
 # Third-party imports
-from datetime import datetime
+import fiscalyear
+from datetime import datetime, timedelta
 from num2words import num2words
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -44,7 +46,7 @@ from io import BytesIO
 # from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font, NamedStyle
 # from openpyxl.drawing.image import Image
 # from openpyxl.cell.text import InlineFont
@@ -64,18 +66,83 @@ def biller_list(request):
     }
     return render(request, 'invoices/biller-list.html', context)
 
+
+def get_biller_variable(biller_dtl,variable_name):
+    today = timezone.now().date()
+
+    filters = {'from_date__lte': today, 'biller_id': biller_dtl, 'variable_name': variable_name }
+
+    variable = BillerVariable.objects.filter(
+        Q(to_date__gte=today) | Q(to_date__isnull = True),
+        **filters).last()
+
+    return variable.variable_value if variable else None
+
 @login_required(login_url='app:login')
 def biller_detail(request, biller_id):
 
     biller_dtl = biller.objects.get(pk=biller_id)
     banks = bankDetail.objects.filter(biller_id = biller_id)
+    format_choice = FORMAT
+
+    biller_variables = {
+        "pi_tag": get_biller_variable(biller_dtl, "pi_tag"),
+        "pi_format": get_biller_variable(biller_dtl, "pi_format"),
+        "invoice_tag": get_biller_variable(biller_dtl, "invoice_tag"),
+        "invoice_format": get_biller_variable(biller_dtl, "invoice_format"),
+    }
 
     context = {
         'biller_dtl': biller_dtl,
         'banks': banks,
+        'format_choice': format_choice,
+        'biller_variables': biller_variables
+
     }
 
     return render(request, 'invoices/biller.html', context)
+
+@login_required(login_url='app:login')
+def set_format(request, biller_id):
+    if request.user.role != 'admin':
+        return redirect('app:dashboard')
+    
+    biller_instanse = get_object_or_404(biller, pk=biller_id)
+    user_id = request.user.id
+
+    target_url = reverse('invoice:biller_detail', args=[biller_instanse.id])
+
+    biller_variables = {
+        "pi_tag": get_biller_variable(biller_instanse, "pi_tag"),
+        "pi_format": get_biller_variable(biller_instanse, "pi_format"),
+        "invoice_tag": get_biller_variable(biller_instanse, "invoice_tag"),
+        "invoice_format": get_biller_variable(biller_instanse, "invoice_format"),
+    }
+
+    if request.method == 'POST':
+        pi_tag = request.POST.get('pi_tag')
+        pi_format = request.POST.get('pi_format')
+        invoice_tag = request.POST.get('invoice_tag')
+        invoice_format = request.POST.get('invoice_format')
+        from_date_str = request.POST.get('from_date')
+
+        try:
+            from_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return HttpResponseRedirect(target_url)
+
+        for key, currentValue in biller_variables.items():
+            if currentValue:
+                existing_Variables = BillerVariable.objects.filter(biller_id = biller_instanse, variable_name = key).last()
+                if existing_Variables:
+                    existing_Variables.to_date = from_date - timedelta(days=1)
+                    existing_Variables.save()
+
+                newValue = request.POST.get(key)
+                if newValue:
+                    BillerVariable.objects.create(biller_id = biller_instanse, variable_name = key, variable_value = newValue, from_date = from_date, inserted_by = user_id )
+
+    return HttpResponseRedirect(target_url)
 
 @login_required(login_url='app:login')
 def add_biller(request):
@@ -112,26 +179,49 @@ def add_biller(request):
 @login_required(login_url='app:login')
 def add_bank(request, biler_id):
 
-    biller_id = biller.objects.get(pk=biler_id)
+    biller_obj = biller.objects.get(pk=biler_id)
     if request.user.role == 'admin' and request.method == 'POST':
-        biller_id = biller.objects.get(pk=biler_id)
         bnf_name = request.POST.get('beneficiary_name')
-        bank_name = request.POST.get('bank_name')
-        branch_address = request.POST.get('branch_address')
-        ac_no = request.POST.get('ac_no')
-        ifsc = request.POST.get('ifsc_code')
-        swift_code = request.POST.get('swift_code')
-
+        is_upi = request.POST.get("is_upi") == "on"
         try:
-            newBank = bankDetail.objects.create(biller_id = biller_id, bnf_name = bnf_name, bank_name = bank_name, branch_address = branch_address, ac_no = ac_no, ifsc = ifsc, swift_code = swift_code)
+            if is_upi:
+                # Handle UPI-specific bank details
+                upi_id = request.POST.get("upi_id")
+                upi_no = request.POST.get("upi_no")
+                bankDetail.objects.create(
+                    biller_id=biller_obj,
+                    bnf_name=bnf_name,
+                    is_upi=is_upi,
+                    upi_id=upi_id,
+                    upi_no=upi_no
+                )
+            else:
+                # Handle traditional bank details
+                bank_name = request.POST.get('bank_name')
+                branch_address = request.POST.get('branch_address')
+                ac_no = request.POST.get('ac_no')
+                ifsc = request.POST.get('ifsc_code')
+                swift_code = request.POST.get('swift_code')
+                bankDetail.objects.create(
+                    biller_id=biller_obj,
+                    bnf_name=bnf_name,
+                    bank_name=bank_name,
+                    branch_address=branch_address,
+                    ac_no=ac_no,
+                    ifsc=ifsc,
+                    swift_code=swift_code
+                )
+
+            messages.success(request, f"Bank details added successfully. {is_upi}")
             return redirect(reverse('invoice:biller_detail', args=[biler_id]))
+
         except IntegrityError:
-            messages.error(request)
+            messages.error(request, "An error occurred while saving the bank details. Please try again.")
             return redirect(request.path_info)
 
 
     context={
-        'biller_dtl': biller_id,
+        'biller_dtl': biller_obj,
     }
     return render(request, 'invoices/add-bank.html', context)
 
@@ -195,15 +285,19 @@ def pi_list(request):
 
     # Impliment the applied filters
 
-    all_proforma = proforma.objects.filter(**filters).order_by('-pi_no')
+    all_proforma = proforma.objects.filter(**filters).order_by( '-pi_date','-pi_no')
 
     status_choices = STATUS_CHOICES
     payment_status = PAYMENT_STATUS
     report_type = REPORT_TYPE
     report_format = REPORT_FORMAT
 
+    all_user_ids = []
+    for user in all_users:
+        all_user_ids.append(user.user.id)
+
     if request.user.role == 'admin':
-        all_pi = all_proforma
+        all_pi = all_proforma.filter(user_id__in = all_user_ids)
     else:
         all_pi = all_proforma.filter(user_id = request.user.id)
 
@@ -258,6 +352,7 @@ def pi_list(request):
         'selected_status': selected_status,
         'selected_fy': selected_fy,
         'pageSize': pageSize,
+        'all_user_ids': all_user_ids
     }
     return render(request, 'invoices/proforma-list.html', context)
 
@@ -274,11 +369,27 @@ def create_pi(request, lead_id=None):
     category_choice = CATEGORY
     report_choice = REPORT_TYPE
 
+    user_id = request.user.id
+
+    all_leads = leads.objects.filter(user = user_id).order_by('company_name')
+
     lead_info = None
     contact_info = None
     target_url = reverse('invoice:pi_list')
+    company_ref = None
 
-    if lead_id is not None:
+
+    if request.method == 'GET':
+        company_ref = request.GET.get('lead_ref')
+        if company_ref:
+            target_url = reverse('invoice:create_pi_lead_id', args=[company_ref])
+            return redirect(target_url)
+        elif company_ref == '':
+            target_url = reverse('invoice:create_pi')
+            return redirect(target_url)
+
+
+    if lead_id:
         lead_info = get_object_or_404(leads, pk = lead_id)
         contact_info = lead_info.contactperson_set.filter(is_active=True).first()
 
@@ -289,12 +400,9 @@ def create_pi(request, lead_id=None):
 
     if request.method == 'POST':
         user = request.user
-        pi_no = pi_number(user)
 
         user_id = user.id
-        company_ref = None
-        if lead_info is not None:
-            company_ref = lead_info
+        company_ref = lead_info
 
         company_name = request.POST.get('company_name')
         gstin = request.POST.get('gstin')
@@ -324,10 +432,20 @@ def create_pi(request, lead_id=None):
             except ValueError:
                 messages.error(request, 'Invalid date format. It must be in YYYY-MM-DD format.')
 
+
+        pi_tag = get_biller_variable(bank_instance.biller_id, "pi_tag")
+        pi_format = get_biller_variable(bank_instance.biller_id, "pi_format")
+
+
+        pi_no = pi_number(user, pi_tag, pi_format)
+
+        clean_details = re.sub(r'</?(table|tbody|thead|tr|td|th)[^>]*>', ',', details)
+        clean_details = re.sub(r',+', ', ', clean_details)
+
         newPI = proforma.objects.create(company_ref=company_ref, user_id=user_id,pi_no=pi_no, company_name=company_name, gstin=gstin, is_sez=is_sez, lut_no=lut_no,
                                         vendor_code=vendor_code, currency=currency, po_no=po_no, po_date=po_date, subscription=subscription,
                                         bank=bank_instance, payment_term=payment_term, requistioner=requistioner, email_id=email_id,
-                                        contact=contact, address=address, country=country, state=state, details=details)
+                                        contact=contact, address=address, country=country, state=state, details=clean_details)
         
         for i in range(0, len(request.POST.getlist('orders'))):
             category = request.POST.getlist(f'category')[i]
@@ -345,6 +463,8 @@ def create_pi(request, lead_id=None):
                                             )
 
         return HttpResponseRedirect(target_url)
+    if lead_info:
+        lead_info.state = int(lead_info.state) if lead_info.state else None
     
     context = {
         'bank_choice': bank_choice,
@@ -356,7 +476,9 @@ def create_pi(request, lead_id=None):
         'category_choice': category_choice,
         'report_choice': report_choice,
         'lead_info': lead_info,
+        'company_ref': lead_id,
         'contact_info': contact_info,
+        'all_leads': all_leads
     }
 
     return render(request, 'invoices/new-proforma.html', context)
@@ -435,6 +557,9 @@ def edit_pi(request, pi):
                 except ValueError:
                     messages.error(request, 'Invalid date format. It must be in YYYY-MM-DD format.')
 
+            clean_details = re.sub(r'</?(table|tbody|thead|tr|td|th)[^>]*>', ',', details)
+            clean_details = re.sub(r',+', ', ', clean_details)
+
             pi_instance.company_name = company_name
             pi_instance.gstin = gstin
             pi_instance.is_sez = is_sez
@@ -450,7 +575,7 @@ def edit_pi(request, pi):
             pi_instance.country = country
             pi_instance.state = state
             pi_instance.address = address
-            pi_instance.details = details
+            pi_instance.details = clean_details
             pi_instance.status = 'open'
             pi_instance.closed_at = None
             pi_instance.is_Approved = False
@@ -581,6 +706,8 @@ def update_pi_status(request, pi):
                 messages.error(request, f'An error occurred: {str(e)}')
 
         return HttpResponseRedirect(target_url)
+    messages.error(request, "You are not authorized user to Update Status")
+    return HttpResponseRedirect(target_url)
 
 
 @login_required(login_url='app:login')
@@ -698,31 +825,34 @@ def processed_list(request):
 
     processed_pi_list = proforma.objects.filter(convertedpi__is_processed = True)
 
-    all_processed_orders = processed_pi_list.filter(Q(processedorder__order_date__gte=fy_start) & Q(processedorder__order_date__lte=fy_end)).order_by('-convertedpi__requested_at')
-
     selected_user = request.GET.get("user", None)
     selected_Ap = request.GET.get("ap", None)
     selected_status = request.GET.get("status", None)
 
+    filters = {'pi_date__gte': fy_start, 'pi_date__lte': fy_end}
+
     if selected_user:
-        all_processed_orders = all_processed_orders.filter(user_id=selected_user)
+        filters['user_id'] = selected_user
 
     if selected_Ap:
-        all_processed_orders = all_processed_orders.filter(convertedpi__is_hold=selected_Ap)
+        filters['convertedpi__is_hold'] = selected_Ap
     
     if selected_status:
-        all_processed_orders = all_processed_orders.filter(processedorder__order_status=selected_status)
+        filters['processedorder__order_status'] = selected_status
 
-    else:
-        all_processed_orders = all_processed_orders
+    all_processed_orders = processed_pi_list.filter(**filters).order_by('-convertedpi__requested_at')
 
     status_choices = ORDER_STATUS
     payment_status = PAYMENT_STATUS
     report_type = REPORT_TYPE
     report_format = REPORT_FORMAT
 
-    if request.user.role == 'admin' or request.user.role == 'production':
-        processed_orders = all_processed_orders
+    all_user_ids = []
+    for user in all_users:
+        all_user_ids.append(user.user.id)
+
+    if request.user.role == 'admin' or request.user.department == 'production':
+        processed_orders = all_processed_orders.filter(user_id__in = all_user_ids)
     else:
         processed_orders = all_processed_orders.filter(user_id = request.user.id)
 
@@ -828,32 +958,34 @@ def invoice_list(request):
     all_users = Profile.objects.filter(user__profile__branch=user_branch.id, user__department="sales")
 
     requestedInvoices = convertedPI.objects.filter(is_invoiceRequire = True)
-    
-    all_invoices = requestedInvoices.filter(Q(requested_at__gte=fy_start) & Q(requested_at__lte=fy_end)).order_by('-requested_at')
 
     selected_user = request.GET.get("user", None)
     selected_Ap = request.GET.get("ap", None)
     selected_status = request.GET.get("status", None)
 
+    filters = {'requested_at__gte': fy_start, 'requested_at__lte': fy_end}
     if selected_user:
-        all_invoices = all_invoices.filter(pi_id__user_id=selected_user)
+        filters['pi_id__user_id'] = selected_user
 
     if selected_Ap:
-        all_invoices = all_invoices.filter(is_invoiceRequire=selected_Ap)
+        filters['is_invoiceRequire'] = selected_Ap
     
     if selected_status:
-        all_invoices = all_invoices.filter(is_taxInvoice=selected_status)
+        filters['is_taxInvoice'] = selected_status
 
-    else:
-        all_invoices = all_invoices
+    all_invoices = requestedInvoices.filter(**filters).order_by('-requested_at')
 
     status_choices = ORDER_STATUS
     payment_status = PAYMENT_STATUS
     report_type = REPORT_TYPE
     report_format = REPORT_FORMAT
 
+    all_user_ids = []
+    for user in all_users:
+        all_user_ids.append(user.user.id)
+
     if request.user.role == 'admin' or request.user.department == 'account':
-        taxInvoices = all_invoices
+        taxInvoices = all_invoices.filter(pi_id__user_id__in = all_user_ids)
     else:
         taxInvoices = all_invoices.filter(pi_id__user_id = request.user.id)
     
@@ -909,13 +1041,47 @@ def invoice_list(request):
 
     return render(request, 'invoices/invoices-list.html', context)
 
+
+def get_invoice_no(biller_id, invoice_tag, invoice_format, new_no=None):
+    fiscalyear.START_MONTH = 4
+    fy = str(fiscalyear.FiscalYear.current())[-2:]
+    py = str(int(fy) - 1)
+    
+    if not isinstance(invoice_format, str):
+        raise ValueError(f"Expected pi_format to be a string, got {type(invoice_format)}")
+
+    search_prefix = invoice_format.format(py=py, fy=fy, tag=invoice_tag, num=0).rstrip("0")
+
+    if not new_no:
+        last_invoice = convertedPI.objects.filter(invoice_no__startswith=search_prefix, pi_id__bank__biller_id = biller_id).order_by('pi_no').last()
+
+        if last_invoice:
+            try:
+                last_no = int(last_invoice.pi_no.split(search_prefix)[-1])
+            except:
+                last_no = 0
+            new_no = last_no + 1
+        else:
+            new_no = 1
+
+    invoice_no = invoice_format.format(py=py, fy=fy, tag=invoice_tag, num=new_no)
+
+    return invoice_no
+
+
+
 @login_required(login_url='app:login')
 def generate_invoice(request, pi):
-    if request.user.role != 'admin':
+    if request.user.role != 'admin' and request.user.department != 'account':
         return redirect('invoice:invoice_list')
     
     invoice_instance = get_object_or_404(convertedPI, pk=pi)
     all_invoices = convertedPI.objects.filter(is_taxInvoice = True).order_by('-invoice_no')
+
+    biller_id = invoice_instance.pi_id.bank.biller_id
+
+    invoice_tag = get_biller_variable(biller_id, "invoice_tag")
+    invoice_format = get_biller_variable(biller_id, "invoice_format")
 
     if not invoice_instance.is_invoiceRequire and invoice_instance.is_hold:
         return redirect('invoice:invoice_list')
@@ -927,14 +1093,20 @@ def generate_invoice(request, pi):
     
     if request.method == 'POST':
         invoice_no = request.POST.get('invoice_no')
-        invoice_date = request.POST.get('invoice_date')
+        invoice_date_str = request.POST.get('invoice_date')
+
+        try:
+            invoice_date = datetime.strptime(invoice_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return redirect('invoice:invoice_list')
+
 
         if all_invoices.filter(invoice_no=invoice_no).exists():
             messages.error(request, "Invoice No is already exist")
             return redirect('invoice:invoice_list')
 
         try:
-            invoice_instance.invoice_no = invoice_no
+            invoice_instance.invoice_no = get_invoice_no(biller_id, invoice_tag, invoice_format, int(invoice_no))
             invoice_instance.invoice_date = invoice_date
             invoice_instance.is_taxInvoice = True
             invoice_instance.save()
@@ -1008,7 +1180,119 @@ def exportInvoicelist(invoices):
 
     return response
 
+
+@login_required(login_url='app:login')
+def bulkInvoiceUpdate(request):
     
+    if request.user.role != 'admin' and request.user.department != 'account':
+        messages.error(request, "You are not Authorized User to Update")
+        return redirect('invoice:invoice_list')
+    
+    target_url = reverse("invoice:invoice_list")
+    
+    if request.method == 'POST' and request.FILES.get('file'):
+        uploaded_file = request.FILES['file']
+        if not uploaded_file.name.endswith('.xlsx'):
+            messages.error(request, "Invalid file type. Please upload an Excel (.xlsx) file.")
+            return redirect('invoice:invoice_list')
+        
+        updated_count = 0
+        skipped_count = 0
+        skipped_rows = []
+
+        try:
+            wd = load_workbook(uploaded_file)
+            ws = wd.active
+
+            expected_headers = [
+                'S.N','Team Member','Company Name', 'GSTIN', 'Address', 'State', 'Country',
+                'PI No', 'PI Date', 'Contact Person Name', 'Email', 'Contact Number', 'Bank', 'A/C No', 'Beneficry Name', 'Payment Status','1st Payment', '1st Payment Date','2nd Payment',
+                '2nd Payment Date','3rd Payment', '3rd Payment Date', 'Amount',
+                'Amount (inc. tax)', 'Total Received','Is Generated', 'Invoice No', 'Invoice Date'
+                ]
+            
+            headers = [cell.value for cell in ws[1]]
+
+            if headers != expected_headers:
+                messages.error(request, "Invalid file format. Please upload a file exported from the system.")
+                return redirect('invoice:invoice_list')
+            
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                pi_no = row[7]
+                invoice_no = row[26]
+                invoice_date = row[27]
+
+                if not pi_no:
+                    skipped_rows.append((*row, "Missing PI No"))
+                    skipped_count += 1
+                    continue
+
+                try:
+                    update_invoice = convertedPI.objects.filter(pi_id__pi_no=pi_no).first()
+
+                    biller_id = update_invoice.pi_id.bank.biller_id
+
+                    invoice_tag = get_biller_variable(biller_id, "invoice_tag")
+                    invoice_format = get_biller_variable(biller_id, "invoice_format")
+
+                    new_invoice_no = get_invoice_no(biller_id, invoice_tag, invoice_format, int(invoice_no))
+
+                    if not update_invoice:
+                        skipped_rows.append((*row, f'User does not request Tax invoice for PI No {pi_no}'))
+                        skipped_count += 1
+                        continue
+
+                    if update_invoice.is_taxInvoice and update_invoice.invoice_no != new_invoice_no:
+                        skipped_rows.append((*row, f"Invoice already generate against PI and Invoice No is {update_invoice.invoice_no}"))
+                        skipped_count += 1
+                        continue
+
+                    if convertedPI.objects.filter(invoice_no=new_invoice_no).exclude(pi_id__pi_no = pi_no).exists():
+                        skipped_rows.append((*row, f'Invoice No {invoice_no} already Exists'))
+                        skipped_count += 1
+                        continue
+
+                    update_invoice.invoice_no = new_invoice_no
+                    update_invoice.invoice_date = invoice_date
+                    update_invoice.is_taxInvoice = True
+                    update_invoice.save()
+                    updated_count += 1
+                
+                except Exception as e:
+                    skipped_rows.append((*row, f"Error: {e}"))
+                    skipped_count += 1
+
+            if skipped_rows:
+                skipped_wd = Workbook()
+                skipped_ws = skipped_wd.active
+
+                skipped_ws.title = "Not Uploaded"
+
+                headers = [cell.value for cell in ws[1]] + ["Error Reason"]
+                skipped_ws.append(headers)
+
+                for skipped_row in skipped_rows:
+                    skipped_ws.append(skipped_row)
+
+                today = timezone.now().date()
+                response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                response['Content-Disposition'] = f'attachment; filename=Not Uploaded-list{today}.xlsx'
+
+                # Save the workbook to the response object
+                skipped_wd.save(response)
+
+                return response
+
+            messages.success(request, f"Total Invoice Update {updated_count} and Error {skipped_count}")
+            return HttpResponseRedirect(target_url)
+
+        except Exception as e:
+            messages.error(request, f"An error occurred: {e}")
+            return redirect('invoice:invoice_list')
+    messages.error(request, f"file is not Uploaded")
+    return redirect('invoice:invoice_list')
+    
+
 
 
 def int_to_roman(num):
@@ -1478,20 +1762,32 @@ def pdf_PI(pi):
         canvas.setFont("Montserrat-Medium", 11)
         canvas.setFillColor(colors.HexColor('#ffffff'))
         canvas.drawString(50, 780, "Kindly pay in favor of")
-        canvas.drawRightString(145, 740, "Bank Name: ")
-        canvas.drawRightString(145, 725, "A/C No.: ")
-        canvas.drawRightString(145, 710, "Branch Address: ")
-        canvas.drawRightString(145, 660, "IFSC: ")
-        if pi.country != 'IN':
-            canvas.drawRightString(145, 645, "SWIFT: ")
-        canvas.setFont("Montserrat-Bold", 11)
-        canvas.drawString(50, 760, f'{pi.bank.bnf_name}')
-        canvas.drawString(150, 740, f'{pi.bank}')
-        canvas.drawString(150, 725, f'{pi.bank.ac_no}')
+        if pi.bank.is_upi:
+            canvas.drawRightString(145, 740, "Holder Name: ")
+            canvas.drawRightString(145, 725, "UPI ID.: ")
+            canvas.drawRightString(145, 710, "UPI No.: ")
+        else:
+            canvas.drawRightString(145, 740, "Bank Name: ")
+            canvas.drawRightString(145, 725, "A/C No.: ")
+            canvas.drawRightString(145, 710, "Branch Address: ")
+            canvas.drawRightString(145, 660, "IFSC: ")
+            if pi.country != 'IN':
+                canvas.drawRightString(145, 645, "SWIFT: ")
+            canvas.setFont("Montserrat-Bold", 11)
 
-        canvas.drawString(150, 660, f'{pi.bank.ifsc}')
-        if pi.country != 'IN':
-            canvas.drawString(150, 645, f'{pi.bank.swift_code}')
+
+        if pi.bank.is_upi:
+            canvas.drawString(150, 740, f'{pi.bank.bnf_name}')
+            canvas.drawString(150, 725, f'{pi.bank.upi_id}')
+            canvas.drawString(150, 710, f'{pi.bank.upi_no}')
+        else:
+            canvas.drawString(50, 760, f'{pi.bank.bnf_name}')
+            canvas.drawString(150, 740, f'{pi.bank.bank_name}')
+            canvas.drawString(150, 725, f'{pi.bank.ac_no}')
+
+            canvas.drawString(150, 660, f'{pi.bank.ifsc}')
+            if pi.country != 'IN':
+                canvas.drawString(150, 645, f'{pi.bank.swift_code}')
 
         def wrap_string(string, font_size,wrap_length):
 
@@ -1512,10 +1808,11 @@ def pdf_PI(pi):
 
             return line
 
-        line = wrap_string(pi.bank.branch_address,11,150)
-        line_height = 13
-        for i, line in enumerate(line):
-            canvas.drawString(150, 710 - (i * line_height), f"{line}")
+        if not pi.bank.is_upi:
+            line = wrap_string(pi.bank.branch_address,11,150)
+            line_height = 13
+            for i, line in enumerate(line):
+                canvas.drawString(150, 710 - (i * line_height), f"{line}")
 
         canvas.setFont("Montserrat-Bold", 11)
         canvas.setFillColor(colors.HexColor('#545454'))
@@ -1528,7 +1825,7 @@ def pdf_PI(pi):
         canvas.circle(50, 553, 2, stroke=1, fill=1)
         canvas.drawString(55, 550, f'PAN: {pi.bank.biller_id.biller_pan}')
         canvas.circle(50, 533, 2, stroke=1, fill=1)
-        canvas.drawString(55, 530, f'Udyam Registration Number: {pi.bank.biller_id.biller_msme}')
+        canvas.drawString(55, 530, f'Udyam Registration Number: {pi.bank.biller_id.biller_msme if pi.bank.biller_id.biller_msme else 'N/A' }')
 
         canvas.setFont("Montserrat-Regular", 9)
         canvas.setFillColor(colors.HexColor('#3182d9'))
