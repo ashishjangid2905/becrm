@@ -111,24 +111,24 @@ addItemBtns.forEach(addItemBtn => {
     }
 });
 
-let savePaymentForms = document.querySelectorAll('.requestTaxInvoice')
+// let savePaymentForms = document.querySelectorAll('.requestTaxInvoice')
 
-savePaymentForms.forEach(savePaymentForm => {
-    let addPayDtlBtn = savePaymentForm.querySelector('#addPayBtn')
-    let addPayItem = savePaymentForm.querySelector('.paymentForm')
-    addPayDtlBtn.onclick = (e) =>{
-        let removePay = savePaymentForm.querySelectorAll('.paymentForm').length
-        e.preventDefault()
-        if (removePay<3) {
-            add_PayForm(addPayItem)
-            console.log(removePay)
-        } else {
-            Swal.fire({
-                title: 'Error!',
-                text: 'You can accept payment in a maximum of 3 installments.',
-                icon: 'error',
-            })
-        }
-    } 
-});
+// savePaymentForms.forEach(savePaymentForm => {
+//     let addPayDtlBtn = savePaymentForm.querySelector('#addPayBtn')
+//     let addPayItem = savePaymentForm.querySelector('.paymentForm')
+//     addPayDtlBtn.onclick = (e) =>{
+//         let removePay = savePaymentForm.querySelectorAll('.paymentForm').length
+//         e.preventDefault()
+//         if (removePay<3) {
+//             add_PayForm(addPayItem)
+//             console.log(removePay)
+//         } else {
+//             Swal.fire({
+//                 title: 'Error!',
+//                 text: 'You can accept payment in a maximum of 3 installments.',
+//                 icon: 'error',
+//             })
+//         }
+//     } 
+// });
 

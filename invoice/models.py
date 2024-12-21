@@ -220,7 +220,7 @@ class orderList(models.Model):
         db_table = "Order_List"
     
     def __str__(self):
-        return f'PI No.: {self.proforma_id.pi_no} - {self.report_type}'
+        return f'PI No.: {self.proforma_id.pi_no} - {self.report_type}: {self.category}'
     
 class convertedPI(models.Model):
     pi_id = models.OneToOneField(proforma, verbose_name=_("PI ID"), on_delete=models.CASCADE)

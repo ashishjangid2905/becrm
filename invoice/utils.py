@@ -58,8 +58,9 @@ REPORT_FORMAT =[
 
 
 ORDER_STATUS = [
-    ('complete', _('Complete')),
     ('pending', _('Pending')),
+    ('processing', _('Processing')),
+    ('complete', _('Complete')),
 ]
 
 PAYMENT_STATUS = [

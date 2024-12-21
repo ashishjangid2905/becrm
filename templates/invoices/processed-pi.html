@@ -1,6 +1,8 @@
 {% extends 'home.html' %} {% load static %} {% load custom_filters %} 
 {% block content %}
 
+{% include "alert.html" %}
+
 <div class="container-fluid">
   <div class="container-fluid mt-3">
     <div class="row justify-content-between">
@@ -49,23 +51,66 @@
             {% for order in pi.processedorder_set.all %}
             <tr class="align-middle">
               <td>{{forloop.counter}}</td>
-              <td>{{order.report_type}}</td>
-              <td>{{order.format}}</td>
-              <td>{{order.country}}</td>
-              <td style="width:100px">{{order.hsn}}</td>
-              <td>{{order.iec}}</td>
-              <td>{{order.exporter}}</td>
-              <td>{{order.importer}}</td>
-              <td style="width: 100px">{{order.foreign_country}}</td>
-              <td style="width: 100px">{{order.port}}</td>
-              <td class="text-nowrap">{{order.from_month|format_month}} - {{order.to_month|format_month}}</td>
-              <td>{{order.last_dispatch_month|format_month}}</td>
-              <td>{{order.last_dispatch_date}}</td>
-              <td>{{order.order_status}}</td>
-              <td>{{order.last_sent_date}}</td>
+              <td class="text-capitalize">{{order.report_type}}</td>
+              <td class="text-capitalize">{{order.format}}</td>
+              <td class="text-capitalize text-center">{{order.country}}</td>
+              <td class="text-capitalize text-center" style="width:100px">{{order.hsn}} {% if order.product %}({{order.product}}){% endif %}</td>
+              <td class="text-capitalize">{{order.iec}}</td>
+              <td class="text-capitalize">{{order.exporter}}</td>
+              <td class="text-capitalize">{{order.importer}}</td>
+              <td class="text-capitalize">{{order.foreign_country}}</td>
+              <td class="text-capitalize">{{order.port}}</td>
+              <td class="text-nowrap text-center">{{order.from_month|format_month}} - {{order.to_month|format_month}}</td>
+              <td class="text-capitalize text-center text-nowrap">{{order.last_dispatch_month|format_month}}</td>
+              <td class="text-capitalize text-center">{{order.last_dispatch_date}}</td>
+              <td class="text-capitalize"><span class="badge fw-bold rounded-pill text-bg-{% if order.order_status == 'pending' %}danger {% elif order.order_status == 'processing' %}warning {% else %}success{% endif %}">{{order.order_status}}</span></td>
+              <td class="text-capitalize text-center text-nowrap">{{order.last_sent_date}}</td>
               <td>
-                <a class="btn py-0 text-primary"><i class="ti ti-refresh"></i></a>
-              </td>
+                {% if request.user.department == 'production' %}
+                  <a class="btn py-0 text-primary" data-bs-toggle="modal" data-bs-target="#{{order.id}}"><i class="ti ti-refresh"></i></a>
+                {% endif %}
+                </td>
+              
+              
+              {% if request.user.department == 'production' %}
+              <div class="modal fade" id="{{order.id}}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h1 class="modal-title fs-5" id="staticBackdropLabel">Update Order Status</h1>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <form class="row" action="{% url 'invoice:update_order_status' order.id %}" method="post">
+                        {% csrf_token %}
+                        <div class="row g-3 mb-3">
+                          <div class="col-md-6">
+                            <label for="">Last Dispatch Month</label>
+                            <input class="form-control form-control-sm" type="month" name="last_dispatch_month" min="{{order.from_month}}" max="{{order.to_month}}">
+                          </div>
+                          <div class="col-md-6">
+                            <label for="">Last Dispatch Date</label>
+                            <input class="form-control form-control-sm" type="date" name="last_dispatch_date" min="{{order.from_month}}-01" max="{{order.to_month}}-30">
+                          </div>
+                          <div class="col-md-6">
+                            <label for="">Order Status</label>
+                            <select class="form-select form-select-sm" name="order_status" id="">
+                              {% for key, value in order_status %}
+                              <option value="{{key}}" {% if order.order_status == key %}selected{% endif %}>{{value}}</option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                          <button type="submit" class="btn btn-sm btn-primary">Understood</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
             </tr>
             {% endfor %}
           </tbody>

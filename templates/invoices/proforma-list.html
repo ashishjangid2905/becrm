@@ -93,7 +93,7 @@
 
 
 <div class="container-fluid pi-table">
-  <table class="table">
+  <table class="table table-hover">
     <thead>
       <tr class="table-primary position-sticky top-0">
         <th scope="col">S.No</th>
@@ -411,7 +411,8 @@
   </table>
 </div>
 
-<nav class="mt-4">
+<nav class="d-flex justify-content-between align-items-center mt-4 px-5">
+  <p class="m-0">Total PI: {{all_pi.paginator.count}}</p>
   <ul class="pagination pagination-sm justify-content-end flex-row ">
     <form class="me-5" method='GET' id='page-size'>
       {% for param, value in request.GET.items %}

@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect, FileResponse
 from django.db.models import OuterRef, Subquery, Max, F, Q
 from django.conf import settings
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 
 # Import from  app models, utils
 from .models import leads, contactPerson, Conversation, conversationDetails
@@ -30,6 +31,10 @@ def leads_list(request):
     
     query = request.GET.get('q')
     user_id = request.user.id
+
+    profile_instance = get_object_or_404(Profile, user=request.user)
+    user_branch = profile_instance.branch
+    all_users = Profile.objects.filter(user__profile__branch=user_branch.id, user__department="sales")
 
     search_fields = [
         'company_name', 'gstin', 'city', 'state', 'country', 
@@ -59,6 +64,11 @@ def leads_list(request):
     else:
         all_lead = all_leads
 
+    selected_user = request.GET.get('user')
+
+    if selected_user:
+        all_lead = all_lead.filter(user=selected_user)
+
     if request.user.role == 'admin':
         user_leads = all_lead
     else:
@@ -67,6 +77,21 @@ def leads_list(request):
     if user_leads:
         for lead in user_leads:
             lead.user = User.objects.get(pk=lead.user)
+
+    if request.GET.get('excel') == 'excel':
+        return exportlead(user_leads)
+
+    pageSize = request.GET.get('pageSize', 20)
+
+    leads_per_page = Paginator(user_leads, pageSize)
+    page = request.GET.get('page')
+
+    try:
+        user_leads = leads_per_page.get_page(page)
+    except PageNotAnInteger:
+        user_leads = leads_per_page.get_page(1)
+    except EmptyPage:
+        user_leads = leads_per_page.get_page(leads_per_page.num_pages)
 
     source_choice = leads.SOURCE
     states = STATE_CHOICE
@@ -77,7 +102,10 @@ def leads_list(request):
         'user_id': user_id,
         'source_choice': source_choice,
         'states': states,
-        'countries': countries
+        'countries': countries,
+        'all_users':all_users,
+        'pageSize': pageSize,
+        'selected_user': selected_user,
     }
     
     return render(request, 'lead/lead-list.html', context)
@@ -107,7 +135,7 @@ def add_lead(request):
         industry = request.POST.get("industry")
         source = request.POST.get("source")
 
-        if leads.objects.filter(company_name = company_name, gstin=gstin).exists():
+        if leads.objects.filter(company_name = company_name, gstin=gstin, user=user).exists():
             messages.error(request, f"The company '{company_name}' already exists.")
             return redirect('lead:leads_list')
         
@@ -465,19 +493,7 @@ def download_template(request):
     return FileResponse(open(file_path,'rb'), as_attachment=True, filename='template.csv')
 
 
-@login_required(login_url='app:login')
-def exportlead(request):
-
-    if not request.user.is_authenticated:
-        return redirect('app:login')
-    
-    user_id = request.user.id
-
-
-    if request.user.role == 'admin':
-        all_lead = leads.objects.all()
-    else:
-        all_lead = leads.objects.filter(user = user_id)
+def exportlead(all_lead):
 
     wb = Workbook()
     ws = wb.active

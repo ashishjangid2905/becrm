@@ -118,16 +118,17 @@
                             <div class="col-lg-2 col-md-2 col-sm-4">
                                 <label class="form-label" for="report-type">Report Type</label>
                                 <select class="form-select form-select-sm" name="report_type">
-                                    <option value="imp">Import</option>
-                                    <option value="exp">Export</option>
+                                    {% for value, label in reports %}
+                                        <option value="{{value}}">{{label}}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-lg-2 col-md-2 col-sm-4">
                                 <label class="form-label">Format</label>
                                 <select class="form-select form-select-sm" name="report_format">
-                                    <option value="monthly">Monthly</option>
-                                    <option value="weekly">Weekly</option>
-                                    <option value="sez">SEZ</option>
+                                    {% for value, label in report_format %}
+                                    <option value="{{value}}">{{label}}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-lg-2 col-md-2 col-sm-4">

@@ -123,12 +123,33 @@ document.addEventListener("DOMContentLoaded", function () {
 
       currentMonth = "Nov 24"
 
+      const num_format = (number) => {
+        new_number = new Intl.NumberFormat("en-GB", {
+          style: "decimal",
+          minimumFractionDigits: 0,
+          notation: "compact",
+          compactDisplay: "short",
+        }).format(number)
+        return new_number
+      }
+
+      const get_percent = (base, final) =>{
+        ratio = base/final
+        percent = new Intl.NumberFormat("en-IN", {
+          style: "percent",
+          minimumFractionDigits: 0,
+        }).format(ratio);
+        return percent
+      }
+
+      console.log(get_percent)
+
       const team_sales = document.querySelector("#team-sales");
       const user_sales = document.querySelector("#user-sales");
       const closedPi = document.querySelector("#closed-pi");
       const monthSaleTable = document.querySelector("#monthSaleTable");
-      team_sales.innerHTML = numFormat.format(teamsales / 1000) + "K";
-      user_sales.innerHTML = numFormat.format(usersale / 1000) + "K";
+      team_sales.innerHTML = num_format(teamsales);
+      user_sales.innerHTML = num_format(usersale);
       closedPi.innerHTML = status["closed"];
 
       const tableBody = monthSaleTable.querySelector("tbody");
@@ -140,17 +161,19 @@ document.addEventListener("DOMContentLoaded", function () {
           <tr>
             <td class="text-center">${serialNumber++}</td>
             <td>${member}</td>
-            <td class="text-center"><i class="ti ti-currency-rupee"></i>${(data.online_sale / 1000) + 'K'}</td>
-            <td class="text-center"><i class="ti ti-currency-rupee"></i>${(data.offline_sale / 1000) + 'K'}</td>
-            <td class="text-center"><i class="ti ti-currency-rupee"></i>${(data.domestic_sale / 1000) + 'K'}</td>
-            <td class="text-center"><i class="ti ti-currency-rupee"></i> ${(data.total_sales / 1000) + 'K'}</td>
-            <td class="text-center">${parseFloat((data.total_sales / totalSales[currentMonth]) * 100).toFixed(2) + '%'}</td>
-          </tr>
-        `;
+            <td class="text-center"><i class="ti ti-currency-rupee"></i>${num_format(data.online_sale)}</td>
+            <td class="text-center"><i class="ti ti-currency-rupee"></i>${num_format(data.offline_sale)}</td>
+            <td class="text-center"><i class="ti ti-currency-rupee"></i>${num_format(data.domestic_sale)}</td>
+            <td class="text-center"><i class="ti ti-currency-rupee"></i> ${num_format(data.total_sales)}</td>
+            <td class="text-center">${get_percent(data.total_sales, totalSales[currentMonth])}</td>
+            </tr>
+            `;
+            // <td class="text-center">${parseFloat((data.total_sales / totalSales[currentMonth]) * 100).toFixed(2) + '%'}</td>
         tableBody.insertAdjacentHTML("beforeend", row);
       });
 
       console.log(team_members)
+      console.log(usersale)
 
       // testing New amCharts
 
@@ -252,7 +275,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         chart.topAxesContainer.children.push(am5.Label.new(root, {
           text: "Sales by Team Members",
-          fontFamily: "JetBrains Mono", 
+          fontFamily: "Nunito", 
           fontSize: 20,
           fontWeight: "400",
           x: am5.p50,
@@ -341,7 +364,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }));
         
         series.labels.template.setAll({
-          fontFamily: "JetBrains Mono",
+          fontFamily: "Nunito",
           text: "",
           textType: "circular",
           centerX: 0,
@@ -460,7 +483,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 },
                 font: {
                   size: 12,
-                  family: "Roboto Serif",
+                  family: "Nunito",
                   style: "italic",
                 },
               },
@@ -477,7 +500,7 @@ document.addEventListener("DOMContentLoaded", function () {
               text: "MONTH-WISE SALES",
               align: "center",
               font: {
-                family: "JetBrains Mono",
+                family: "Nunito",
                 size: 20,
               },
               color: "rgb(49, 134, 153)",
@@ -526,7 +549,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 color: "rgb(75, 171, 198)",
                 font: {
                   size: 12,
-                  family: "JetBrains Mono", // Font family
+                  family: "Nunito", // Font family
                   style: "italic", // Font style
                 },
               },
@@ -539,7 +562,7 @@ document.addEventListener("DOMContentLoaded", function () {
               text: "PI SUMMARY",
               align: "start",
               font: {
-                family: "JetBrains Mono",
+                family: "Nunito",
                 size: 20,
               },
               color: "rgb(13, 130, 188)",

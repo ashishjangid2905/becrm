@@ -72,8 +72,8 @@
       </form>
     </div>
     <div class="col-md-2 mt-2 pe-2 flex-row">
-      <a href="?export=excel{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" class="btn btn-sm btn-outline-primary">Export list</a>
-      <a href="" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#bulkUpdate">Bulk Update Invoice</a>
+      <a href="?export=excel{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" class="btn btn-sm btn-primary">Export list</a>
+      <a href="" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#bulkUpdate">Bulk Update Invoice</a>
     </div>
   </div>
 </div>
@@ -138,16 +138,12 @@
           <td class="text-nowrap">{{ proforma.pi_id.pi_date }}</td>
           <td class="text-nowrap">{{ proforma.invoice_no }}</td>
           <td class="text-nowrap">{{ proforma.invoice_date }}</td>
-          <td class="text-wrap">
-            {% total_order_value proforma.pi_id %}
-          </td>
-          <td class="text-wrap">
-            {% total_pi_value_inc_tax proforma.pi_id %}
-          </td>
-          <td class="text-wrap">{{ proforma.payment1_amt }}</td>
+          <td class="text-nowrap">₹ {% total_order_value proforma.pi_id %}</td>
+          <td class="text-nowrap">₹ {% total_pi_value_inc_tax proforma.pi_id %}</td>
+          <td class="text-nowrap">₹ {{ proforma.payment1_amt }}</td>
           <td class="text-nowrap">{{ proforma.payment1_date }}</td>
-          <td class="text-nowrap">{{proforma.pi_id.bank}} ({{proforma.pi_id.bank.bnf_name}})</td>
-          <td class="text-wrap"><span class="badge rounded-pill text-bg-{% if proforma.is_taxInvoice %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.is_taxInvoice == True %}Generated {% elif proforma.is_hold == True %}Hold{% else %}Pending{% endif %}</span></td>
+          <td class="text-nowrap">{{proforma.pi_id.bank.bank_name}} ({{proforma.pi_id.bank.bnf_name}})</td>
+          <td class="text-nowrap"><span class="badge rounded-pill text-bg-{% if proforma.is_taxInvoice %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.is_taxInvoice == True %}Generated {% elif proforma.is_hold == True %}Hold{% else %}Pending{% endif %}</span></td>
           <td class="text-nowrap">
             {% if not proforma.is_taxInvoice and request.user.department == 'account' %}
               <a href="" class="btn p-0 text-primary" data-bs-toggle="modal" data-bs-target="#generate-{{proforma.id}}"><i class="ti ti-edit"></i></a>
@@ -388,7 +384,8 @@
   </table>
 </div>
 
-<nav class="mt-4">
+<nav class="d-flex justify-content-between align-items-center mt-4 px-5">
+  <p class="m-0">Total Invoice: {{taxInvoicesList.paginator.count}}</p>
   <ul class="pagination pagination-sm justify-content-end flex-row ">
     <form class="me-5" method='GET' id='page-size'>
       {% for param, value in request.GET.items %}

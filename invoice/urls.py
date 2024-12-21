@@ -19,6 +19,7 @@ urlpatterns = [
     path('edit-pi/<slug:pi>', views.edit_pi, name='edit_pi'),
     path('processed', views.processed_list, name='processed_list'),
     path('processed/pi-<int:pi_id>', views.processed_pi_order, name='processed_pi_order'),
+    path('update-order-status/<int:order_id>', views.update_order_status, name='update_order_status'),
     path('create-invoice/<int:pi>', views.generate_invoice, name='generate_invoice'),
     path('bulk-invoice', views.bulkInvoiceUpdate, name='bulkInvoiceUpdate'),
     path('list', views.invoice_list, name='invoice_list'),

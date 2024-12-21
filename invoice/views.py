@@ -265,7 +265,7 @@ def pi_list(request):
 
     profile_instance = get_object_or_404(Profile, user=request.user)
     user_branch = profile_instance.branch
-    all_users = Profile.objects.filter(user__profile__branch=user_branch.id, user__department="sales")
+    all_users = Profile.objects.filter(user__profile__branch=user_branch.id)
 
     selected_user = request.GET.get("user", None)
     selected_Ap = request.GET.get("ap", None)
@@ -911,9 +911,35 @@ def processed_pi_order(request, pi_id):
     pi_instance = get_object_or_404(proforma, pk=pi_id)
 
     context = {
-        'pi': pi_instance
+        'pi': pi_instance,
+        'order_status': ORDER_STATUS,
     }
     return render(request, 'invoices/processed-pi.html', context)
+
+@login_required(login_url='app:login')
+def update_order_status(request, order_id):
+    order_instance = get_object_or_404(processedOrder, pk=order_id)
+
+    if request.user.department == 'production' and request.method == 'POST':
+        last_dispatch_month = request.POST.get('last_dispatch_month')
+        last_dispatch_date = request.POST.get('last_dispatch_date')
+        order_status = request.POST.get('order_status')
+        
+        if last_dispatch_month:
+            order_instance.last_dispatch_month = last_dispatch_month
+
+        if last_dispatch_date:
+            last_dispatch_date = datetime.strptime(last_dispatch_date, "%Y-%m-%d").date()
+            order_instance.last_dispatch_date = last_dispatch_date
+
+        order_instance.order_status = order_status
+        order_instance.last_sent_date = timezone.now().date()
+        order_instance.save()
+
+        messages.success(request, "Order Status Updated Successfully")
+        return redirect(reverse('invoice:processed_pi_order', args=[order_instance.pi_id.id]))
+    messages.error(request, "You are not autharized person to update Order Status")
+    return redirect(reverse('invoice:processed_pi_order', args=[order_instance.pi_id.id]))
 
 
 @login_required(login_url='app:login')
@@ -1912,10 +1938,18 @@ def pdf_PI(pi):
 def download_pdf2(request, pi_id):
     
     pi = get_object_or_404(proforma, pk = pi_id)
+    
+    if hasattr(pi, 'convertedpi'):
+        if pi.convertedpi.is_taxInvoice:
+            filename = f'Tax Invoice_{pi.company_name}_{pi.convertedpi.invoice_no}_{pi.convertedpi.invoice_date}.pdf'
+        else:
+            filename= f'PI_{pi.company_name}_{pi.pi_no}_{pi.pi_date}.pdf'
+    else:
+        filename= f'PI_{pi.company_name}_{pi.pi_no}_{pi.pi_date}.pdf'
 
     response = HttpResponse(pdf_PI(pi_id), content_type = 'application/pdf')
 
-    response['Content-Disposition'] = f'attachment; filename=PI_{pi.company_name}_{pi.pi_no}_{pi.pi_date}.pdf' 
+    response['Content-Disposition'] = f'attachment; filename={filename}' 
 
     return response
 
