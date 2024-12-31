@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'app',
     'lead',
     'invoice',
+    'django_session_timeout',
 ]
 
 MIDDLEWARE = [
@@ -58,6 +59,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_session_timeout.middleware.SessionTimeoutMiddleware',
+    'app.middleware.ActivityLogMiddleware',
 ]
 
 ROOT_URLCONF = 'becrm.urls'
@@ -191,3 +194,11 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'additional.ashish@gmail.com'
 EMAIL_HOST_PASSWORD = 'jjcz artm csuu colt'
+
+
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_TIMEOUT = 600
+SESSION_IDLE_TIMEOUT = 600
+SESSION_EXPIRE_SECONDS = 600  # Duration in seconds
+SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True  # Logout after inactivity
+SESSION_TIMEOUT_REDIRECT = '/login/'  # Optional: Redirect to the login page

@@ -194,6 +194,9 @@ class proforma(models.Model):
         verbose_name = _("proforma")
         verbose_name_plural = _("proformas")
         db_table = "Proforma_Invoice"
+        permissions = [
+            ("can_proforma_approve", "Can approve Proforma Invoice"),
+        ]
 
     def __str__(self):
         return self.company_name

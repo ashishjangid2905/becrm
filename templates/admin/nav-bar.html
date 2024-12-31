@@ -34,6 +34,9 @@
         <li class="nav-item">
           <a class="nav-link text-primary-emphasis" href="{% url 'teams:users' %}">User</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link text-primary-emphasis" href="{% url 'app:logs' %}">Activity</a>
+        </li>
         {% endif %}
         {% if request.user.department != 'production' %}
           {% if request.user.department != 'account' %}

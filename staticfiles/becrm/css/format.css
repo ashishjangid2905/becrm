@@ -1,0 +1,14 @@
+* {
+    font-size: 10px;
+}
+
+.title {
+    column-span: 5;
+    font-size: 22px;
+    font-weight: 500;
+}
+
+.brand-name {
+    font-size: 22px;
+    font-weight: 500;
+}

@@ -13,6 +13,7 @@ urlpatterns = [
     path('logout/', views.logout_user , name="logout"),
     path('sample-chart/', views.sample_chart, name='sample_chart'),
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('activity-logs/', views.logs, name='logs'),
     path('settings', views.settings, name='settings'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

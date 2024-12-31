@@ -1,4 +1,6 @@
-{% extends 'admin/settings.html' %} {% load static %} {% block settings %}
+{% extends 'admin/settings.html' %} {% load static %}
+{% load teams_custom_filters %}
+{% block settings %}
 <section class="container-fluid">
   <div class="container py-5">
     <div class="row d-flex justify-content-center align-items-center h-100">
@@ -15,19 +17,24 @@
                 alt="profile photo"
                 style="height: 150px"
               />
-              <h5 class="fw-medium text-primary-emphasis">
+              <h5 class="fw-bold fs-4 text-primary-emphasis">
                 {{ profile.user }}
               </h5>
-              <p class="fw-medium text-primary-emphasis">
-                {{ profile.user.department }} Department
+              <p class="m-0 fw-medium text-primary-emphasis text-capitalize">
+                <span class="fw-bolder text-danger fs-6">{{ profile.user.department }}</span> Department
               </p>
-              <a href="" class="btn btn-sm btn-outline-secondary border-0"
+              <p class="m-0 fw-medium text-primary-emphasis text-capitalize">
+                Position: <span class="fw-bolder text-danger fs-6">{% get_current_position profile %}</span>
+              </p>
+              <a href="" class="btn btn-sm fs-5 text-primary-emphasis border-0"
                 ><i class="ti ti-edit"></i
               ></a>
             </div>
             <div class="col-md-8">
               <div class="card-body p-4">
-                <h6>Information</h6>
+                <h6 class="m-0">Information
+                  {% comment %} <a href="" class="btn btn-sm fs-6 border-0 text-primary-emphasis"><i class="ti ti-edit"></i></a> {% endcomment %}
+                </h6>
                 <hr class="mt-0 mb-4" />
                 <div class="row">
                   <div class="col-12">

@@ -1,5 +1,6 @@
 {% extends 'home.html' %} {% load static %}
-{% load custom_filters %} {% block content %}
+{% load custom_filters %}
+{% load teams_custom_filters %} {% block content %}
 {% include "alert.html" %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <div class="container d-flex justify-content-center">
@@ -24,7 +25,7 @@
       </div>
     </div>
     <div class="col-md-2 mt-2 pe-4">
-      {% if request.user.role == 'admin' %}
+      {% if user_role == 'admin' or current_position == 'Head' or current_position == 'VP' or current_position == 'Sr. Executive' %}
       <form class="row justify-content-end" id="selectUser" action="{% url 'invoice:pi_list' %}" method="get">
         <div class="col-lg-12 col-md-12">
           <select class="form-select form-select-sm" name="user" id="userChoise">
@@ -305,12 +306,14 @@
                 </div>
               </div>
               <div class="modal-footer">
-                {% if not proforma.is_Approved and request.user.role == 'admin' %}
+                {% if not proforma.is_Approved %}
+                  {% if user_role == 'admin' or current_position == 'Head' or current_position == 'VP' or current_position == 'Sr. Executive' %}
                   <form action="{% url 'invoice:approve_pi' proforma.id %}" method="post">
                     {% csrf_token %}
                     <input type="hidden" name="is_approved" value="true">
                     <button type="submit" class="btn btn-primary" >Approved</button>
                   </form>
+                  {% endif %}
                 {%endif%}
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
               </div>

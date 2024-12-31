@@ -1,21 +1,23 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages, auth
+from django.contrib import messages
 from django.template import loader
 from teams.models import Profile, Branch, User, UserVariable
-from teams.views import get_user_variable
 from sample.models import sample
 from invoice.models import proforma, orderList
 from invoice.templatetags.custom_filters import total_order_value, sale_category
+from teams.templatetags.teams_custom_filters import get_current_position, get_current_target
 from invoice.utils import STATUS_CHOICES
-from django.db.models import Count
+from django.db.models import Count, Q, Min, Max
 from django.db.models.functions import ExtractMonth, TruncDate
 from django.http import JsonResponse
-import calendar, json
-from datetime import timedelta
+import calendar
+from datetime import timedelta, datetime
 from django.utils.timezone import now
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+from .activity_log_utils import log_user_activity, get_action
+from .models import ActivityLog
 
 # Create your views here.
 
@@ -29,7 +31,7 @@ def home(request):
     
     # user_target_variable = UserVariable.objects.filter(variable_name = 'sales_target', user_profile=user_profile).last()
 
-    user_target_variable = get_user_variable(user_profile, 'sales_target')
+    user_target_variable = get_current_target(user_profile)
 
     user_target = int(user_target_variable)/1000 if user_target_variable else 0
 
@@ -53,21 +55,66 @@ def dashboard(request):
     if not request.user.is_authenticated:
         return redirect('app:login')
     
-    user_branch = Profile.objects.get(user=request.user).branch
+    today = now().date()
 
+    # Get the fiscal year range
+    date_range = proforma.objects.aggregate(min_date=Min('pi_date'), max_date=Max('pi_date'))
+    min_year = date_range['min_date'].year if date_range['min_date'] else today.year
+    max_year = date_range['max_date'].year if date_range['max_date'] else today.year
 
-    all_pi = proforma.objects.all()
+    fiscal_years = [f"{year}-{year + 1}" for year in range(min_year, max_year + 1)]
+
+    selected_fy = request.GET.get('fy', None)
+
+    if selected_fy:
+        fy_start_year = int(selected_fy.split('-')[0])
+        fy_start = datetime(fy_start_year, 4, 1).date()
+        fy_end = datetime(fy_start_year + 1, 3, 31).date()
+    else:
+        fy_start = datetime(today.year - 1, 4, 1).date() if today.month < 4 else datetime(today.year, 4, 1).date()
+        fy_end = datetime(fy_start.year + 1, 3, 31).date()
+    
+    user_profile = Profile.objects.get(user=request.user)
+    user_branch = user_profile.branch
+
+    all_users = Profile.objects.filter(branch=user_branch)
+    
+    current_position = get_current_position(user_profile)
+    user_role = request.user.role
+    if current_position != 'Head' and user_role != 'admin':
+        all_users = all_users.exclude(user__groups__name__in=['Head'])
+
+    all_users = all_users
+    
+    all_user_ids = []
+    for user in all_users:
+        all_user_ids.append(user.user.id)
+
+    all_proforma = proforma.objects.filter(user_id__in = all_user_ids)
+
+    selected_month = request.GET.get('select_month')
+    selected_user = request.GET.get('select_user')
+    filters = {'user_id__in': all_user_ids, 'pi_date__range': (fy_start, fy_end)}
+    if selected_user:
+        filters['user_id'] = selected_user
+
+    if selected_month:
+        year, month = map(int, selected_month.split("-"))
+        start_date = datetime(year, month, 1).date()
+        last_day = calendar.monthrange(year, month)[1]
+        end_date = datetime(year, month, last_day).date()
+        filters['closed_at__range'] = (start_date, end_date)
+    
+
+    all_pi = all_proforma.filter(**filters).select_related('bank', 'bank__biller_id')
+
 
     if all_pi:
         for pi in all_pi:
             pi.user_id = get_object_or_404(Profile, user = pi.user_id)
 
-    all_pi_data = all_pi
-
     pi_list = []
-
-    for pi in all_pi_data:
-
+    for pi in all_pi:
         pi_data = {
             'pi_date': pi.pi_date,
             'pi_no': pi.pi_no,
@@ -83,7 +130,6 @@ def dashboard(request):
         }
 
         order_items = orderList.objects.filter(proforma_id=pi.id)
-
         for order in order_items:
             pi_data['order_list'].append({
                 'category': order.category,
@@ -175,6 +221,12 @@ def login_user(request):
 
 @login_required
 def logout_user(request):
+
+    action = get_action(request)
+
+    if action:
+        log_user_activity(request, action)
+
     logout(request)
     messages.success(request,"You have Logged Out")
     return redirect('app:login')
@@ -185,6 +237,19 @@ def settings(request):
         return redirect('teams:user_password')
     
     return render(request,'admin/settings.html')
+
+@login_required(login_url='app:login')
+def logs(request):
+    if not request.user.is_authenticated:
+        return redirect('app:login')
+    
+    activity_logs = ActivityLog.objects.all()
+
+    context = {
+        'activity_logs': activity_logs,
+    }
+
+    return render(request, 'activity_log.html', context)
 
 
 def custom_page_not_found(request, exception):

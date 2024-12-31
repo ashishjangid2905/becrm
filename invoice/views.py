@@ -4,7 +4,7 @@ from pathlib import Path
 
 # all Django imports
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseRedirect, HttpResponse
+from django.http import HttpResponseRedirect, HttpResponse, HttpResponseForbidden
 from django.urls import reverse
 # from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -24,6 +24,8 @@ from sample.models import Portmaster, CountryMaster
 from .utils import SUBSCRIPTION_MODE, STATUS_CHOICES, PAYMENT_TERM, COUNTRY_CHOICE, STATE_CHOICE, CATEGORY, REPORT_TYPE, PAYMENT_STATUS, REPORT_FORMAT, ORDER_STATUS, REPORTS, FORMAT
 from teams.custom_email_backend import CustomEmailBackend
 from .templatetags.custom_filters import total_order_value, total_lumpsums, filter_by_lumpsum, total_pi_value_inc_tax
+from .decorators import proforma_approval_required
+from teams.templatetags.teams_custom_filters import get_current_position
 
 # Third-party imports
 import fiscalyear
@@ -267,6 +269,16 @@ def pi_list(request):
     user_branch = profile_instance.branch
     all_users = Profile.objects.filter(user__profile__branch=user_branch.id)
 
+    current_position = get_current_position(profile_instance)
+    user_role = request.user.role
+
+    if current_position == 'Head' or user_role == 'admin':
+        all_users = all_users
+    elif current_position == 'VP':
+        all_users = all_users.exclude(user__groups__name='Head')
+    elif current_position == 'Sr. Executive':
+        all_users = all_users.exclude(user__groups__name__in=['Head', 'VP', 'Sr. Executive']).union(all_users.filter(user=request.user))
+
     selected_user = request.GET.get("user", None)
     selected_Ap = request.GET.get("ap", None)
     selected_status = request.GET.get("status", None)
@@ -296,7 +308,7 @@ def pi_list(request):
     for user in all_users:
         all_user_ids.append(user.user.id)
 
-    if request.user.role == 'admin':
+    if request.user.role == 'admin' or current_position == 'Head' or current_position == 'VP' or current_position == 'Sr. Executive':
         all_pi = all_proforma.filter(user_id__in = all_user_ids)
     else:
         all_pi = all_proforma.filter(user_id = request.user.id)
@@ -352,7 +364,9 @@ def pi_list(request):
         'selected_status': selected_status,
         'selected_fy': selected_fy,
         'pageSize': pageSize,
-        'all_user_ids': all_user_ids
+        'all_user_ids': all_user_ids,
+        'current_position': current_position,
+        'user_role': user_role
     }
     return render(request, 'invoices/proforma-list.html', context)
 
@@ -484,19 +498,41 @@ def create_pi(request, lead_id=None):
     return render(request, 'invoices/new-proforma.html', context)
 
 @login_required
+@proforma_approval_required
 def approve_pi(request, pi_id):
+    pi_instance = get_object_or_404(proforma, pk=pi_id)
+    user_ = get_object_or_404(Profile, user=request.user)
+    user_of_proforma = get_object_or_404(User, pk=pi_instance.user_id)
 
-    pi_instance = get_object_or_404(proforma, pk = pi_id)
     if request.method == 'POST':
-        if request.user.role == 'admin':
+        is_Approved = request.POST.get('is_approved')
+        is_approved = is_Approved == 'true'
 
-            is_Approved = request.POST.get('is_approved')
-
-            pi_instance.is_Approved = is_Approved == 'true'
+        if request.user.role == 'admin' or user_.user.groups.filter(name='Head').exists():
+            # Admin and Head can approve all proformas
+            pi_instance.is_Approved = is_approved
             pi_instance.approved_by = request.user.id
             pi_instance.save()
+            return redirect('invoice:pi_list')
 
-        return redirect('invoice:pi_list')
+        elif user_.user.groups.filter(name='VP').exists():
+            # VP can approve all proformas except those owned by Head
+            if user_of_proforma.groups.filter(name='Head').exists():
+                return HttpResponseForbidden("You cannot approve Head's Proforma.")
+            pi_instance.is_Approved = is_approved
+            pi_instance.approved_by = request.user.id
+            pi_instance.save()
+            return redirect('invoice:pi_list')
+
+        elif user_.user.groups.filter(name='Sr. Executive').exists():
+            # Sr. Executive can approve all proformas except those owned by Head or VP
+            if user_of_proforma.groups.filter(name='Head').exists() or user_of_proforma.groups.filter(name='VP').exists():
+                return HttpResponseForbidden("You cannot approve Head's or VP's Proforma.")
+            pi_instance.is_Approved = is_approved
+            pi_instance.approved_by = request.user.id
+            pi_instance.save()
+            return redirect('invoice:pi_list')
+
     return redirect('invoice:pi_list')
 
 

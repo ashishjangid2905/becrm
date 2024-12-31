@@ -17,3 +17,15 @@ def get_current_target(user_profile):
         **filters).last()
 
     return variable.variable_value if variable else None
+
+@register.simple_tag
+def get_current_position(user_profile):
+    today = datetime.now().date()
+
+    filters = {'from_date__lte': today, 'user_profile': user_profile, 'variable_name': 'position' }
+
+    variable = UserVariable.objects.filter(
+        Q(to_date__gte=today) | Q(to_date__isnull = True),
+        **filters).last()
+
+    return variable.variable_value if variable else None
