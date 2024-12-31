@@ -757,7 +757,9 @@ def process_pi(request, pi):
     context = {
         'pi': pi_instance,
         'report_format':REPORT_FORMAT,
-        'reports': REPORTS
+        'reports': REPORTS,
+        'port_choice': port_choice,
+        'country_choice': country_choice
     }
 
     if pi_instance.status == 'closed':

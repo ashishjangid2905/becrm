@@ -66,19 +66,17 @@
                             <div class="col-md-3 col-sm-7">
                                 <label class="form-label">Foreign Country</label>
                                 <select class="form-control form-control-sm multi-select" type="text" name="foreign_country[]" id="" multiple="multiple">
-                                    <option value="usa">USA</option>
-                                    <option value="russia">Russia</option>
-                                    <option value="indonesia">Indonesia</option>
-                                    <option value="uae">UAE</option>
+                                    {% for country in country_choice %}
+                                        <option value="{{country.country}}">{{country.country}}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-3 col-sm-6">
                                 <label class="form-label">Ports</label>
                                 <select class="form-control form-control-sm multi-select" type="text" name="ports[]" id="" multiple="multiple">
-                                    <option value="jnpt">JNPT</option>
-                                    <option value="mundra">Mundra</option>
-                                    <option value="jaipur-icd">Jaipur ICD</option>
-                                    <option value="delhi-air">Delhi Air</option>
+                                    {% for ports in port_choice %}
+                                        <option value="{{ ports.port }}">{{ ports.port }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-2 col-sm-3">
@@ -161,19 +159,17 @@
                             <div class="col-md-3 col-sm-7">
                                 <label class="form-label">Foreign Country</label>
                                 <select class="form-control form-control-sm multi-select" type="text" name="foreign_country[]" id="" multiple="multiple">
-                                    <option value="usa">USA</option>
-                                    <option value="russia">Russia</option>
-                                    <option value="indonesia">Indonesia</option>
-                                    <option value="uae">UAE</option>
+                                    {% for country in country_choice %}
+                                        <option value="{{country.country}}">{{country.country}}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-3 col-sm-6">
                                 <label class="form-label">Ports</label>
                                 <select class="form-control form-control-sm multi-select" type="text" name="ports[]" id="" multiple="multiple">
-                                    <option value="jnpt">JNPT</option>
-                                    <option value="mundra">Mundra</option>
-                                    <option value="jaipur-icd">Jaipur ICD</option>
-                                    <option value="delhi-air">Delhi Air</option>
+                                    {% for ports in port_choice %}
+                                        <option value="{{ ports.port }}">{{ ports.port }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-2 col-sm-3">
