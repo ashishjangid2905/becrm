@@ -29,6 +29,7 @@ class biller(models.Model):
     corp_country = models.CharField(_("Corp. Country"), max_length=254, blank=True, null=True)
     inserted_at = models.DateTimeField(_("Inserted"), auto_now=True)
     edited_at = models.DateTimeField(_("Edited"), auto_now_add=True)
+    inserted_by = models.IntegerField(_("Inserted By"))
 
     class Meta:
         verbose_name = _("Biller")
@@ -97,6 +98,7 @@ class bankDetail(models.Model):
     swift_code = models.CharField(_("Swift Code"), max_length=50, blank=True, null=True)
     inserted_at = models.DateTimeField(_("Inserted at"), auto_now_add=True)
     edited_at = models.DateTimeField(_("Edited at"), auto_now=True)
+    inserted_by = models.IntegerField(_("Inserted By"))
 
     class Meta:
         verbose_name = _("Bank")
@@ -184,6 +186,8 @@ class proforma(models.Model):
     edited_by = models.IntegerField(_("Edited By"), blank=True, null=True)
     edited_at = models.DateTimeField(_("Edited At"), auto_now=True)
     slug = models.SlugField(_("slug"), unique=True, blank=True)
+    feedback = models.TextField(_("feedback"), max_length=255, blank=True, null=True)
+    additional_email = models.EmailField(_("Additional Emails"), max_length=254, blank=True, null=True)
 
     def save(self, *args, **kwargs):
         if not self.slug:

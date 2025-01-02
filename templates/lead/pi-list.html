@@ -85,10 +85,10 @@
         <!-- Model to view PI details Start from here-->
 
         <div class="modal fade" id="{{proforma.pi_no}}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-          <div class="modal-dialog modal-lg">
+          <div class="modal-dialog modal-lg modal-dialog-scrollable" style="scrollbar-width: thin;">
             <div class="modal-content">
               <div class="modal-header">
-                <h1 class="modal-title fs-4 text-capitalize text-primary-emphasis" >{{proforma.company_name}}</h1>
+                <h1 class="modal-title fs-4" >{{proforma.company_name}}</h1>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body">
@@ -142,8 +142,21 @@
                     </div>
                   </div>
                   <div class="row">
+                    <div class="col-lg-5">
+                      <p class="text-capitalize"><span class="fw-semibold">Bank: </span>{{proforma.bank}}</p>
+                    </div>
                     <div class="col-lg-7">
-                      <p class="text-capitalize"><span class="fw-semibold">details: </span>{{proforma.details|safe}}</p>
+                      <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>₹ {% total_order_value proforma %}</p>
+                      <p class="text-capitalize"><span class="fw-semibold">Total Amount (Inc. Tax): </span>₹ {% total_pi_value_inc_tax proforma %}</p>
+                    </div>
+                    <div class="col-lg-7">
+                      <p class="text-capitalize"><span class="fw-semibold">Biller: </span> {{proforma.bank.biller_id.biller_name}}</p>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-lg-7">
+                      <span class="fw-semibold text-capitalize">details: </span>
+                      <div class="m-0 text-capitalize details">{{proforma.details|safe}}</div>
                     </div>
                   </div>
                   <hr/>
@@ -220,16 +233,33 @@
                         </div>
                       </div>
                     {% endif %}
+                    {% if proforma.feedback %}
+                      <div class="row">
+                        <div class="col-lg-6">
+                          <p class="text-capitalize m-0"><span class="fw-semibold">Rejected By: </span>{{proforma.approved_by}}</p>
+                          <p class="text-capitalize p-0"><span class="fw-semibold">Rejected Date: </span>{{proforma.approved_at}}</p>
+                        </div>
+                        <div class="col-lg-6">
+                          <p class="text-capitalize p-0 text-danger"><span class="fw-semibold">Feedback: </span>{{proforma.feedback}}</p>
+                        </div>
+                      </div>
+                    {% endif %}
                   </div>
                 </div>
               </div>
               <div class="modal-footer">
-                {% if proforma.is_Approved != True and request.user.role == 'admin' %}
-                  <form action="{% url 'invoice:approve_pi' proforma.id %}" method="post">
+                {% if not proforma.is_Approved %}
+                  {% if user_role == 'admin' or current_position == 'Head' or current_position == 'VP' or current_position == 'Sr. Executive' %}
+                  <form class="row" action="{% url 'invoice:approve_pi' proforma.id %}" method="post">
                     {% csrf_token %}
-                    <input type="hidden" name="is_approved" value="true">
+                    <div class="col-12">
+                      <input type="hidden" name="is_approved" value="true">
+                      <label class="form-label fw-semibold" for="">Feedback</label>
+                      <textarea class="form-control form-control-sm" name="feedback" id="feedback" rows="2" style="resize: none;"></textarea>
+                    </div>
                     <button type="submit" class="btn btn-primary" >Approved</button>
                   </form>
+                  {% endif %}
                 {%endif%}
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
               </div>

@@ -43,7 +43,7 @@ def sample_request(request):
         Sample = sample.objects.create(user=user, sample_id =sample_id,country=country,report_format=report_format,report_type=report_type,hs_code=hs_code,product=product,iec=iec,shipper=shipper,consignee=consignee,foreign_country=countries,port=ports,month=month,year=year,client_name=client_name,status=status)
         messages.success(request, "Sample has been requested")
         return redirect('sample:samples')
-    return render(request, 'sample/sample-request.html')
+    return redirect('sample:samples')
 
     
 @login_required(login_url='app:login')

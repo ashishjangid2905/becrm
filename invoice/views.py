@@ -63,6 +63,18 @@ from openpyxl.utils import get_column_letter
 def biller_list(request):
     billers = biller.objects.all()
 
+    profile_instance = get_object_or_404(Profile, user=request.user)
+    user_branch = profile_instance.branch
+
+    all_users = User.objects.filter(profile__branch = user_branch)
+    
+    all_users_id = []
+
+    for user in all_users:
+        all_users_id.append(user.id)
+    
+    billers = billers.filter(inserted_by__in = all_users_id)
+
     context = {
         'billers': billers,
     }
@@ -140,9 +152,9 @@ def set_format(request, biller_id):
                     existing_Variables.to_date = from_date - timedelta(days=1)
                     existing_Variables.save()
 
-                newValue = request.POST.get(key)
-                if newValue:
-                    BillerVariable.objects.create(biller_id = biller_instanse, variable_name = key, variable_value = newValue, from_date = from_date, inserted_by = user_id )
+            newValue = request.POST.get(key)
+            if newValue:
+                BillerVariable.objects.create(biller_id = biller_instanse, variable_name = key, variable_value = newValue, from_date = from_date, inserted_by = user_id )
 
     return HttpResponseRedirect(target_url)
 
@@ -170,19 +182,23 @@ def add_biller(request):
         corp_country = request.POST.get("corp_country")
 
         try:
-            newBiller = biller.objects.create(biller_name = biller_name, brand_name=brand_name, biller_gstin = biller_gstin, biller_msme = biller_msme, biller_pan = biller_pan, reg_address1 = reg_address1, reg_address2 = reg_address2, reg_city = reg_city, reg_state = reg_state, reg_pincode = reg_pincode, reg_country = reg_country, corp_address1 = corp_address1, corp_address2 = corp_address2, corp_city = corp_city, corp_state = corp_state, corp_pincode = corp_pincode, corp_country = corp_country )
-            return redirect('invoice:biller_list')
+            newBiller = biller.objects.create(biller_name = biller_name, brand_name=brand_name, biller_gstin = biller_gstin, biller_msme = biller_msme, biller_pan = biller_pan, reg_address1 = reg_address1, reg_address2 = reg_address2, reg_city = reg_city, reg_state = reg_state, reg_pincode = reg_pincode, reg_country = reg_country, corp_address1 = corp_address1, corp_address2 = corp_address2, corp_city = corp_city, corp_state = corp_state, corp_pincode = corp_pincode, corp_country = corp_country, inserted_by = user )
+
+            target_url = reverse('invoice:biller_detail', args=[newBiller.id])
+            
+            return HttpResponseRedirect(target_url)
         except IntegrityError:
             messages.error(request, 'Biller with this GSTIN already exists.')
-            return render(request, 'invoices/add-biller.html')
-
-    return render(request, 'invoices/add-biller.html')
+            return redirect('invoice:biller_list')
+        
+    return redirect('invoice:biller_list')
 
 @login_required(login_url='app:login')
 def add_bank(request, biler_id):
 
     biller_obj = biller.objects.get(pk=biler_id)
     if request.user.role == 'admin' and request.method == 'POST':
+        user = request.user.id
         bnf_name = request.POST.get('beneficiary_name')
         is_upi = request.POST.get("is_upi") == "on"
         try:
@@ -195,7 +211,8 @@ def add_bank(request, biler_id):
                     bnf_name=bnf_name,
                     is_upi=is_upi,
                     upi_id=upi_id,
-                    upi_no=upi_no
+                    upi_no=upi_no,
+                    inserted_by = user,
                 )
             else:
                 # Handle traditional bank details
@@ -211,10 +228,12 @@ def add_bank(request, biler_id):
                     branch_address=branch_address,
                     ac_no=ac_no,
                     ifsc=ifsc,
-                    swift_code=swift_code
+                    swift_code=swift_code,
+                    inserted_by = user,
+
                 )
 
-            messages.success(request, f"Bank details added successfully. {is_upi}")
+            messages.success(request, "Bank details added successfully.")
             return redirect(reverse('invoice:biller_detail', args=[biler_id]))
 
         except IntegrityError:
@@ -222,10 +241,7 @@ def add_bank(request, biler_id):
             return redirect(request.path_info)
 
 
-    context={
-        'biller_dtl': biller_obj,
-    }
-    return render(request, 'invoices/add-bank.html', context)
+    return redirect(reverse('invoice:biller_detail', args=[biler_id]))
 
 
 @login_required(login_url='app:login')
@@ -374,7 +390,19 @@ def pi_list(request):
 @login_required(login_url='app:login')
 def create_pi(request, lead_id=None):
 
-    bank_choice = bankDetail.objects.all()
+    profile_instance = get_object_or_404(Profile, user=request.user)
+    user_branch = profile_instance.branch
+
+    all_users = User.objects.filter(profile__branch = user_branch)
+    
+    all_users_id = []
+
+    for user in all_users:
+        all_users_id.append(user.id)
+    
+    billers = biller.objects.filter(inserted_by__in = all_users_id)
+
+    bank_choice = bankDetail.objects.filter(biller_id__in = billers)
     subs_choice = SUBSCRIPTION_MODE
     pay_choice = PAYMENT_TERM
     status_choice = STATUS_CHOICES
@@ -507,10 +535,16 @@ def approve_pi(request, pi_id):
     if request.method == 'POST':
         is_Approved = request.POST.get('is_approved')
         is_approved = is_Approved == 'true'
+        feedback = request.POST.get('feedback')
 
         if request.user.role == 'admin' or user_.user.groups.filter(name='Head').exists():
             # Admin and Head can approve all proformas
-            pi_instance.is_Approved = is_approved
+            if feedback:
+                pi_instance.feedback = feedback
+                pi_instance.is_Approved = False
+            else:
+                pi_instance.feedback = ""
+                pi_instance.is_Approved = is_approved
             pi_instance.approved_by = request.user.id
             pi_instance.save()
             return redirect('invoice:pi_list')
@@ -519,7 +553,12 @@ def approve_pi(request, pi_id):
             # VP can approve all proformas except those owned by Head
             if user_of_proforma.groups.filter(name='Head').exists():
                 return HttpResponseForbidden("You cannot approve Head's Proforma.")
-            pi_instance.is_Approved = is_approved
+            if feedback:
+                pi_instance.feedback = feedback
+                pi_instance.is_Approved = False
+            else:
+                pi_instance.feedback = ""
+                pi_instance.is_Approved = is_approved
             pi_instance.approved_by = request.user.id
             pi_instance.save()
             return redirect('invoice:pi_list')
@@ -528,7 +567,12 @@ def approve_pi(request, pi_id):
             # Sr. Executive can approve all proformas except those owned by Head or VP
             if user_of_proforma.groups.filter(name='Head').exists() or user_of_proforma.groups.filter(name='VP').exists():
                 return HttpResponseForbidden("You cannot approve Head's or VP's Proforma.")
-            pi_instance.is_Approved = is_approved
+            if feedback:
+                pi_instance.feedback = feedback
+                pi_instance.is_Approved = False
+            else:
+                pi_instance.feedback = ""
+                pi_instance.is_Approved = is_approved
             pi_instance.approved_by = request.user.id
             pi_instance.save()
             return redirect('invoice:pi_list')
@@ -539,7 +583,19 @@ def approve_pi(request, pi_id):
 @login_required(login_url='app:login')
 def edit_pi(request, pi):
 
-    bank_choice = bankDetail.objects.all()
+    profile_instance = get_object_or_404(Profile, user=request.user)
+    user_branch = profile_instance.branch
+
+    all_users = User.objects.filter(profile__branch = user_branch)
+    
+    all_users_id = []
+
+    for user in all_users:
+        all_users_id.append(user.id)
+    
+    billers = biller.objects.filter(inserted_by__in = all_users_id)
+
+    bank_choice = bankDetail.objects.filter(biller_id__in = billers)
     subs_choice = SUBSCRIPTION_MODE
     pay_choice = PAYMENT_TERM
     status_choice = STATUS_CHOICES
@@ -562,10 +618,7 @@ def edit_pi(request, pi):
     if pi_instance.user_id == request.user.id or request.user.role == 'admin':
 
         if request.method == 'POST':
-            user = request.user
-
-            user_id = user.id
-
+            
             company_name = request.POST.get('company_name')
             gstin = request.POST.get('gstin')
             is_sez = request.POST.get('is_sez') == 'on'

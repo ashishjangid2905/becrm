@@ -127,7 +127,7 @@
           <td class="text-wrap">
             ₹ {% total_pi_value_inc_tax proforma %}
           </td>
-          <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.is_Approved == True %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.is_Approved == True %}Approved {% else %}Pending{% endif %}</span></td>
+          <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.is_Approved == True %}success{% elif proforma.feedback %}danger{% else %}warning{% endif %} pb-1 px-2">{% if proforma.is_Approved == True %}Approved {% elif proforma.feedback %} Not Approved {% else %}Pending{% endif %}</span></td>
           <td class="text-wrap"><span class="badge rounded-pill text-bg-{% if proforma.status == 'open' %}warning{% elif proforma.status == 'closed' %}success{% else %}danger{% endif %} pb-1 px-2">{{ proforma.status }}</span></td>
           <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.convertedpi.is_processed == True %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.convertedpi.is_processed == True %}Processed {% else %}{% endif %}</span></td>
           <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.convertedpi.is_taxInvoice == True %}success{% else %}warning{% endif %} pb-1 px-2">{% if proforma.convertedpi.is_taxInvoice == True %}Received {% elif proforma.convertedpi.is_hold == True %}Hold {% elif proforma.convertedpi.is_invoiceRequire == True %}Requested {% else %}{% endif %}</span></td>
@@ -302,16 +302,31 @@
                         </div>
                       </div>
                     {% endif %}
+                    {% if proforma.feedback %}
+                      <div class="row">
+                        <div class="col-lg-6">
+                          <p class="text-capitalize m-0"><span class="fw-semibold">Rejected By: </span>{{proforma.approved_by}}</p>
+                          <p class="text-capitalize p-0"><span class="fw-semibold">Rejected Date: </span>{{proforma.approved_at}}</p>
+                        </div>
+                        <div class="col-lg-6">
+                          <p class="text-capitalize p-0 text-danger"><span class="fw-semibold">Feedback: </span>{{proforma.feedback}}</p>
+                        </div>
+                      </div>
+                    {% endif %}
                   </div>
                 </div>
               </div>
               <div class="modal-footer">
                 {% if not proforma.is_Approved %}
                   {% if user_role == 'admin' or current_position == 'Head' or current_position == 'VP' or current_position == 'Sr. Executive' %}
-                  <form action="{% url 'invoice:approve_pi' proforma.id %}" method="post">
+                  <form class="row" action="{% url 'invoice:approve_pi' proforma.id %}" method="post">
                     {% csrf_token %}
-                    <input type="hidden" name="is_approved" value="true">
-                    <button type="submit" class="btn btn-primary" >Approved</button>
+                    <div class="col-12">
+                      <input type="hidden" name="is_approved" value="true">
+                      <label class="form-label fw-semibold" for="">Feedback</label>
+                      <textarea class="form-control form-control-sm feedback" name="feedback" id="feedback" rows="2" style="resize: none;"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary submit-btn" >Approved</button>
                   </form>
                   {% endif %}
                 {%endif%}

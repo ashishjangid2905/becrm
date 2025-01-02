@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 # Create your models here.
 from teams.models import User, Profile
 from invoice.utils import STATE_CHOICE, COUNTRY_CHOICE
+from .utils import STATUS
 
 class leads(models.Model):
 
@@ -22,19 +23,27 @@ class leads(models.Model):
     created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
     edited_at = models.DateTimeField(_("Edited at"), auto_now=True)
     user = models.IntegerField(_("User Id"))
+    status = models.CharField(_("Lead Status"), max_length=50, default='new lead', choices=STATUS)
 
     @property
     def user_id(self):
         return Profile.objects.get(pk=self.user)
     
     def get_full_address(self):
+        try:
+            state_name = dict(STATE_CHOICE).get(int(self.state))
+            country = dict(COUNTRY_CHOICE).get(self.country)
+        except:
+            state_name = self.state
+            country = self.country
+
         address_parts = [
             self.address1,
             self.address2,
             self.city,
             self.pincode,
-            dict(STATE_CHOICE).get(int(self.state)),
-            dict(COUNTRY_CHOICE).get(self.country),
+            state_name,
+            country,
         ]
         return ', '.join(filter(None, address_parts))
 

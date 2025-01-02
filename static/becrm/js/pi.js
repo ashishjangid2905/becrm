@@ -111,24 +111,32 @@ addItemBtns.forEach(addItemBtn => {
     }
 });
 
-// let savePaymentForms = document.querySelectorAll('.requestTaxInvoice')
 
-// savePaymentForms.forEach(savePaymentForm => {
-//     let addPayDtlBtn = savePaymentForm.querySelector('#addPayBtn')
-//     let addPayItem = savePaymentForm.querySelector('.paymentForm')
-//     addPayDtlBtn.onclick = (e) =>{
-//         let removePay = savePaymentForm.querySelectorAll('.paymentForm').length
-//         e.preventDefault()
-//         if (removePay<3) {
-//             add_PayForm(addPayItem)
-//             console.log(removePay)
-//         } else {
-//             Swal.fire({
-//                 title: 'Error!',
-//                 text: 'You can accept payment in a maximum of 3 installments.',
-//                 icon: 'error',
-//             })
-//         }
-//     } 
-// });
+const pi_feedback = document.querySelectorAll(".feedback")
+
+console.log(pi_feedback)
+
+if (pi_feedback) {
+    pi_feedback.forEach((pi, index) => {
+        pi.addEventListener("change", (e) => {
+            const modal = pi.closest(".modal-footer")
+            if (modal) {
+                const submit_btn = modal.querySelector(".submit-btn");
+                if (submit_btn) { // Ensure the submit button exists
+                    if (e.target.value.length != 0) {
+                        submit_btn.setAttribute("class", "btn btn-warning submit-btn")
+                        submit_btn.innerHTML = "Not Approve"; // Update the button value
+                        console.log(`Submit button updated for feedback index ${index}`);
+                    } else {
+                        submit_btn.setAttribute("class", "btn btn-primary submit-btn")
+                        submit_btn.innerHTML = "Approve"; // Update the button value
+                        console.error("Submit button not found in the modal-footer");
+                    }
+                } else {
+                    console.error("Modal-footer not found for this feedback element");
+                }
+            }
+        })
+    })
+}
 

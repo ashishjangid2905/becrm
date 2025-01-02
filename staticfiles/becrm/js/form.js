@@ -42,15 +42,15 @@ const add_item = (el) => {
   let unitPrice = item.querySelector("#unit-price")
   let totalPrice = item.querySelector("#total-price")
   let lumpsumAmt = item.querySelector("#lumpsum-amt")
-  lumsum_check.checked=false
-  category.value=0
-  reportType.value=0
-  product.value=0
-  fromMonth.value=0
-  toMonth.value=0
-  unitPrice.value=0
-  totalPrice.value=0
-  lumpsumAmt.value=0
+  lumsum_check.checked = false
+  category.value = 0
+  reportType.value = 0
+  product.value = 0
+  fromMonth.value = 0
+  toMonth.value = 0
+  unitPrice.value = 0
+  totalPrice.value = 0
+  lumpsumAmt.value = 0
 
   let orderContainer = el.closest('.orders-container')
   orderContainer.appendChild(item);
@@ -74,7 +74,7 @@ const add_item = (el) => {
   let to_month_inputs = item.querySelectorAll("#to_month")
 
   updateMonthConstraints(from_month_inputs, to_month_inputs)
-  
+
 };
 
 let new_item = document.querySelector("#order-item"); // selected order item form need to repeat
@@ -121,7 +121,7 @@ const handleLumpsumCheck = (e) => {
     itemPrice.style.display = "flex";
     lumpsumPrice.style.display = "none";
     lumpsumAmt.value = 0;
-    e.value="off"
+    e.value = "off"
   }
 };
 
@@ -152,4 +152,6 @@ let dateForms = document.querySelectorAll('input[type=date]')
 
 dateForms.forEach(element => {
   element.setAttribute('max', formattedDate)
-  });
+});
+
+

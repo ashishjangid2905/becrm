@@ -72,8 +72,10 @@
       </form>
     </div>
     <div class="col-md-2 mt-2 pe-2 flex-row">
-      <a href="?export=excel{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" class="btn btn-sm btn-primary">Export list</a>
-      <a href="" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#bulkUpdate">Bulk Update Invoice</a>
+      {% if request.user.department == 'account' or request.user.role == 'admin' %}
+        <a href="?export=excel{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" class="btn btn-sm btn-primary">Export list</a>
+        <a href="" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#bulkUpdate">Bulk Update Invoice</a>
+      {% endif %}
     </div>
   </div>
 </div>

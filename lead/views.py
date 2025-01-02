@@ -155,7 +155,7 @@ def add_lead(request):
             return HttpResponseRedirect(target_url)
         return redirect(reverse('lead:lead', kwargs={'leads_id': company.id}))
 
-    return render(request, 'lead/add-lead.html', context)
+    return redirect('lead:leads_list')
 
 @login_required(login_url='app:login')
 def edit_lead(request, leads_id):
@@ -200,7 +200,7 @@ def edit_lead(request, leads_id):
 
             return redirect(reverse('lead:lead', args=[leads_id]))
 
-    return render(request, 'lead/edit-lead.html', context)
+    return redirect(reverse('lead:lead', args=[leads_id]))
 
 
 @login_required(login_url='app:login')
@@ -215,12 +215,19 @@ def lead(request, leads_id):
 
     all_pi = proforma.objects.filter(company_ref = company)
 
+    if all_pi:
+        for pi in all_pi:
+            pi.approved_by = get_object_or_404(User, pk=pi.approved_by)
+
     status_choices = STATUS_CHOICES
     states = STATE_CHOICE
     countries = COUNTRY_CHOICE
     source_choice = leads.SOURCE
-    company.state = int(company.state) if company.state else None
     company.source = dict(source_choice).get(company.source) if company.state else None
+    try:
+        company.state = int(company.state) if company.state else None
+    except:
+        pass
 
 
     query = request.GET.get('q')
@@ -273,6 +280,9 @@ def lead_chat(request, leads_id):
     chat_titles = Conversation.objects.filter(company_id=leads_id).order_by('-start_at')
 
     status_choice = conversationDetails.STATUS
+    states = STATE_CHOICE
+    countries = COUNTRY_CHOICE
+    source_choice = leads.SOURCE
 
     Q = request.GET.get('chat')
 
@@ -295,6 +305,9 @@ def lead_chat(request, leads_id):
         'chat_title': chat_title,
         'chat_details': chat_details,
         'status_choice':status_choice,
+        'source_choice':source_choice,
+        'states': states,
+        'countries': countries
     }
 
     return render(request, 'lead/chat-details.html', context)
