@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['192.168.3.98', '127.0.0.1', '192.168.0.3', '122.176.98.137']
 
@@ -197,8 +197,8 @@ EMAIL_HOST_PASSWORD = 'jjcz artm csuu colt'
 
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_TIMEOUT = 600
-SESSION_IDLE_TIMEOUT = 600
-SESSION_EXPIRE_SECONDS = 600  # Duration in seconds
+SESSION_TIMEOUT = 1800
+SESSION_IDLE_TIMEOUT = 1800
+SESSION_EXPIRE_SECONDS = 1800  # Duration in seconds
 SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True  # Logout after inactivity
 SESSION_TIMEOUT_REDIRECT = '/login/'  # Optional: Redirect to the login page

@@ -20,7 +20,7 @@ from datetime import date
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
-
+import logging
 # Create your views here.
 
 @login_required(login_url='app:login')
@@ -217,7 +217,8 @@ def lead(request, leads_id):
 
     if all_pi:
         for pi in all_pi:
-            pi.approved_by = get_object_or_404(User, pk=pi.approved_by)
+            if pi.approved_by:
+                pi.approved_by = get_object_or_404(User, pk=pi.approved_by)
 
     status_choices = STATUS_CHOICES
     states = STATE_CHOICE
@@ -446,13 +447,16 @@ def upload_Leads(request):
 
     if not request.user.is_authenticated:
         return redirect('app:login')
-    
+    logger = logging.getLogger(__name__)
     if request.method == 'POST' and request.FILES.get('file'):
         uploaded_file = request.FILES['file']
         if uploaded_file.name.endswith('.csv'):
-            decoded_file = uploaded_file.read().decode('utf-8').splitlines()
-            csv_reader = csv.DictReader(decoded_file)
-            
+            try:
+                decoded_file = uploaded_file.read().decode('utf-8').splitlines()
+                csv_reader = csv.DictReader(decoded_file)
+            except Exception as e:
+                logger.error(f"Error reading file: {str(e)}")
+                return HttpResponse(f"Error reading file: {e}")
             # Handle potential BOM (Byte Order Mark) in the first column name
             fieldnames = csv_reader.fieldnames
             if fieldnames[0].startswith('\ufeff'):

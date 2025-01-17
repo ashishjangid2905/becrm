@@ -1,5 +1,5 @@
 function sessionTimeout(options) {
-    const idleTimeout = options.idleTimeout || 600; // Default idle timeout in seconds
+    const idleTimeout = options.idleTimeout || 1800; // Default idle timeout in seconds
     const warningTimeout = options.warningTimeout || 60; // Default warning timeout in seconds
     const warningMessage = options.warningMessage || "Your session is about to expire!";
     const logoutUrl = options.logoutUrl || "/logout"; // Default logout URL

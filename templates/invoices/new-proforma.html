@@ -34,7 +34,7 @@
   </div>
   <div class="container">
     <form
-      class="row g-3 justify-content-center my-2 shadow p-3 mb-5 rounded-4"
+      class="row g-3 justify-content-center my-2 shadow border border-2 p-3 mb-5 rounded-4"
       action="#"
       method="post"
       id="create_pi_form"
@@ -340,7 +340,7 @@
                         <label>Unit Price <span class="text-danger">*</span></label>
                         <input
                           class="form-control form-control-sm"
-                          type="text"
+                          type="number"
                           id="unit-price"
                           name="unit_price"
                           value="0"
@@ -351,7 +351,7 @@
                         <label>Total Price <span class="text-danger">*</span></label>
                         <input
                           class="form-control form-control-sm"
-                          type="text"
+                          type="number"
                           id="total-price"
                           name="total_price"
                           value="0"
@@ -363,10 +363,9 @@
                       <div class="col-md-5">
                         <label>Lumpsum Price <span class="text-danger">*</span></label>
                         <input
-                          type="text"
+                          type="number"
                           class="form-control form-control-sm"
                           id="lumpsum-amt"
-                          type="text"
                           name="lumpsum_amt"
                           value="0"
                           required
@@ -381,8 +380,8 @@
         </div>
       </div>
       <div class="col-lg-10">
-        <button type="submit" class="btn btn-primary">Create</button>
-        <button type="reset" class="btn btn-warning">Reset</button>
+        <button type="submit" class="btn btn-sm btn-primary">Create</button>
+        <button type="reset" class="btn btn-sm btn-warning">Reset</button>
       </div>
     </form>
   </div>

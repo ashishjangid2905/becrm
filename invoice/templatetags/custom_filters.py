@@ -78,7 +78,6 @@ def total_order_value(proforma):
 def total_pi_value_inc_tax(proforma):
 
     total_value = total_order_value(proforma)
-    tax_value = 0
 
     if not proforma.bank.biller_id.biller_gstin or proforma.is_sez:
         cgst = 0
@@ -117,4 +116,18 @@ def total_lumpsums(proforma):
 def split(value, delimiter):
     """Splits the string by the given delimiter."""
     return value.split(delimiter)
+
+
+@register.simple_tag
+def total_dues(proforma):
+    total_amt = int(total_pi_value_inc_tax(proforma))
+    convertedpi = getattr(proforma, 'convertedpi', None)
+    if not convertedpi:
+        return total_amt
+    payment1_amt = int(getattr(convertedpi, 'payment1_amt', 0) or 0)
+    payment2_amt = int(getattr(convertedpi, 'payment2_amt', 0) or 0)
+    payment3_amt = int(getattr(convertedpi, 'payment3_amt', 0) or 0)
+    total_receive = payment1_amt + payment2_amt + payment3_amt
+    total_due = total_amt - total_receive
+    return int(total_due)
     

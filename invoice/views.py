@@ -749,8 +749,13 @@ def update_pi_status(request, pi):
     if request.user.id == pi_instance.user_id and request.method == 'POST':
         pi_status = request.POST.get('pi_status')
         closed_at = request.POST.get('closingDate')
+        po_date = request.POST.get('po_date')
+        po_no = request.POST.get('po_no')
         pi_instance.closed_at = closed_at
         pi_instance.status = pi_status
+        if po_no:
+            pi_instance.po_date = po_date
+            pi_instance.po_no = po_no
         pi_instance.save()
 
         
@@ -758,6 +763,10 @@ def update_pi_status(request, pi):
         payment_status = request.POST.get('payment_status')
         payment1_date = request.POST.get('payment1_date')
         payment1_amt = request.POST.get('payment1_amt')
+        payment2_date = request.POST.get('payment2_date')
+        payment2_amt = request.POST.get('payment2_amt')
+        payment3_date = request.POST.get('payment3_date')
+        payment3_amt = request.POST.get('payment3_amt')
         is_closed = True
 
         closed_pi_instance = convertedPI.objects.filter(pi_id = pi_instance).first()
@@ -771,6 +780,12 @@ def update_pi_status(request, pi):
                     closed_pi_instance.payment_status = payment_status
                     closed_pi_instance.payment1_date = payment1_date
                     closed_pi_instance.payment1_amt = payment1_amt
+                    if payment2_amt:
+                        closed_pi_instance.payment2_date = payment2_date
+                        closed_pi_instance.payment2_amt = payment2_amt
+                    if payment3_amt:
+                        closed_pi_instance.payment3_date = payment3_date
+                        closed_pi_instance.payment3_amt = payment3_amt
                     closed_pi_instance.save()
                 except Exception as e:
                     messages.error(request, f'An error occurred: {str(e)}')
