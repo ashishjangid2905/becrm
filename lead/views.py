@@ -12,7 +12,7 @@ from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from .models import leads, contactPerson, Conversation, conversationDetails
 from teams.models import User, Profile
 from invoice.models import proforma, orderList
-from invoice.utils import STATUS_CHOICES, STATE_CHOICE, COUNTRY_CHOICE
+from invoice.utils import STATUS_CHOICES, STATE_CHOICE, COUNTRY_CHOICE, PAYMENT_STATUS
 from teams.templatetags.teams_custom_filters import get_current_position
 
 # Import Third Party Module
@@ -226,6 +226,7 @@ def lead(request, leads_id):
                 pi.approved_by = get_object_or_404(User, pk=pi.approved_by)
 
     status_choices = STATUS_CHOICES
+    payment_status = PAYMENT_STATUS
     states = STATE_CHOICE
     countries = COUNTRY_CHOICE
     source_choice = leads.SOURCE
@@ -266,6 +267,7 @@ def lead(request, leads_id):
         'piList': piList,
         'status_choices': status_choices,
         'source_choice':source_choice,
+        'payment_status': payment_status,
         'states': states,
         'countries': countries,
         'current_position': current_position,
