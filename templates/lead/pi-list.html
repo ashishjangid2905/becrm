@@ -149,7 +149,7 @@
                       {% if proforma.currency == "inr" %}
                         <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>₹ {% total_order_value proforma %}</p>
                         <p class="text-capitalize"><span class="fw-semibold">Total Amount (Inc. Tax): </span>₹ {% total_pi_value_inc_tax proforma %}</p>
-                      {% elif  %}
+                      {% elif proforma.currency == "usd" %}
                         <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>$ {% total_order_value proforma %}</p>
                       {% endif %}
                     </div>

@@ -122,10 +122,10 @@
           <td class="text-nowrap">{{ proforma.pi_no }}</td>
           <td class="text-nowrap">{{ proforma.bank.biller_id.biller_name }}</td>
           <td class="text-wrap">
-            ₹ {% total_order_value proforma %}
+            {% if proforma.currency == "inr" %}₹{% else %}${% endif %} {% total_order_value proforma %}
           </td>
           <td class="text-wrap">
-            ₹ {% total_pi_value_inc_tax proforma %}
+            {% if proforma.currency == "inr" %}₹{% else %}${% endif %} {% total_pi_value_inc_tax proforma %}
           </td>
           <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.is_Approved == True %}success{% elif proforma.feedback %}danger{% else %}warning{% endif %} pb-1 px-2">{% if proforma.is_Approved == True %}Approved {% elif proforma.feedback %} Not Approved {% else %}Pending{% endif %}</span></td>
           <td class="text-wrap"><span class="badge rounded-pill text-bg-{% if proforma.status == 'open' %}warning{% elif proforma.status == 'closed' %}success{% else %}danger{% endif %} pb-1 px-2">{{ proforma.status }}</span></td>
@@ -218,7 +218,7 @@
                       {% if proforma.currency == "inr" %}
                         <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>₹ {% total_order_value proforma %}</p>
                         <p class="text-capitalize"><span class="fw-semibold">Total Amount (Inc. Tax): </span>₹ {% total_pi_value_inc_tax proforma %}</p>
-                      {% elif  %}
+                      {% elif proforma.currency == "usd" %}
                         <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>$ {% total_order_value proforma %}</p>
                       {% endif %}
                     </div>

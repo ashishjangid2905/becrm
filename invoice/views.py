@@ -1482,7 +1482,7 @@ def pdf_PI(pi):
                 sgst = net_total*0.09
                 igst = 0
                 total_inc_tax = net_total*1.18
-            elif pi.state == 500:   #for Foreign Clients
+            elif pi.state == "500":   #for Foreign Clients
                 cgst = 0
                 sgst = 0
                 igst = 0

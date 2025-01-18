@@ -90,6 +90,11 @@ def total_pi_value_inc_tax(proforma):
             sgst = total_value*0.09
             igst = 0
             total_inc_tax = total_value*1.18
+        elif str(proforma.state) == "500":
+            cgst = 0
+            sgst = 0
+            igst = 0
+            total_inc_tax = total_value
         else:
             cgst = 0
             sgst = 0
