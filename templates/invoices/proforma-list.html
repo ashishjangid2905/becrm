@@ -215,8 +215,12 @@
                       <p class="text-capitalize"><span class="fw-semibold">Bank: </span>{{proforma.bank}}</p>
                     </div>
                     <div class="col-lg-7">
-                      <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>₹ {% total_order_value proforma %}</p>
-                      <p class="text-capitalize"><span class="fw-semibold">Total Amount (Inc. Tax): </span>₹ {% total_pi_value_inc_tax proforma %}</p>
+                      {% if proforma.currency == "inr" %}
+                        <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>₹ {% total_order_value proforma %}</p>
+                        <p class="text-capitalize"><span class="fw-semibold">Total Amount (Inc. Tax): </span>₹ {% total_pi_value_inc_tax proforma %}</p>
+                      {% elif  %}
+                        <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>$ {% total_order_value proforma %}</p>
+                      {% endif %}
                     </div>
                     <div class="col-lg-7">
                       <p class="text-capitalize"><span class="fw-semibold">Biller: </span> {{proforma.bank.biller_id.biller_name}}</p>
@@ -431,8 +435,8 @@
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button type="submit" class="btn btn-warning">Process</button>
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  <button type="submit" class="btn btn-sm btn-warning">Update</button>
+                  <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
               </form>
             </div>

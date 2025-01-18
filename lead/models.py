@@ -31,7 +31,7 @@ class leads(models.Model):
     
     def get_full_address(self):
         try:
-            state_name = dict(STATE_CHOICE).get(int(self.state))
+            state_name = dict(STATE_CHOICE).get(int(self.state)) if self.state != 500 else ""
             country = dict(COUNTRY_CHOICE).get(self.country)
         except:
             state_name = self.state

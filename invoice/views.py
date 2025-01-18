@@ -1482,6 +1482,11 @@ def pdf_PI(pi):
                 sgst = net_total*0.09
                 igst = 0
                 total_inc_tax = net_total*1.18
+            elif pi.state == 500:   #for Foreign Clients
+                cgst = 0
+                sgst = 0
+                igst = 0
+                total_inc_tax = net_total
             else:
                 cgst = 0
                 sgst = 0
@@ -1585,7 +1590,7 @@ def pdf_PI(pi):
         [founder_name,'','','','','','','','','', invoice_type],
         ['','','','','','','','','','',''],
         ['','','','','',logo,'','','','',''],
-        ['Issued by:','','','','','','','',f'₹ {round(total_inc_tax,0):.2f}','','',],
+        ['Issued by:','','','','','','','',f'{curr} {round(total_inc_tax,0):.2f}','','',],
         [biller_Name,'','','','','','','','','','',],
         [regAddress,'','',corpAddress,'','','','','Total Payable Amount','',''],
         ['','','','','','','','','','',''],

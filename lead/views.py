@@ -13,6 +13,7 @@ from .models import leads, contactPerson, Conversation, conversationDetails
 from teams.models import User, Profile
 from invoice.models import proforma, orderList
 from invoice.utils import STATUS_CHOICES, STATE_CHOICE, COUNTRY_CHOICE
+from teams.templatetags.teams_custom_filters import get_current_position
 
 # Import Third Party Module
 import csv, os
@@ -209,6 +210,10 @@ def lead(request, leads_id):
     if not request.user.is_authenticated:
         return redirect('app:login')
     
+    profile_instance = get_object_or_404(Profile, user = request.user)
+    current_position = get_current_position(profile_instance)
+    user_role = request.user.role
+    
     company = leads.objects.get(pk=leads_id)
 
     contact_person = contactPerson.objects.filter(company=leads_id).order_by('-is_active')
@@ -262,7 +267,9 @@ def lead(request, leads_id):
         'status_choices': status_choices,
         'source_choice':source_choice,
         'states': states,
-        'countries': countries
+        'countries': countries,
+        'current_position': current_position,
+        'user_role': user_role
     }
 
     return render(request, 'lead/pi-list.html', context)
