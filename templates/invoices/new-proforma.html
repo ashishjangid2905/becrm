@@ -118,7 +118,7 @@
             <select class="form-select form-select-sm" type="text" name="bank">
               {% for bank in bank_choice %}
               <option value="{{bank.id}}">
-                {{bank.bank_name}} ({{bank.biller_id.biller_name}})
+                {% if bank.is_upi %}UPI - {% else %}{{bank.bank_name}} - {% endif %}{{bank.bnf_name}}
               </option>
               {% endfor %}
             </select>

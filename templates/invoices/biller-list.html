@@ -120,22 +120,19 @@
         <th class="fw-medium" scope="col">Msme</th>
         <th class="fw-medium" scope="col">Register Address</th>
         <th class="fw-medium" scope="col">Corporate Address</th>
-        <th class="fw-medium" scope="col">Action</th>
       </tr>
     </thead>
     {% for biller in billers %}
     <tbody>
       <tr class="table-light">
         <td>{{ forloop.counter }}</td>
-        <td class="text-nowrap">{{ biller.biller_name }}</td>
+        <td class="text-nowrap">
+          <a href="{% url 'invoice:biller_detail' biller.id %}" class="link-dark fw-semibold link-underline-opacity-0 link-underline-opacity-50-hover">{{ biller.biller_name }}</a>
+        </td>
         <td class="text-nowrap">{% if biller.biller_gstin != None %}{{ biller.biller_gstin }}{% endif %}</td>
         <td class="text-nowrap">{% if biller.biller_msme != None %}{{ biller.biller_msme }}{% endif %}</td>
         <td class="text-nowrap">{{ biller.reg_address1 }} {{ biller.reg_address2 }} {{ biller.reg_city }} {{ biller.reg_state }} {{ biller.reg_country }}</td>
         <td class="text-nowrap">{{ biller.corp_address1 }} {{ biller.corp_address2 }} {{ biller.corp_city }} {{ biller.corp_state }} {{ biller.corp_country }}</td>
-        <td>
-          <a href="{% url 'invoice:biller_detail' biller.id %}" class="btn text-primary-emphasis p-0"><i class="ti ti-details"></i></a>
-          <!-- <a href="#" class="edit-btn"><i class="ti ti-edit"></i></a> -->
-        </td>
       </tr>
     </tbody>
     {% empty %}
