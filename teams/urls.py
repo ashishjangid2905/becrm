@@ -5,6 +5,8 @@ from . import views
 
 app_name = 'teams'
 urlpatterns = [
+    path('user-list', views.UserListView.as_view()),
+    path('user-list/<int:pk>', views.UserListView.as_view()),
     path('user', views.user_list, name='users'),
     path('add', views.add_user, name='add_user'),
     path('set-target/<int:user_id>', views.set_target, name='set_target'),

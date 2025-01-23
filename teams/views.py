@@ -10,6 +10,61 @@ from teams.models import Profile, Branch, User, UserVariable, SmtpConfig
 from django.shortcuts import get_object_or_404
 from datetime import datetime, timedelta
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+import json
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from .permissions import IsAdminRole
+from .serializers import UserSerializer, ProfileSerializer, BranchSerializer, UserVariableSerializer, SmtpConfigSerializer
+
+
+class UserListView(APIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        profile_instance = get_object_or_404(Profile, user = request.user)
+        branch_id = profile_instance.branch
+        # users = User.objects.filter(profile__branch = branch_id)
+        users = User.objects.all()
+        serializers = UserSerializer(users, many=True)
+        return Response(serializers.data)
+    
+    def post(self, request):
+        user_serializer = UserSerializer(data = request.data)
+        if user_serializer.is_valid():
+            user = user_serializer.save()
+
+            return Response(
+                {"message": "User created successfuly", "user": user_serializer.data},
+                status=status.HTTP_201_CREATED
+            )
+        return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def patch(self, request, *args, **kwargs):
+        user = get_object_or_404(User, pk = kwargs.get("pk"))
+        serializer = UserSerializer(user, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            try:
+                updated_user = serializer.update(user, serializer.validated_data)
+                return Response(UserSerializer(updated_user).data, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"details": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+            
+
+
+
+
+
+
 
 @login_required(login_url='app:login')
 def user_list(request):

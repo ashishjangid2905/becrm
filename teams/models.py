@@ -67,7 +67,7 @@ def user_profile_path(instance, filename):
     
 class Profile(models.Model):
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     dob = models.DateField(_("Date of Birth"), auto_now=False, blank = True, null = True)
     phone = models.CharField(max_length = 50, blank=True, default="")
     profile_img = models.ImageField(_("Profile"), upload_to=user_profile_path, blank=True, default='profile/user-default-96.png')
@@ -84,7 +84,7 @@ class Profile(models.Model):
 
 class UserVariable(models.Model):
 
-    user_profile = models.ForeignKey(Profile, verbose_name=_("User"), on_delete=models.CASCADE)
+    user_profile = models.ForeignKey(Profile, related_name="uservariable",verbose_name=_("User"), on_delete=models.CASCADE)
     variable_name = models.CharField(_("Variable Name"), max_length=50, choices=VARIABLES)
     variable_value = models.CharField(_("Variable Value"), max_length=250)
     from_date = models.DateField(_("From Date"), default=timezone.now, blank=False, null=False)
@@ -103,7 +103,7 @@ class UserVariable(models.Model):
 
 class SmtpConfig(models.Model):
 
-    user = models.ForeignKey(User, verbose_name=_("User"), on_delete=models.CASCADE)
+    user = models.OneToOneField(User, verbose_name=_("User"), on_delete=models.CASCADE)
     smtp_server = models.CharField(_("SMTP Host"), max_length=255, help_text="SMTP server address")
     smtp_port = models.PositiveIntegerField(_("SMTP Port"), help_text="SMTP server port")
     email_host_password = models.CharField(_("Password"), max_length=50)
