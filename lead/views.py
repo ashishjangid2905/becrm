@@ -22,84 +22,81 @@ from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 import logging
+from django.utils.timezone import now
 # Create your views here.
 
 @login_required(login_url='app:login')
 def leads_list(request):
-
-    if not request.user.is_authenticated:
-        return redirect('app:login')
     
     query = request.GET.get('q')
+
     user_id = request.user.id
 
     profile_instance = get_object_or_404(Profile, user=request.user)
     user_branch = profile_instance.branch
-    all_users = Profile.objects.filter(user__profile__branch=user_branch.id, user__department="sales")
+    all_users = Profile.objects.filter(branch=user_branch.id, user__department="sales")
 
-    search_fields = [
-        'company_name', 'gstin', 'city', 'state', 'country', 
-        'industry', 'source', 'contactperson__person_name','contactperson__email_id', 'contactperson__contact_no',
-        'conversation__title', 'conversation__conversationdetails__details'
-    ]
+    users_ids = []
 
-    search_objects = Q()
+    for user in all_users:
+        users_ids.append(user.user.id)
+
+    all_leads = leads.objects.filter(user__in = users_ids).order_by('-id')
+
+    state_mapping = {value: key for key, value in STATE_CHOICE}
+    country_mapping = {value: key for key, value in COUNTRY_CHOICE}
 
     if query:
-        # Fetch user IDs based on first name matching
-        matching_user_ids = User.objects.filter(first_name__icontains=query).values_list('id', flat=True)
-        
-        # Build the Q object for searching leads
+        search_fields = [
+            'company_name', 'gstin', 'city', 'industry', 'source', 'contactperson__person_name','contactperson__email_id',
+            'contactperson__contact_no', 'conversation__title', 'conversation__conversationdetails__details'
+        ]
+
+        search_objects = Q()
+
         for field in search_fields:
             search_objects |= Q(**{f'{field}__icontains': query})
 
-        # Add matching user IDs to the Q object
-        for user_id in matching_user_ids:
-            search_objects |= Q(user__exact=user_id)
+        if query.upper() in state_mapping:
+            search_objects |= Q(state=state_mapping[query.upper()])
+        if query.capitalize() in country_mapping:
+            search_objects |= Q(country=country_mapping[query.capitalize()])
 
-    all_leads = leads.objects.all().order_by('-id')
-
-
-    if query:
-        all_lead = all_leads.filter(search_objects).distinct()
-    else:
-        all_lead = all_leads
+        all_leads = all_leads.filter(search_objects).distinct()
 
     selected_user = request.GET.get('user')
 
     if selected_user:
-        all_lead = all_lead.filter(user=selected_user)
+        all_leads = all_leads.filter(user=selected_user)
 
-    if request.user.role == 'admin':
-        user_leads = all_lead
-    else:
-        user_leads = all_lead.filter(user=request.user.id)
+    if request.user.role != 'admin':
+        all_leads = all_leads.filter(user=user_id)
 
-    if user_leads:
-        for lead in user_leads:
+    if all_leads:
+        for lead in all_leads:
             lead.user = User.objects.get(pk=lead.user)
 
     if request.GET.get('excel') == 'excel':
-        return exportlead(user_leads)
+        return exportlead(all_leads)
 
     pageSize = request.GET.get('pageSize', 20)
 
-    leads_per_page = Paginator(user_leads, pageSize)
+    leads_per_page = Paginator(all_leads, pageSize)
     page = request.GET.get('page')
 
     try:
-        user_leads = leads_per_page.get_page(page)
+        all_leads = leads_per_page.get_page(page)
     except PageNotAnInteger:
-        user_leads = leads_per_page.get_page(1)
+        all_leads = leads_per_page.get_page(1)
     except EmptyPage:
-        user_leads = leads_per_page.get_page(leads_per_page.num_pages)
+        all_leads = leads_per_page.get_page(leads_per_page.num_pages)
 
     source_choice = leads.SOURCE
     states = STATE_CHOICE
     countries = COUNTRY_CHOICE
 
     context = {
-        'user_leads': user_leads,
+        'user_leads': all_leads,
         'user_id': user_id,
         'source_choice': source_choice,
         'states': states,
@@ -294,14 +291,14 @@ def lead_chat(request, leads_id):
     countries = COUNTRY_CHOICE
     source_choice = leads.SOURCE
 
-    Q = request.GET.get('chat')
+    q = request.GET.get('chat')
 
-    chats = conversationDetails.objects.all().order_by('-inserted_at')
+    chats = conversationDetails.objects.filter(chat_no__company_id = leads_id).order_by('-inserted_at')
 
-    if Q:
+    if q:
         try:
-            chat_title = Conversation.objects.get(pk=Q)
-            chat_details = chats.filter(chat_no=Q)
+            chat_title = Conversation.objects.get(pk=q, company_id = leads_id)
+            chat_details = chats.filter(chat_no=q)
         except Conversation.DoesNotExist:
             return HttpResponseRedirect(request.path_info)
     else:
@@ -403,49 +400,48 @@ def chat_insert(request, chat_id):
 @login_required(login_url='app:login')
 def follow_ups(request):
 
-    if not request.user.is_authenticated:
-        return redirect('app:login')
-    
     user_id = request.user.id
 
-    # allFollowups = conversationDetails.objects.filter(chat_no = OuterRef('chat_no')).values('chat_no').annotate(latest_follow_up=Max('follow_up')).values('latest_follow_up')
-    
-    # latest_conversation_details = conversationDetails.objects.filter(follow_up__in=allFollowups).order_by('chat_no','-follow_up', '-inserted_at')
+    profile_instance = get_object_or_404(Profile, user=request.user)
+    user_branch = profile_instance.branch.id
+    all_users = Profile.objects.filter(branch=user_branch)
+
+    users_ids = [user.user.id for user in all_users]
+
 
     if request.user.role == 'admin':
-        allchat = conversationDetails.objects.all()
+        leads_ids = leads.objects.filter(user__in = users_ids).values_list('id', flat=True)
     else:
-        allchat = conversationDetails.objects.filter(chat_no__company_id__user = user_id)
+        leads_ids = leads.objects.filter(user = user_id).values_list('id', flat=True)
+    
+    conversations_ids = Conversation.objects.filter(company_id__in = leads_ids).values_list('id', flat=True)
 
-    # Subquery to get the latest inserted_at for each chat
-    latest_inserted_at = allchat.values('chat_no').annotate(max_inserted_at=Max('inserted_at'))
+    allchat = conversationDetails.objects.filter(chat_no__in = conversations_ids).select_related('chat_no__company_id', 'contact_person')
 
-    # Query to get the latest entry for each chat
-    latest_conversation_details = allchat.filter(
-        inserted_at__in=Subquery(
-            latest_inserted_at.values('max_inserted_at')
-        )
-    )
+    latest_inserted = allchat.values('chat_no').annotate(latest_insert = Max('inserted_at'))
 
-    today = date.today()
+    allchat = allchat.filter(inserted_at__in = Subquery(latest_inserted.values('latest_insert')))
 
-    Filter = request.GET.get('filter')
+    today = now().date()
 
-    if Filter == 'today' :
-        latest_conversation_details = latest_conversation_details.filter(follow_up=today)
-    elif Filter == 'previous':
-        latest_conversation_details = latest_conversation_details.filter(follow_up__lt=today)
-    elif Filter == 'future':
-        latest_conversation_details = latest_conversation_details.filter(follow_up__gt=today)
+    filter_value  = request.GET.get('filter', 'today')
+
+
+    if filter_value  == 'today' :
+        filtered_conversations  = allchat.filter(follow_up=today)
+    elif filter_value  == 'previous':
+        filtered_conversations  = allchat.filter(follow_up__lt=today)
+    elif filter_value  == 'future':
+        filtered_conversations  = allchat.filter(follow_up__gt=today)
     else:
-        latest_conversation_details = latest_conversation_details.filter(follow_up=today)
+        filtered_conversations  = allchat.filter(follow_up=today)
         
-    if latest_conversation_details:
-        for lead in latest_conversation_details:
-            lead.chat_no.company_id.user = User.objects.get(pk=lead.chat_no.company_id.user)
+    if filtered_conversations:
+        for lead in filtered_conversations:
+            lead.chat_no.company_id.user = get_object_or_404(User,pk=lead.chat_no.company_id.user)
 
     context = {
-        'latest_conversation_details':latest_conversation_details,
+        'latest_conversation_details':filtered_conversations ,
     }
 
     return render(request, 'lead/follow-up-list.html', context)

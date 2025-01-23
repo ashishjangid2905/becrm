@@ -35,32 +35,27 @@
         <th class="text-nowrap" scope="col">Contact Person</th>
         <th class="text-nowrap" scope="col">Email</th>
         <th class="text-nowrap" scope="col">Mobile</th>
-        <th class="text-nowrap" scope="col">Last Message</th>
+        <th class="text-wrap" scope="col">Last Message</th>
         <th class="text-nowrap" scope="col">Follow Up Date</th>
         <th class="text-nowrap" scope="col">Team Member</th>
-        <th class="text-nowrap" scope="col">Action</th>
       </tr>
     </thead>
     {% for lead in latest_conversation_details %}
     <tbody>
       <tr class="table-light">
         <td class="text-nowrap">{{ forloop.counter }}</td>
-        <td class="text-nowrap">{{ lead.chat_no.company_id }}</td>
-        <td class="text-nowrap">{{ lead.chat_no }}</td>
+        <td class="text-nowrap">
+          <a class="link-dark link-underline-primary fw-semibold" href="{% url 'lead:leads_chat' lead.chat_no.company_id.id %}?chat={{lead.chat_no.id}}">{{ lead.chat_no.company_id }}</a>
+        </td>
+        <td class="text-nowrap">
+          <a class="link-dark link-underline-primary fw-semibold" href="{% url 'lead:leads_chat' lead.chat_no.company_id.id %}?chat={{lead.chat_no.id}}">{{ lead.chat_no }}</a> 
+        </td>
         <td class="text-nowrap">{{ lead.contact_person }}</td>
         <td class="text-nowrap">{{ lead.contact_person.email_id }}</td>
         <td class="text-nowrap">{{ lead.contact_person.contact_no }}</td>
-        <td class="text-nowrap">{{ lead.details }}</td>
+        <td class="text-nowrap">{{ lead.details|slice:":80" }}{% if lead.details|length > 80 %}...{% endif %}</td>
         <td class="text-nowrap">{{ lead.follow_up }}</td>
         <td class="text-nowrap">{{ lead.chat_no.company_id.user }}</td>
-        <td class="text-nowrap">
-          <a
-            href="{% url 'lead:leads_chat' lead.chat_no.company_id.id %}?chat={{lead.chat_no.id}}"
-            class="edit-btn"
-            ><i class="ti ti-details"></i
-          ></a>
-          <!-- <a href="#" class="edit-btn"><i class="ti ti-edit"></i></a> -->
-        </td>
       </tr>
     </tbody>
     {% empty %}

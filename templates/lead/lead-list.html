@@ -222,6 +222,11 @@
               name="q"
               placeholder="Search"
             />
+            {% for param, value in request.GET.items %}
+                {% if param != 'q'%}
+                  <input type="hidden" name="{{ param }}" value="{{ value }}">
+                {% endif %}
+              {% endfor %}
           </div>
           <div class="col-2">
             <button class="btn btn-sm btn-success mx-1" type="submit">
@@ -299,9 +304,9 @@
         {% for lead in user_leads %}
         <tr>
           <th class="text-center" scope="row">{{ forloop.counter }}</th>
-          <td class="text-nowrap"><a class="link-dark link-underline-opacity-0" href="{% url 'lead:lead' lead.id %}">{{ lead.company_name }}</a></td>
+          <td class="text-nowrap"><a class="link-dark fw-semibold link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'lead:lead' lead.id %}">{{ lead.company_name }}</a></td>
           <td class="text-nowrap">
-            {% if lead.gstin != None %}<a class="link-dark link-underline-opacity-0" href="{% url 'lead:lead' lead.id %}">{{ lead.gstin }}</a>{% endif %}
+            {% if lead.gstin != None %}<a class="link-dark fw-semibold link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'lead:lead' lead.id %}">{{ lead.gstin }}</a>{% endif %}
           </td>
           <td class="text-wrap">{{lead.get_full_address}}</td>
           <td class="text-nowrap">{{ lead.industry }}</td>
@@ -344,7 +349,7 @@
           <li class="page-item"><a class="page-link" href="?page={{ user_leads.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a></li>
           <li class="page-item"><a class="page-link" href="?page={{user_leads.previous_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{user_leads.previous_page_number}}</a></li>
         {% endif %}
-        <li class="page-item active"><a class="page-link" href="?page={{user_leads.number}}">{{user_leads.number}}</a></li>
+        <li class="page-item active"><a class="page-link">{{user_leads.number}}</a></li>
         {% if user_leads.has_next %}
           <li class="page-item"><a class="page-link" href="?page={{user_leads.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{user_leads.next_page_number}}</a></li>
           <li class="page-item"><a class="page-link" href="?page={{user_leads.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a></li>
