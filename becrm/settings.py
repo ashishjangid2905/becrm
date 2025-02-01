@@ -28,9 +28,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.3.98', '127.0.0.1', '192.168.0.3', '122.176.98.137']
+ALLOWED_HOSTS = ['192.168.3.98', '127.0.0.1', '192.168.0.3', '122.176.98.137', 'localhost']
 
 
 # Application definition
@@ -202,3 +202,27 @@ SESSION_IDLE_TIMEOUT = 1800
 SESSION_EXPIRE_SECONDS = 1800  # Duration in seconds
 SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True  # Logout after inactivity
 SESSION_TIMEOUT_REDIRECT = '/login/'  # Optional: Redirect to the login page
+
+
+
+# Celery setup
+
+CELERY_TIMEZONE = 'Asia/Kolkata'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 600
+
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
+
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}

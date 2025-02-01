@@ -329,10 +329,10 @@
     </table>
   </div>
   <div class="container-fluid mt-3">
-    <nav class="d-flex justify-content-between align-items-center mt-4 px-5">
-      <p class="m-0">Total Leads: {{user_leads.paginator.count}}</p>
-      <ul class="flex-row pagination pagination-sm">
-        <form class="me-5" method='GET' id='page-size'>
+    <nav class="d-flex justify-content-between align-items-center mt-4 px-2">
+      <p class="m-0">Total Leads: {{user_leads.paginator.count}} {{lead_count}}</p>
+      <div class="d-flex">
+        <form class="" method='GET' id='page-size'>
           {% for param, value in request.GET.items %}
             {% if param != 'pageSize' %}
               <input type="hidden" name="{{ param }}" value="{{ value }}">
@@ -345,16 +345,14 @@
             <option value="50">50/page</option>
           </select>
         </form>
-        {% if user_leads.has_previous %}
-          <li class="page-item"><a class="page-link" href="?page={{ user_leads.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a></li>
-          <li class="page-item"><a class="page-link" href="?page={{user_leads.previous_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{user_leads.previous_page_number}}</a></li>
-        {% endif %}
-        <li class="page-item active"><a class="page-link">{{user_leads.number}}</a></li>
-        {% if user_leads.has_next %}
-          <li class="page-item"><a class="page-link" href="?page={{user_leads.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{user_leads.next_page_number}}</a></li>
-          <li class="page-item"><a class="page-link" href="?page={{user_leads.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a></li>
-        {% endif %}
-      </ul>
+        <ul class="flex-row px-1 pagination pagination-sm">
+            <li class="page-item"><a class="page-link" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">First</a></li>
+          {% for page in page_range %}
+            <li class="page-item {% if page == page_number %}active{% endif %}"><a class="page-link" href="?page={{page}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{page}}</a></li>
+          {% endfor %}
+            <li class="page-item"><a class="page-link" href="?page={{total_page}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Last</a></li>
+        </ul>
+      </div>
     </nav>
   </div>
   <!-- Paginations -->

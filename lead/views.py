@@ -16,84 +16,52 @@ from invoice.utils import STATUS_CHOICES, STATE_CHOICE, COUNTRY_CHOICE, PAYMENT_
 from teams.templatetags.teams_custom_filters import get_current_position
 
 # Import Third Party Module
-import csv, os
+import csv, os, math
 from datetime import date
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 import logging
 from django.utils.timezone import now
+from .tasks import process_leads, total_leads
 # Create your views here.
 
 @login_required(login_url='app:login')
 def leads_list(request):
     
     query = request.GET.get('q')
-
     user_id = request.user.id
+    selected_user = request.GET.get('user')
+    page_size = int(request.GET.get('pageSize', 20))
+    page_number = request.GET.get('page', 1)
+
+    task = process_leads.apply_async(args=[query, user_id, selected_user, page_size, page_number])
+
+    task_id = task.id
+
+    leads_result = task.get(timeout=30)
+
+    all_leads = leads.objects.filter(id__in=leads_result).order_by('-created_at')
+
+    for lead in all_leads:
+        lead.user = User.objects.get(pk=lead.user)
 
     profile_instance = get_object_or_404(Profile, user=request.user)
     user_branch = profile_instance.branch
     all_users = Profile.objects.filter(branch=user_branch.id, user__department="sales")
-
-    users_ids = []
-
-    for user in all_users:
-        users_ids.append(user.user.id)
-
-    all_leads = leads.objects.filter(user__in = users_ids).order_by('-id')
-
-    state_mapping = {value: key for key, value in STATE_CHOICE}
-    country_mapping = {value: key for key, value in COUNTRY_CHOICE}
-
-    if query:
-        search_fields = [
-            'company_name', 'gstin', 'city', 'industry', 'source', 'contactperson__person_name','contactperson__email_id',
-            'contactperson__contact_no', 'conversation__title', 'conversation__conversationdetails__details'
-        ]
-
-        search_objects = Q()
-
-        for field in search_fields:
-            search_objects |= Q(**{f'{field}__icontains': query})
-
-        if query.upper() in state_mapping:
-            search_objects |= Q(state=state_mapping[query.upper()])
-        if query.capitalize() in country_mapping:
-            search_objects |= Q(country=country_mapping[query.capitalize()])
-
-        all_leads = all_leads.filter(search_objects).distinct()
-
-    selected_user = request.GET.get('user')
-
-    if selected_user:
-        all_leads = all_leads.filter(user=selected_user)
-
-    if request.user.role != 'admin':
-        all_leads = all_leads.filter(user=user_id)
-
-    if all_leads:
-        for lead in all_leads:
-            lead.user = User.objects.get(pk=lead.user)
-
-    if request.GET.get('excel') == 'excel':
-        return exportlead(all_leads)
-
-    pageSize = request.GET.get('pageSize', 20)
-
-    leads_per_page = Paginator(all_leads, pageSize)
-    page = request.GET.get('page')
-
-    try:
-        all_leads = leads_per_page.get_page(page)
-    except PageNotAnInteger:
-        all_leads = leads_per_page.get_page(1)
-    except EmptyPage:
-        all_leads = leads_per_page.get_page(leads_per_page.num_pages)
-
     source_choice = leads.SOURCE
     states = STATE_CHOICE
     countries = COUNTRY_CHOICE
+
+    task2 = total_leads.apply_async(args=[query, user_id, selected_user])
+    task2_id = task2.id
+    
+    lead_r = task2.get(timeout=30)
+
+    total_page = math.ceil(lead_r/page_size)
+    min_page = int(page_number) - 2 if int(page_number)>2 else 1
+    max_page = int(page_number) + 2 if total_page >= int(page_number)+2 else total_page
+    pages = [page for page in range(min_page, max_page+1)]
 
     context = {
         'user_leads': all_leads,
@@ -102,8 +70,12 @@ def leads_list(request):
         'states': states,
         'countries': countries,
         'all_users':all_users,
-        'pageSize': pageSize,
+        'pageSize': page_size,
         'selected_user': selected_user,
+        'lead_count': lead_r,
+        'page_number': int(page_number),
+        'page_range': pages,
+        'total_page': total_page,
     }
     
     return render(request, 'lead/lead-list.html', context)
