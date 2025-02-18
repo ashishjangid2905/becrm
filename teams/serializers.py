@@ -35,6 +35,7 @@ class SmtpConfigSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True)
     profile = ProfileSerializer()
     class Meta:
         model = User

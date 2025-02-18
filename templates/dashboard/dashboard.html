@@ -12,10 +12,9 @@
         <label for="select_user">Select User</label>
         <select class="form-select form-select-sm" name="select_user" id="select_user">
           <option value="" selected>All</option>
-          <option value="1">Admin</option>
-          <option value="4">Anjali Bharti</option>
-          <option value="3">Srijoni Das</option>
-          <option value="6">Shrishti Prasad</option>
+          {% for user in all_users %}
+            <option value="{{user.user.id}}">{{user}}</option>
+          {% endfor %}
         </select>
       </div>
       <div class="col-12 d-flex mt-3">

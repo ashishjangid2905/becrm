@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-    let default_url = "/dashboard/"
+    // let default_url = "/dashboard/"
 
     const select_user = document.querySelector("#select_user")
     const select_month = document.querySelector("#select_month")
@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
+
     if (select_user) {
         select_user.addEventListener("change", (e) => {
             const USER_ID = e.target.value
@@ -37,23 +38,56 @@ document.addEventListener("DOMContentLoaded", () => {
         })
     }
 
-
-    const fetchData = async (url) => {
+    async function fetchDashboard() {
         try {
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`)
+            const response = await fetch("/dashboard/");
+            const result = await response.json();
+    
+            if (result.status === "Processing") {
+                console.log("Dashboard data is being processed...");
+                const status_url = `/dashboard/status/${result.task_id}/`; // Construct status URL
+                await fetchData(status_url); // Pass URL as an argument
+            } else {
+                renderDashboard(result.data);
             }
-
-            const data = await response.json()
-            // console.log("Fetched Data:", data);
-            return data
-
         } catch (error) {
-            console.error("Error fetching data:", error);
+            console.error("Error fetching dashboard:", error);
         }
     }
+
+    fetchDashboard()
+
+    const fetchData = async (status_url) => {
+        while (true) {
+            try {
+                await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 sec
+    
+                const response = await fetch(status_url);
+                const result = await response.json();
+    
+                if (result.status === "Completed") {
+                    renderDashboard(result.data);
+                    macro_data(result.data)
+                    leadBoard(result.data)
+                    monthlyTable(result.data)
+                    break; // Stop polling
+                } else if (result.status === "Failed") {
+                    console.error("Task failed:", result.error);
+                    break;
+                } else {
+                    console.log("Still processing...");
+                }
+            } catch (error) {
+                console.error("Error checking task status:", error);
+                break;
+            }
+        }
+    }
+
+    function renderDashboard(data) {
+        console.log("Dashboard Data:", data);
+    }
+
 
     const num_format = (number) => {
         new_number = new Intl.NumberFormat("en-GB", {
@@ -74,8 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return percent
     }
 
-    const macro_data = async (url) => {
-        const data = await fetchData(url)
+    const macro_data = (data) => {
 
         let teamsales = 0;
         let usersale = 0;
@@ -102,8 +135,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     // Show monthly lead Board 
-    const leadBoard = async (url) => {
-        const data = await fetchData(url)
+    const leadBoard = (data) => {
+
         let leadBoardData = []
 
         data.forEach((pi) => {
@@ -160,14 +193,15 @@ document.addEventListener("DOMContentLoaded", () => {
         return leadBoardData;
     }
 
-    const monthlyTable = async (url) => {
+    const monthlyTable = (data) => {
 
-        const leadBoardData = await leadBoard(url)
+        const leadBoardData = leadBoard(data)
 
         // console.log(leadBoardData)
 
-        const url1 = new URL(url, window.location.origin);
-        const select_month = url1.searchParams.get("select_month");
+        // const url1 = new URL(url, window.location.origin);
+        // const select_month = url1.searchParams.get("select_month");
+        let select_month
         let selected_month
         if (select_month) {
             const parseDate = new Date(select_month)
@@ -246,7 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
             x: am5.p50
         }))
 
-        data = await leadBoard(default_url)
+        data = leadBoard(data)
 
         let salesData = []
 
@@ -383,7 +417,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 centerY: 0,
             });
 
-            let data = await leadBoard(default_url)
+            let data = leadBoard(data)
             if (select_month) {
                 const parseDate = new Date(select_month)
                 selected_month = parseDate.toLocaleString("en-US", {
@@ -444,14 +478,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     document.addEventListener("DOMContentLoaded", () => {
-        fetchData(default_url);
-        macro_data(default_url);
-        monthlyTable(default_url)
-        piChart();
+        // fetchData(default_url);
+        // macro_data(default_url);
+        // monthlyTable(default_url)
+        // piChart();
     });
     
-    fetchData(default_url)
-    macro_data(default_url)
-    monthlyTable(default_url)
-    piChart()
+    // fetchData(default_url)
+    // macro_data(default_url)
+    // monthlyTable(default_url)
+    // piChart()
 })

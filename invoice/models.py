@@ -65,7 +65,7 @@ class biller(models.Model):
     
 
 class BillerVariable(models.Model):
-    biller_id = models.ForeignKey(biller, verbose_name=_("Biller Id"), on_delete=models.CASCADE)
+    biller_id = models.ForeignKey(biller, verbose_name=_("Biller Id"), on_delete=models.CASCADE, related_name="variables")
     variable_name = models.CharField(_("Variable Name"), max_length=50, choices=VARIABLES)
     variable_value = models.CharField(_("Variable Value"), max_length=150)
     from_date = models.DateField(_("From Date"), null=False, blank=False)
@@ -157,6 +157,9 @@ class proforma(models.Model):
     
     company_ref = models.ForeignKey(leads, verbose_name=_("Company Ref"), on_delete=models.RESTRICT, blank=True, null=True)
     user_id = models.IntegerField(_("User Id"))
+    user_name = models.CharField(_("Team Member"), max_length=50, null=True, blank=True)
+    user_contact = models.CharField(_("User Contact"), max_length=50, null=True, blank=True)
+    user_email = models.EmailField(_("User Email"), max_length=50, null=True, blank=True)
     company_name = models.CharField(_("Company Name"), max_length=150, null=False, blank=False)
     gstin = models.CharField(_("GSTIN"), max_length=50, null=True, blank=True)
     is_sez = models.BooleanField(_("Is_SEZ"), default=False)
@@ -207,7 +210,7 @@ class proforma(models.Model):
 
 class orderList(models.Model):
     
-    proforma_id = models.ForeignKey(proforma, on_delete=models.RESTRICT)
+    proforma_id = models.ForeignKey(proforma, on_delete=models.RESTRICT, related_name="orderlist")
     category = models.CharField(_("Category"), max_length=50, blank=False, null=False)
     report_type = models.CharField(_("Report Type"), max_length=50)
     product = models.CharField(_("Product"), max_length=500)

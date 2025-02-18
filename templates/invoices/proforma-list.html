@@ -122,10 +122,10 @@
           <td class="text-nowrap">{{ proforma.pi_no }}</td>
           <td class="text-nowrap">{{ proforma.bank.biller_id.biller_name }}</td>
           <td class="text-wrap">
-            ₹ {% total_order_value proforma %}
+            {% if proforma.currency == "inr" %}₹{% else %}${% endif %} {% total_order_value proforma.id %}  
           </td>
           <td class="text-wrap">
-            ₹ {% total_pi_value_inc_tax proforma %}
+            {% if proforma.currency == "inr" %}₹{% else %}${% endif %}
           </td>
           <td class="text-wrap"> <span class="badge rounded-pill text-bg-{% if proforma.is_Approved == True %}success{% elif proforma.feedback %}danger{% else %}warning{% endif %} pb-1 px-2">{% if proforma.is_Approved == True %}Approved {% elif proforma.feedback %} Not Approved {% else %}Pending{% endif %}</span></td>
           <td class="text-wrap"><span class="badge rounded-pill text-bg-{% if proforma.status == 'open' %}warning{% elif proforma.status == 'closed' %}success{% else %}danger{% endif %} pb-1 px-2">{{ proforma.status }}</span></td>
@@ -215,8 +215,12 @@
                       <p class="text-capitalize"><span class="fw-semibold">Bank: </span>{{proforma.bank}}</p>
                     </div>
                     <div class="col-lg-7">
-                      <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>₹ {% total_order_value proforma %}</p>
-                      <p class="text-capitalize"><span class="fw-semibold">Total Amount (Inc. Tax): </span>₹ {% total_pi_value_inc_tax proforma %}</p>
+                      {% if proforma.currency == "inr" %}
+                        <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>₹ {% total_order_value proforma.id %}</p>
+                        <p class="text-capitalize"><span class="fw-semibold">Total Amount (Inc. Tax): </span>₹ {% total_pi_value_inc_tax proforma.id %}</p>
+                      {% elif proforma.currency == "usd" %}
+                        <p class="text-capitalize"><span class="fw-semibold">Total Amount: </span>$ {% total_order_value proforma.id %}</p>
+                      {% endif %}
                     </div>
                     <div class="col-lg-7">
                       <p class="text-capitalize"><span class="fw-semibold">Biller: </span> {{proforma.bank.biller_id.biller_name}}</p>
@@ -370,7 +374,7 @@
                         {% endif %}
                       </div>
                       <div class="row g-3 mt-1 paymentForm">
-                        {% total_dues proforma as due_amt %}
+                        {% total_dues proforma.id as due_amt %}
                         <div class="col-md-3 col-sm-4 col-4">
                           <label class="form-label">Payment Status</label>
                           <select class="form-select form-select-sm" name="payment_status">
@@ -431,8 +435,8 @@
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button type="submit" class="btn btn-warning">Process</button>
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  <button type="submit" class="btn btn-sm btn-warning">Update</button>
+                  <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
               </form>
             </div>
@@ -448,7 +452,7 @@
 </div>
 
 <nav class="d-flex justify-content-between align-items-center mt-4 px-5">
-  <p class="m-0">Total PI: {{all_pi.paginator.count}}</p>
+  <p class="m-0">Total PI: {{all_pi.paginator.count}} {{total_count}}</p>
   <ul class="pagination pagination-sm justify-content-end flex-row ">
     <form class="me-5" method='GET' id='page-size'>
       {% for param, value in request.GET.items %}
@@ -463,15 +467,13 @@
         <option value="50">50/page</option>
       </select>
     </form>
-    {% if all_pi.has_previous %}
-      <li class="page-item"><a class="page-link" href="?page={{ all_pi.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{all_pi.previous_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{all_pi.previous_page_number}}</a></li>
-    {% endif %}
-    <li class="page-item active"><a class="page-link" href="?page={{all_pi.number}}">{{all_pi.number}}</a></li>
-    {% if all_pi.has_next %}
-    <li class="page-item"><a class="page-link" href="?page={{all_pi.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{all_pi.next_page_number}}</a></li>
-    <li class="page-item"><a class="page-link" href="?page={{all_pi.next_page_number}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a></li>
-    {% endif %}
+    <ul class="flex-row px-1 pagination pagination-sm">
+      <li class="page-item"><a class="page-link" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">First</a></li>
+    {% for page in page_range %}
+      <li class="page-item {% if page == page_number %}active{% endif %}"><a class="page-link" href="?page={{page}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{page}}</a></li>
+    {% endfor %}
+      <li class="page-item"><a class="page-link" href="?page={{total_page}}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.fy %}&fy={{ request.GET.fy }}{% endif %}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.ap %}&ap={{ request.GET.ap }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Last</a></li>
+    </ul>
   </ul>
 </nav>
 

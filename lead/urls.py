@@ -6,6 +6,9 @@ from . import views
 app_name = 'lead'
 urlpatterns = [
     path('', views.leads_list, name='leads_list'),
+    path('list', views.lead_list.as_view()),
+    path('add-lead', views.lead_list.as_view()),
+    path('<int:id>', views.ConversationView.as_view()),
     path('add', views.add_lead, name='add_lead'),
     path('edit/<int:leads_id>', views.edit_lead, name='edit_lead'),
     path('<int:leads_id>', views.lead, name='lead'),

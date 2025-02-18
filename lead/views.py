@@ -12,100 +12,126 @@ from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from .models import leads, contactPerson, Conversation, conversationDetails
 from teams.models import User, Profile
 from invoice.models import proforma, orderList
-from invoice.utils import STATUS_CHOICES, STATE_CHOICE, COUNTRY_CHOICE
+from invoice.utils import STATUS_CHOICES, STATE_CHOICE, COUNTRY_CHOICE, PAYMENT_STATUS
+from teams.templatetags.teams_custom_filters import get_current_position
 
 # Import Third Party Module
-import csv, os
+import csv, os, math
 from datetime import date
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 import logging
+from django.utils.timezone import now
+from .tasks import process_leads, total_leads
 # Create your views here.
+
+from rest_framework import status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from .serializers import leadsSerializer, ConversationSerializer
+
+
+class lead_list(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            all_leads = leads.objects.filter(user=request.user.id)
+            serializer = leadsSerializer(all_leads, many = True)
+            return Response(serializer.data)
+        except leads.DoesNotExist:
+            return Response({"message": "No Lead founded"}, status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request):
+        serializer = leadsSerializer(data = request.data)
+        user_id = request.user.id
+
+        if serializer.is_valid():
+            company_name = request.data.get('company_name')
+            gstin = request.data.get('gstin')
+
+            if leads.objects.filter(company_name=company_name, gstin=gstin, user=user_id).exists():
+                return Response({'error': f'The Company {company_name} already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+            lead_instance = serializer.save(user = user_id)
+
+            contactpersons_data = request.data.get('contactpersons', [])
+            lead = get_object_or_404(leads, pk=lead_instance.id)
+
+            contact_persons = [contactPerson(company = lead, **contact) for contact in contactpersons_data]
+
+            if contact_persons:
+                contactPerson.objects.bulk_create(contact_persons)
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ConversationView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, id):
+        try:
+            conversation = Conversation.objects.filter(company_id = id).select_related("company_id")
+            serializer = ConversationSerializer(conversation, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Conversation.DoesNotExist:
+            return Response({"message": "No Conversation found for this Company"}, status=status.HTTP_404_NOT_FOUND)
+
+
+
 
 @login_required(login_url='app:login')
 def leads_list(request):
-
-    if not request.user.is_authenticated:
-        return redirect('app:login')
     
     query = request.GET.get('q')
     user_id = request.user.id
+    selected_user = request.GET.get('user')
+    page_size = int(request.GET.get('pageSize', 20))
+    page_number = request.GET.get('page', 1)
+
+    task = process_leads.apply_async(args=[query, user_id, selected_user, page_size, page_number])
+
+    task_id = task.id
+
+    leads_result = task.get(timeout=30)
+
+    all_leads = leads.objects.filter(id__in=leads_result).order_by('-created_at')
+
+    for lead in all_leads:
+        lead.user = User.objects.get(pk=lead.user)
 
     profile_instance = get_object_or_404(Profile, user=request.user)
     user_branch = profile_instance.branch
-    all_users = Profile.objects.filter(user__profile__branch=user_branch.id, user__department="sales")
-
-    search_fields = [
-        'company_name', 'gstin', 'city', 'state', 'country', 
-        'industry', 'source', 'contactperson__person_name','contactperson__email_id', 'contactperson__contact_no',
-        'conversation__title', 'conversation__conversationdetails__details'
-    ]
-
-    search_objects = Q()
-
-    if query:
-        # Fetch user IDs based on first name matching
-        matching_user_ids = User.objects.filter(first_name__icontains=query).values_list('id', flat=True)
-        
-        # Build the Q object for searching leads
-        for field in search_fields:
-            search_objects |= Q(**{f'{field}__icontains': query})
-
-        # Add matching user IDs to the Q object
-        for user_id in matching_user_ids:
-            search_objects |= Q(user__exact=user_id)
-
-    all_leads = leads.objects.all().order_by('-id')
-
-
-    if query:
-        all_lead = all_leads.filter(search_objects).distinct()
-    else:
-        all_lead = all_leads
-
-    selected_user = request.GET.get('user')
-
-    if selected_user:
-        all_lead = all_lead.filter(user=selected_user)
-
-    if request.user.role == 'admin':
-        user_leads = all_lead
-    else:
-        user_leads = all_lead.filter(user=request.user.id)
-
-    if user_leads:
-        for lead in user_leads:
-            lead.user = User.objects.get(pk=lead.user)
-
-    if request.GET.get('excel') == 'excel':
-        return exportlead(user_leads)
-
-    pageSize = request.GET.get('pageSize', 20)
-
-    leads_per_page = Paginator(user_leads, pageSize)
-    page = request.GET.get('page')
-
-    try:
-        user_leads = leads_per_page.get_page(page)
-    except PageNotAnInteger:
-        user_leads = leads_per_page.get_page(1)
-    except EmptyPage:
-        user_leads = leads_per_page.get_page(leads_per_page.num_pages)
-
+    all_users = Profile.objects.filter(branch=user_branch.id, user__department="sales")
     source_choice = leads.SOURCE
     states = STATE_CHOICE
     countries = COUNTRY_CHOICE
 
+    task2 = total_leads.apply_async(args=[query, user_id, selected_user])
+    task2_id = task2.id
+    
+    lead_r = task2.get(timeout=30)
+
+    total_page = math.ceil(lead_r/page_size)
+    min_page = int(page_number) - 2 if int(page_number)>2 else 1
+    max_page = int(page_number) + 2 if total_page >= int(page_number)+2 else total_page
+    pages = [page for page in range(min_page, max_page+1)]
+
     context = {
-        'user_leads': user_leads,
+        'user_leads': all_leads,
         'user_id': user_id,
         'source_choice': source_choice,
         'states': states,
         'countries': countries,
         'all_users':all_users,
-        'pageSize': pageSize,
+        'pageSize': page_size,
         'selected_user': selected_user,
+        'lead_count': lead_r,
+        'page_number': int(page_number),
+        'page_range': pages,
+        'total_page': total_page,
     }
     
     return render(request, 'lead/lead-list.html', context)
@@ -209,6 +235,10 @@ def lead(request, leads_id):
     if not request.user.is_authenticated:
         return redirect('app:login')
     
+    profile_instance = get_object_or_404(Profile, user = request.user)
+    current_position = get_current_position(profile_instance)
+    user_role = request.user.role
+    
     company = leads.objects.get(pk=leads_id)
 
     contact_person = contactPerson.objects.filter(company=leads_id).order_by('-is_active')
@@ -221,6 +251,7 @@ def lead(request, leads_id):
                 pi.approved_by = get_object_or_404(User, pk=pi.approved_by)
 
     status_choices = STATUS_CHOICES
+    payment_status = PAYMENT_STATUS
     states = STATE_CHOICE
     countries = COUNTRY_CHOICE
     source_choice = leads.SOURCE
@@ -261,8 +292,11 @@ def lead(request, leads_id):
         'piList': piList,
         'status_choices': status_choices,
         'source_choice':source_choice,
+        'payment_status': payment_status,
         'states': states,
-        'countries': countries
+        'countries': countries,
+        'current_position': current_position,
+        'user_role': user_role
     }
 
     return render(request, 'lead/pi-list.html', context)
@@ -285,14 +319,14 @@ def lead_chat(request, leads_id):
     countries = COUNTRY_CHOICE
     source_choice = leads.SOURCE
 
-    Q = request.GET.get('chat')
+    q = request.GET.get('chat')
 
-    chats = conversationDetails.objects.all().order_by('-inserted_at')
+    chats = conversationDetails.objects.filter(chat_no__company_id = leads_id).order_by('-inserted_at')
 
-    if Q:
+    if q:
         try:
-            chat_title = Conversation.objects.get(pk=Q)
-            chat_details = chats.filter(chat_no=Q)
+            chat_title = Conversation.objects.get(pk=q, company_id = leads_id)
+            chat_details = chats.filter(chat_no=q)
         except Conversation.DoesNotExist:
             return HttpResponseRedirect(request.path_info)
     else:
@@ -394,49 +428,48 @@ def chat_insert(request, chat_id):
 @login_required(login_url='app:login')
 def follow_ups(request):
 
-    if not request.user.is_authenticated:
-        return redirect('app:login')
-    
     user_id = request.user.id
 
-    # allFollowups = conversationDetails.objects.filter(chat_no = OuterRef('chat_no')).values('chat_no').annotate(latest_follow_up=Max('follow_up')).values('latest_follow_up')
-    
-    # latest_conversation_details = conversationDetails.objects.filter(follow_up__in=allFollowups).order_by('chat_no','-follow_up', '-inserted_at')
+    profile_instance = get_object_or_404(Profile, user=request.user)
+    user_branch = profile_instance.branch.id
+    all_users = Profile.objects.filter(branch=user_branch)
+
+    users_ids = [user.user.id for user in all_users]
+
 
     if request.user.role == 'admin':
-        allchat = conversationDetails.objects.all()
+        leads_ids = leads.objects.filter(user__in = users_ids).values_list('id', flat=True)
     else:
-        allchat = conversationDetails.objects.filter(chat_no__company_id__user = user_id)
+        leads_ids = leads.objects.filter(user = user_id).values_list('id', flat=True)
+    
+    conversations_ids = Conversation.objects.filter(company_id__in = leads_ids).values_list('id', flat=True)
 
-    # Subquery to get the latest inserted_at for each chat
-    latest_inserted_at = allchat.values('chat_no').annotate(max_inserted_at=Max('inserted_at'))
+    allchat = conversationDetails.objects.filter(chat_no__in = conversations_ids).select_related('chat_no__company_id', 'contact_person')
 
-    # Query to get the latest entry for each chat
-    latest_conversation_details = allchat.filter(
-        inserted_at__in=Subquery(
-            latest_inserted_at.values('max_inserted_at')
-        )
-    )
+    latest_inserted = allchat.values('chat_no').annotate(latest_insert = Max('inserted_at'))
 
-    today = date.today()
+    allchat = allchat.filter(inserted_at__in = Subquery(latest_inserted.values('latest_insert')))
 
-    Filter = request.GET.get('filter')
+    today = now().date()
 
-    if Filter == 'today' :
-        latest_conversation_details = latest_conversation_details.filter(follow_up=today)
-    elif Filter == 'previous':
-        latest_conversation_details = latest_conversation_details.filter(follow_up__lt=today)
-    elif Filter == 'future':
-        latest_conversation_details = latest_conversation_details.filter(follow_up__gt=today)
+    filter_value  = request.GET.get('filter', 'today')
+
+
+    if filter_value  == 'today' :
+        filtered_conversations  = allchat.filter(follow_up=today)
+    elif filter_value  == 'previous':
+        filtered_conversations  = allchat.filter(follow_up__lt=today)
+    elif filter_value  == 'future':
+        filtered_conversations  = allchat.filter(follow_up__gt=today)
     else:
-        latest_conversation_details = latest_conversation_details.filter(follow_up=today)
+        filtered_conversations  = allchat.filter(follow_up=today)
         
-    if latest_conversation_details:
-        for lead in latest_conversation_details:
-            lead.chat_no.company_id.user = User.objects.get(pk=lead.chat_no.company_id.user)
+    if filtered_conversations:
+        for lead in filtered_conversations:
+            lead.chat_no.company_id.user = get_object_or_404(User,pk=lead.chat_no.company_id.user)
 
     context = {
-        'latest_conversation_details':latest_conversation_details,
+        'latest_conversation_details':filtered_conversations ,
     }
 
     return render(request, 'lead/follow-up-list.html', context)

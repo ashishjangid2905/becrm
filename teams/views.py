@@ -58,13 +58,6 @@ class UserListView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-            
-
-
-
-
-
-
 
 @login_required(login_url='app:login')
 def user_list(request):

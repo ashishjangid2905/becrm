@@ -31,7 +31,7 @@ class leads(models.Model):
     
     def get_full_address(self):
         try:
-            state_name = dict(STATE_CHOICE).get(int(self.state))
+            state_name = dict(STATE_CHOICE).get(int(self.state)) if self.state != 500 else ""
             country = dict(COUNTRY_CHOICE).get(self.country)
         except:
             state_name = self.state
@@ -66,7 +66,7 @@ class contactPerson(models.Model):
     person_name = models.CharField(_("Contact Person"), max_length=50, blank=False, null=False)
     email_id = models.CharField(_("Email Id"), max_length=155, blank=True, null=True)
     contact_no = models.CharField(_("Contact No"), max_length=50, blank=True, null=True)
-    company = models.ForeignKey(leads, verbose_name=_("Company Id"), on_delete=models.CASCADE)
+    company = models.ForeignKey(leads, verbose_name=_("Company Id"), on_delete=models.CASCADE, related_name=_("contactpersons"))
     created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
     edited_at = models.DateTimeField(_("Edited at"), auto_now=True)
     is_active = models.BooleanField(_("Is Active"), default=True)
@@ -106,7 +106,7 @@ class conversationDetails(models.Model):
     contact_person = models.ForeignKey(contactPerson, verbose_name=_("Contact Person"), on_delete=models.CASCADE)
     status = models.CharField(_("Status"), max_length=50, choices=STATUS, default='open')
     follow_up = models.DateField(_("Next Follow Up"), blank=True, null=True)
-    chat_no = models.ForeignKey(Conversation, verbose_name=_("Chat No"), on_delete=models.CASCADE)
+    chat_no = models.ForeignKey(Conversation, verbose_name=_("Chat No"), on_delete=models.CASCADE, related_name=_("conversationdetails"))
     inserted_at = models.DateTimeField(_("Inserted at"), auto_now_add=True)
     edited_at = models.DateTimeField(_("Edited at"), auto_now=True)
 

@@ -1,4 +1,4 @@
-import os
+import os, math
 import re
 from pathlib import Path
 
@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
 from django.db.models import Q, Min, Max
+from django.db import transaction
 from django.contrib import messages
 # from django.contrib.staticfiles import finders
 from django.utils import timezone
@@ -26,6 +27,7 @@ from teams.custom_email_backend import CustomEmailBackend
 from .templatetags.custom_filters import total_order_value, total_lumpsums, filter_by_lumpsum, total_pi_value_inc_tax
 from .decorators import proforma_approval_required
 from teams.templatetags.teams_custom_filters import get_current_position
+from .tasks import get_pi_list, pi_count
 
 # Third-party imports
 import fiscalyear
@@ -55,8 +57,9 @@ from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Fo
 # from openpyxl.cell.rich_text import TextBlock, CellRichText
 # from openpyxl.worksheet.page import PageMargins
 from openpyxl.utils import get_column_letter
-# Create your views here.
 
+
+from django.core.cache import cache
 
 
 @login_required(login_url='app:login')
@@ -251,129 +254,73 @@ def pi_list(request):
 
     date_range = proforma.objects.aggregate(min_date = Min('pi_date'), max_date = Max('pi_date'))
 
-    if date_range['min_date'] and ['max_date']:
+    if date_range['min_date'] and date_range['max_date']:  
         min_year = date_range['min_date'].year
-        max_year = date_range['max_date'].year
+        max_year = date_range['max_date'].year + (1 if date_range['max_date'].month > 4 else 0)
     else:
         min_year = today.year
-        max_year = today.year
+        max_year = today.year + 1
 
-    fiscal_years = []
-    for year in range(min_year, max_year + 1):
-        fy_label = f"{year}-{year + 1}"
-        fiscal_years.append(fy_label)
+    fiscal_years = [f"{year}-{year + 1}" for year in range(min_year, max_year+1)]
 
     selected_fy = request.GET.get('fy', None)
 
-    if selected_fy:
-        # Parse the selected fiscal year from the format '2023-2024'
-        fy_start_year = int(selected_fy.split('-')[0])
-        fy_end_year = fy_start_year + 1
-        
-        fy_start = datetime(fy_start_year, 4, 1).date()
-        fy_end = datetime(fy_end_year, 3, 31).date()
-    else:
-        # Default to the current fiscal year
-        if today.month >= 4:  # We're in the current fiscal year
-            fy_start = datetime(today.year, 4, 1).date()
-            fy_end = datetime(today.year + 1, 3, 31).date()
-        else:  # We're in the previous fiscal year
-            fy_start = datetime(today.year - 1, 4, 1).date()
-            fy_end = datetime(today.year, 3, 31).date()
-
     profile_instance = get_object_or_404(Profile, user=request.user)
     user_branch = profile_instance.branch
-    all_users = Profile.objects.filter(user__profile__branch=user_branch.id)
+    all_users = Profile.objects.filter(branch=user_branch).select_related('user')
 
     current_position = get_current_position(profile_instance)
     user_role = request.user.role
 
-    if current_position == 'Head' or user_role == 'admin':
-        all_users = all_users
-    elif current_position == 'VP':
-        all_users = all_users.exclude(user__groups__name='Head')
-    elif current_position == 'Sr. Executive':
-        all_users = all_users.exclude(user__groups__name__in=['Head', 'VP', 'Sr. Executive']).union(all_users.filter(user=request.user))
+    user_exclusion = {
+        'VP': ['Head'],
+        'Sr. Executive': ['Head', 'VP', 'Sr. Executive']
+    }
 
-    selected_user = request.GET.get("user", None)
-    selected_Ap = request.GET.get("ap", None)
-    selected_status = request.GET.get("status", None)
+    if user_role != 'admin':
+        if current_position != 'Head':
+            all_users = all_users.filter(user=request.user)
+        elif current_position in user_exclusion:
+            all_users = all_users.exclude(user__groups__name__in = user_exclusion[current_position])
+            if current_position == 'Sr. Executive':
+                all_users = all_users.union(all_users.filter(user=request.user))
 
-    # Filter option logics
+    all_user_ids = list(all_users.values_list('user__id', flat=True))
 
-    filters = {'pi_date__gte': fy_start, 'pi_date__lte': fy_end}
-    if selected_user:
-        filters['user_id'] = selected_user
+    selected_user = request.GET.get("user") or ""
+    selected_Ap = request.GET.get("ap") or ""
+    selected_status = request.GET.get("status") or ""
+    query = request.GET.get('q') or ""
 
-    if selected_Ap:
-        filters['is_Approved'] = selected_Ap
+    pageSize = int(request.GET.get('pageSize', 20))
+    page_number = int(request.GET.get('page', 1))
 
-    if selected_status:
-        filters['status'] = selected_status
+    task = get_pi_list.apply_async(args=[all_user_ids, selected_fy, selected_user, selected_Ap, selected_status, query, pageSize,page_number ])
+    task2 = pi_count.apply_async(args=[all_user_ids, selected_fy, selected_user, selected_Ap, selected_status, query])
+    task_result = task.get(timeout=30)
+    pi_list = proforma.objects.filter(id__in = task_result).order_by('-pi_no', '-pi_date')
+    total_count = task2.get(timeout=30)
 
-    # Impliment the applied filters
+    user_ids = {pi.user_id for pi in pi_list}
+    approved_by_ids = {pi.approved_by for pi in pi_list if pi.approved_by}
+    users = User.objects.filter(pk__in = user_ids | approved_by_ids).in_bulk()
 
-    all_proforma = proforma.objects.filter(**filters).order_by( '-pi_date','-pi_no')
+    for pi in pi_list:
+        pi.user_id = users.get(pi.user_id)
+        pi.approved_by = users.get(pi.approved_by)
 
-    status_choices = STATUS_CHOICES
-    payment_status = PAYMENT_STATUS
-    report_type = REPORT_TYPE
-    report_format = REPORT_FORMAT
-
-    all_user_ids = []
-    for user in all_users:
-        all_user_ids.append(user.user.id)
-
-    if request.user.role == 'admin' or current_position == 'Head' or current_position == 'VP' or current_position == 'Sr. Executive':
-        all_pi = all_proforma.filter(user_id__in = all_user_ids)
-    else:
-        all_pi = all_proforma.filter(user_id = request.user.id)
-
-
-    query = request.GET.get('q')
-
-    search_fields = [
-        'company_name', 'gstin', 'state', 'country', 'requistioner','email_id', 'contact', 'status',
-        'pi_no', 'orderlist__product', 'orderlist__report_type'
-    ]
-
-    search_objects = Q()
-
-    if query:
-        # Build the Q object for searching leads
-        for field in search_fields:
-            search_objects |= Q(**{f'{field}__icontains': query})
-
-        piList = all_pi.filter(search_objects).distinct()
-    else:
-        piList = all_pi
-
-    if piList:
-        for pi in piList:
-            pi.user_id = get_object_or_404(User,pk = pi.user_id)
-
-            if pi.approved_by is not None:
-                pi.approved_by = get_object_or_404(User, pk = pi.approved_by)
-
-    pageSize = request.GET.get('pageSize', 20)
-
-    pi_per_page = Paginator(piList, pageSize)
-    page = request.GET.get('page')
-
-    try:
-        piList = pi_per_page.get_page(page)
-    except PageNotAnInteger:
-        piList = pi_per_page.get_page(1)
-    except EmptyPage:
-        piList = pi_per_page.get_page(pi_per_page.num_pages)
+    total_page = math.ceil(total_count/pageSize)
+    min_page = int(page_number) - 2 if int(page_number)>2 else 1
+    max_page = int(page_number) + 2 if total_page >= int(page_number)+2 else total_page
+    pages = [page for page in range(min_page, max_page+1)]
 
     context = {
         'all_users': all_users,
-        'all_pi': piList,
-        'status_choices': status_choices,
-        'payment_status': payment_status,
-        'report_type': report_type,
-        'report_format': report_format,
+        'all_pi': pi_list,
+        'status_choices': STATUS_CHOICES,
+        'payment_status': PAYMENT_STATUS,
+        'report_type': REPORT_TYPE,
+        'report_format': REPORT_FORMAT,
         'fiscal_years': fiscal_years,
         'selected_user': selected_user,
         'selected_Ap': selected_Ap,
@@ -382,7 +329,11 @@ def pi_list(request):
         'pageSize': pageSize,
         'all_user_ids': all_user_ids,
         'current_position': current_position,
-        'user_role': user_role
+        'user_role': user_role,
+        'total_count': total_count,
+        'page_range': pages,
+        'total_page': total_page,
+        'page_number': page_number
     }
     return render(request, 'invoices/proforma-list.html', context)
 
@@ -530,54 +481,40 @@ def create_pi(request, lead_id=None):
 def approve_pi(request, pi_id):
     pi_instance = get_object_or_404(proforma, pk=pi_id)
     user_ = get_object_or_404(Profile, user=request.user)
-    user_of_proforma = get_object_or_404(User, pk=pi_instance.user_id)
+    proforma_user = get_object_or_404(User, pk=pi_instance.user_id)
+
+    target_url = request.META.get('HTTP_REFERER', reverse('invoice:pi_list'))
 
     if request.method == 'POST':
-        is_Approved = request.POST.get('is_approved')
-        is_approved = is_Approved == 'true'
+        is_approved = request.POST.get('is_approved') == 'true'
         feedback = request.POST.get('feedback')
 
-        if request.user.role == 'admin' or user_.user.groups.filter(name='Head').exists():
-            # Admin and Head can approve all proformas
-            if feedback:
-                pi_instance.feedback = feedback
-                pi_instance.is_Approved = False
-            else:
-                pi_instance.feedback = ""
-                pi_instance.is_Approved = is_approved
-            pi_instance.approved_by = request.user.id
-            pi_instance.save()
-            return redirect('invoice:pi_list')
+        user_groups = set(user_.user.groups.values_list("name", flat=True))
+        owner_groups = set(proforma_user.groups.values_list("name", flat=True))
 
-        elif user_.user.groups.filter(name='VP').exists():
+        can_approve = False
+        if request.user.role == 'admin' or 'Head' in user_groups:
+            # Admin and Head can approve all proformas
+            can_approve = True
+
+        elif 'VP' in user_groups and "Head" not in owner_groups:
             # VP can approve all proformas except those owned by Head
-            if user_of_proforma.groups.filter(name='Head').exists():
-                return HttpResponseForbidden("You cannot approve Head's Proforma.")
-            if feedback:
-                pi_instance.feedback = feedback
-                pi_instance.is_Approved = False
-            else:
-                pi_instance.feedback = ""
-                pi_instance.is_Approved = is_approved
-            pi_instance.approved_by = request.user.id
-            pi_instance.save()
-            return redirect('invoice:pi_list')
+            can_approve = True
 
         elif user_.user.groups.filter(name='Sr. Executive').exists():
             # Sr. Executive can approve all proformas except those owned by Head or VP
-            if user_of_proforma.groups.filter(name='Head').exists() or user_of_proforma.groups.filter(name='VP').exists():
-                return HttpResponseForbidden("You cannot approve Head's or VP's Proforma.")
-            if feedback:
-                pi_instance.feedback = feedback
-                pi_instance.is_Approved = False
-            else:
-                pi_instance.feedback = ""
-                pi_instance.is_Approved = is_approved
-            pi_instance.approved_by = request.user.id
-            pi_instance.save()
-            return redirect('invoice:pi_list')
+            can_approve = True
 
-    return redirect('invoice:pi_list')
+        if not can_approve:
+            messages.error("You are not authorized to approve this Proforma.")
+        
+        pi_instance.feedback = feedback if feedback else ""
+        pi_instance.is_Approved = False if feedback else is_approved
+        pi_instance.approved_by = request.user.id
+        pi_instance.save()
+        return HttpResponseRedirect(target_url)
+
+    return HttpResponseRedirect(target_url)
 
 
 @login_required(login_url='app:login')
@@ -596,16 +533,11 @@ def edit_pi(request, pi):
     billers = biller.objects.filter(inserted_by__in = all_users_id)
 
     bank_choice = bankDetail.objects.filter(biller_id__in = billers)
-    subs_choice = SUBSCRIPTION_MODE
-    pay_choice = PAYMENT_TERM
-    status_choice = STATUS_CHOICES
-    country_choice = COUNTRY_CHOICE
-    state_choice = STATE_CHOICE
-    category_choice = CATEGORY
-    report_choice = REPORT_TYPE
 
     pi_instance = get_object_or_404(proforma, slug=pi)
     existing_orders = pi_instance.orderlist_set.all()
+
+    last_url = request.META.get('HTTP_REFERER')
 
     if pi_instance.company_ref:
         target_url = reverse('lead:leads_pi', args=[pi_instance.company_ref.id])
@@ -726,15 +658,16 @@ def edit_pi(request, pi):
             
         context = {
             'bank_choice': bank_choice,
-            'subs_choice': subs_choice,
-            'pay_choice': pay_choice,
-            'status_choice': status_choice,
-            'country_choice': country_choice,
-            'state_choice': state_choice,
-            'category_choice': category_choice,
-            'report_choice': report_choice,
+            'subs_choice': SUBSCRIPTION_MODE,
+            'pay_choice': PAYMENT_TERM,
+            'status_choice': STATUS_CHOICES,
+            'country_choice': COUNTRY_CHOICE,
+            'state_choice': STATE_CHOICE,
+            'category_choice': CATEGORY,
+            'report_choice': REPORT_TYPE,
             'pi_instance': pi_instance,
             'existing_orders': existing_orders,
+            'last_url': last_url
             }
         return render(request, 'invoices/edit-proforma.html', context)
 
@@ -744,74 +677,72 @@ def update_pi_status(request, pi):
     
     pi_instance = get_object_or_404(proforma, pk=pi)
 
-    target_url = reverse('invoice:pi_list' )
+    target_url = request.META.get('HTTP_REFERER', reverse('invoice:pi_list'))
 
-    if request.user.id == pi_instance.user_id and request.method == 'POST':
-        pi_status = request.POST.get('pi_status')
-        closed_at = request.POST.get('closingDate')
-        po_date = request.POST.get('po_date')
-        po_no = request.POST.get('po_no')
-        pi_instance.closed_at = closed_at
-        pi_instance.status = pi_status
-        if po_no:
-            pi_instance.po_date = po_date
-            pi_instance.po_no = po_no
-        pi_instance.save()
+    if request.user.id != pi_instance.user_id:
+        messages.error(request, "You are not authorized user to Update Status")
+        return HttpResponseRedirect(target_url)
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
 
-        
-        is_invoiceRequire = request.POST.get('is_invoiceRequire') == 'on'
-        payment_status = request.POST.get('payment_status')
-        payment1_date = request.POST.get('payment1_date')
-        payment1_amt = request.POST.get('payment1_amt')
-        payment2_date = request.POST.get('payment2_date')
-        payment2_amt = request.POST.get('payment2_amt')
-        payment3_date = request.POST.get('payment3_date')
-        payment3_amt = request.POST.get('payment3_amt')
-        is_closed = True
+                pi_instance.status = request.POST.get('pi_status', pi_instance.status)
+                pi_instance.closed_at = request.POST.get('closingDate', pi_instance.closed_at)
 
-        closed_pi_instance = convertedPI.objects.filter(pi_id = pi_instance).first()
-        if pi_instance.status == 'closed':
-            if closed_pi_instance:
-                try:
-                    closed_pi_instance.is_invoiceRequire = is_invoiceRequire
-                    closed_pi_instance.is_closed = is_closed
-                    closed_pi_instance.is_hold = False
-                    closed_pi_instance.is_cancel = False
-                    closed_pi_instance.payment_status = payment_status
-                    closed_pi_instance.payment1_date = payment1_date
-                    closed_pi_instance.payment1_amt = payment1_amt
+                po_no = request.POST.get('po_no')
+                if po_no:
+                    pi_instance.po_date = request.POST.get('po_date', pi_instance.po_date)
+                    pi_instance.po_no = po_no
+
+                pi_instance.save()
+
+                # Handle convertedPI update
+                is_invoiceRequire = request.POST.get('is_invoiceRequire') == 'on'
+                payment_status = request.POST.get('payment_status')
+                payment1_date = request.POST.get('payment1_date')
+                payment1_amt = request.POST.get('payment1_amt')
+                payment2_date = request.POST.get('payment2_date')
+                payment2_amt = request.POST.get('payment2_amt')
+                payment3_date = request.POST.get('payment3_date')
+                payment3_amt = request.POST.get('payment3_amt')
+
+                if pi_instance.status == 'closed':
+                    converted_pi, created = convertedPI.objects.get_or_create(pi_id = pi_instance)
+            
+                    converted_pi.is_invoiceRequire = is_invoiceRequire
+                    converted_pi.is_closed = True
+                    converted_pi.is_hold = False
+                    converted_pi.is_cancel = False
+                    converted_pi.payment_status = payment_status
+                    converted_pi.payment1_date = payment1_date
+                    converted_pi.payment1_amt = payment1_amt
+
                     if payment2_amt:
-                        closed_pi_instance.payment2_date = payment2_date
-                        closed_pi_instance.payment2_amt = payment2_amt
+                        converted_pi.payment2_date = payment2_date
+                        converted_pi.payment2_amt = payment2_amt
                     if payment3_amt:
-                        closed_pi_instance.payment3_date = payment3_date
-                        closed_pi_instance.payment3_amt = payment3_amt
-                    closed_pi_instance.save()
-                except Exception as e:
-                    messages.error(request, f'An error occurred: {str(e)}')
-            else:
-                convertedPI.objects.create(pi_id=pi_instance,is_invoiceRequire=is_invoiceRequire, 
-                                           is_closed=is_closed, payment_status=payment_status,
-                                           payment1_date=payment1_date, payment1_amt=payment1_amt)
+                        converted_pi.payment3_date = payment3_date
+                        converted_pi.payment3_amt = payment3_amt
+                    converted_pi.save()
 
-        elif pi_instance.status == 'open' and closed_pi_instance:
-            try:
-                closed_pi_instance.is_hold = True
-                closed_pi_instance.save()
-            except Exception as e:
-                messages.error(request, f'An error occurred: {str(e)}')
-        elif pi_instance.status == 'lost' and closed_pi_instance:
-            try:
-                closed_pi_instance.is_invoiceRequire = False
-                closed_pi_instance.is_hold = True
-                closed_pi_instance.is_cancel = True
-                closed_pi_instance.save()
-            except Exception as e:
-                messages.error(request, f'An error occurred: {str(e)}')
+                else:
+                    converted_pi = convertedPI.objects.get(pi_id = pi_instance)
+
+                    if converted_pi:
+                        if pi_instance.status == 'open':
+                            converted_pi.is_hold = True
+                        elif pi_instance.status == 'lost':
+                            converted_pi.is_invoiceRequire = False
+                            converted_pi.is_hold = True
+                            converted_pi.is_cancel = True
+                        
+                        converted_pi.save()
+
+        except Exception as e:
+            messages.error(request, f'An error occurred: {str(e)}')
 
         return HttpResponseRedirect(target_url)
-    messages.error(request, "You are not authorized user to Update Status")
-    return HttpResponseRedirect(target_url)
+
 
 
 @login_required(login_url='app:login')
@@ -1482,6 +1413,11 @@ def pdf_PI(pi):
                 sgst = net_total*0.09
                 igst = 0
                 total_inc_tax = net_total*1.18
+            elif pi.state == "500":   #for Foreign Clients
+                cgst = 0
+                sgst = 0
+                igst = 0
+                total_inc_tax = net_total
             else:
                 cgst = 0
                 sgst = 0
@@ -1585,7 +1521,7 @@ def pdf_PI(pi):
         [founder_name,'','','','','','','','','', invoice_type],
         ['','','','','','','','','','',''],
         ['','','','','',logo,'','','','',''],
-        ['Issued by:','','','','','','','',f'₹ {round(total_inc_tax,0):.2f}','','',],
+        ['Issued by:','','','','','','','',f'{curr} {round(total_inc_tax,0):.2f}','','',],
         [biller_Name,'','','','','','','','','','',],
         [regAddress,'','',corpAddress,'','','','','Total Payable Amount','',''],
         ['','','','','','','','','','',''],
