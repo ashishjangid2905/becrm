@@ -532,6 +532,8 @@ def approve_pi(request, pi_id):
     user_ = get_object_or_404(Profile, user=request.user)
     user_of_proforma = get_object_or_404(User, pk=pi_instance.user_id)
 
+    target_url = request.META.get('HTTP_REFERER', reverse('invoice:pi_list'))
+
     if request.method == 'POST':
         is_Approved = request.POST.get('is_approved')
         is_approved = is_Approved == 'true'
@@ -547,7 +549,6 @@ def approve_pi(request, pi_id):
                 pi_instance.is_Approved = is_approved
             pi_instance.approved_by = request.user.id
             pi_instance.save()
-            return redirect('invoice:pi_list')
 
         elif user_.user.groups.filter(name='VP').exists():
             # VP can approve all proformas except those owned by Head
@@ -561,7 +562,6 @@ def approve_pi(request, pi_id):
                 pi_instance.is_Approved = is_approved
             pi_instance.approved_by = request.user.id
             pi_instance.save()
-            return redirect('invoice:pi_list')
 
         elif user_.user.groups.filter(name='Sr. Executive').exists():
             # Sr. Executive can approve all proformas except those owned by Head or VP
@@ -575,9 +575,9 @@ def approve_pi(request, pi_id):
                 pi_instance.is_Approved = is_approved
             pi_instance.approved_by = request.user.id
             pi_instance.save()
-            return redirect('invoice:pi_list')
+            return HttpResponseRedirect(target_url)
 
-    return redirect('invoice:pi_list')
+    return HttpResponseRedirect(target_url)
 
 
 @login_required(login_url='app:login')
@@ -603,7 +603,7 @@ def edit_pi(request, pi):
     state_choice = STATE_CHOICE
     category_choice = CATEGORY
     report_choice = REPORT_TYPE
-
+    previous_url = request.META.get('HTTP_REFERER', reverse('invoice:pi_list'))
     pi_instance = get_object_or_404(proforma, slug=pi)
     existing_orders = pi_instance.orderlist_set.all()
 
@@ -735,6 +735,7 @@ def edit_pi(request, pi):
             'report_choice': report_choice,
             'pi_instance': pi_instance,
             'existing_orders': existing_orders,
+            'previous_url': previous_url
             }
         return render(request, 'invoices/edit-proforma.html', context)
 
@@ -744,7 +745,7 @@ def update_pi_status(request, pi):
     
     pi_instance = get_object_or_404(proforma, pk=pi)
 
-    target_url = reverse('invoice:pi_list' )
+    target_url = request.META.get('HTTP_REFERER', reverse('invoice:pi_list'))
 
     if request.user.id == pi_instance.user_id and request.method == 'POST':
         pi_status = request.POST.get('pi_status')

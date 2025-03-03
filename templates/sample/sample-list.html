@@ -91,14 +91,28 @@
             </div>
             <div class="col-md-3">
               <label for="inputCountry" class="form-label">Country</label>
-              <input
+              {% comment %} <input
                 type="text"
                 name="inputCountry"
                 class="form-control form-control-sm"
                 id="inputCountry"
                 value="India"
                 required
-              />
+              /> {% endcomment %}
+              <select
+                class="form-select form-select-sm"
+                name="inputCountry"
+                id="inputCountry"
+                required
+              >
+                {% for countries in country_choice %}
+                  {% if countries.is_active %}
+                    <option value="{{ countries.country }}">
+                      {{ countries.country }}
+                    </option>
+                  {% endif %}
+                {% endfor %}
+              </select>              
             </div>
             <div class="col-md-4">
               <label for="inputHSN" class="form-label">HS Code</label>
