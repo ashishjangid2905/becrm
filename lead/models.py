@@ -19,6 +19,7 @@ class leads(models.Model):
     country = models.CharField(_("Country"), max_length=255, blank=False, null=False)
     pincode = models.CharField(_("Pin Code"), max_length=255, blank=True, null=True)
     industry = models.CharField(_("Industry"), max_length=255, blank=True, null=True)
+    full_address = models.CharField(_("full address"), max_length=512, blank=True)
     source = models.CharField(_("Source"), max_length=50, null=False, blank=False, choices=SOURCE, default='email')
     created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
     edited_at = models.DateTimeField(_("Edited at"), auto_now=True)
@@ -30,12 +31,8 @@ class leads(models.Model):
         return Profile.objects.get(pk=self.user)
     
     def get_full_address(self):
-        try:
-            state_name = dict(STATE_CHOICE).get(int(self.state)) if self.state != 500 else ""
-            country = dict(COUNTRY_CHOICE).get(self.country)
-        except:
-            state_name = self.state
-            country = self.country
+        state_name = dict(STATE_CHOICE).get(int(self.state), self.state) if self.state != 500 else ""
+        country = dict(COUNTRY_CHOICE).get(self.country, self.country)
 
         address_parts = [
             self.address1,
@@ -46,6 +43,10 @@ class leads(models.Model):
             country,
         ]
         return ', '.join(filter(None, address_parts))
+
+    def save(self, *args, **kwargs):
+        self.full_address = self.get_full_address()
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Lead"

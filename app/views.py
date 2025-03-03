@@ -31,11 +31,21 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
+from teams.serializers import MyTokenObtainPairSerializer
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
-    permission_classes = (AllowAny,)
+    serializer_class = MyTokenObtainPairSerializer
 
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        access_token = response.data["access"]
+        refresh_token = response.data["refresh"]
+
+        response.set_cookie("access_token", access_token, httponly=True, secure=True, samesite="None")
+        response.set_cookie("refresh_token", refresh_token, httponly=True, secure=True, samesite="None")
+
+        return response
 
 class Home(APIView):
     authentication_classes = [JWTAuthentication]

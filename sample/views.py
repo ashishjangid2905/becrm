@@ -12,6 +12,22 @@ from django.db.models import Q
 import datetime
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
+from .serializers import SampleSerializer
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.viewsets import generics
+from rest_framework.permissions import IsAuthenticated
+
+
+class SampleViews(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = SampleSerializer
+
+    def get_queryset(self):
+        user_profile = Profile.objects.get(user = self.request.user)
+        return sample.objects.filter(user__profile__branch=user_profile.branch).select_related("user").order_by('-requested_at')
+    
+
 
 @login_required(login_url='app:login')
 def sample_request(request):

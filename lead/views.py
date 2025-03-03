@@ -31,16 +31,50 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .serializers import leadsSerializer, ConversationSerializer
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.filters import OrderingFilter, SearchFilter
+from django_filters.rest_framework import FilterSet
+
+
+class LeadsPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+class LeadsFilters(FilterSet):
+    class Meta:
+        model = leads
+        fields = ['company_name', 'gstin', 'full_address', 'industry']
 
 
 class lead_list(APIView):
     permission_classes = [IsAuthenticated]
+    pagination_class = LeadsPagination
+    search_fields = ['company_name', 'gstin', 'full_address', 'industry']
+    ordering_fields = ['company_name', 'gstin', 'full_address', 'industry', 'user_name', 'created_at']
+    ordering = ['-created_at']
 
     def get(self, request):
         try:
             all_leads = leads.objects.filter(user=request.user.id)
-            serializer = leadsSerializer(all_leads, many = True)
-            return Response(serializer.data)
+            search_query = request.GET.get('search', None)
+            if search_query:
+                search_filter = SearchFilter()
+                all_leads = search_filter.filter_queryset(request, all_leads, self)
+
+            filtered_leads = LeadsFilters(request.GET, queryset=all_leads)
+            if filtered_leads.is_valid():
+                all_leads = filtered_leads.qs
+
+            ordering_query = request.GET.get('ordering', None)
+            if ordering_query:
+                ordering_filter = OrderingFilter()
+                all_leads = ordering_filter.filter_queryset(request, all_leads, self)
+
+            paginator = self.pagination_class()
+            paginated_leads = paginator.paginate_queryset(all_leads, request)
+            serializer = leadsSerializer(paginated_leads, many = True)
+            return paginator.get_paginated_response(serializer.data)
         except leads.DoesNotExist:
             return Response({"message": "No Lead founded"}, status=status.HTTP_404_NOT_FOUND)
 

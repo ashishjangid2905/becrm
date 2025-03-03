@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'django_filters',
     'corsheaders',
     'teams',
     'sample',
@@ -62,14 +63,29 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10
 }
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
     'SLIDING_TOKEN_LIFETIME': timedelta(days=30),
     'SLIDING_TOKEN_REFRESH_LIFETIME_LATE_USER': timedelta(days=1),
     'SLIDING_TOKEN_LIFETIME_LATE_USER': timedelta(days=30),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_COOKIE': 'access_token',  # Custom cookie name
+    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_SECURE': False,  # Set True for HTTPS
+    'AUTH_COOKIE_SAMESITE': 'Lax',
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": os.getenv('SECRET_KEY', "dscwdvc5435@=sdvs"),
+    "AUDIENCE": None,
+    "LEEWAY": 0,
+    "USER_ID_FIELD": "id",
+    'TOKEN_OBTAIN_SERIALIZER': 'teams.serializers.MyTokenObtainPairSerializer',
 }
 
 MIDDLEWARE = [
@@ -228,10 +244,19 @@ SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True  # Logout after inactivity
 SESSION_TIMEOUT_REDIRECT = '/login/'  # Optional: Redirect to the login page
 
 
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS  = ['http://localhost:5173', 'http://localhost:3000']
 
-CORS_ALLOWED_ORIGINS  = ['http://localhost:5173']
+CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://localhost:3000']
 
-CORS_ALLOWED_ALL_ORIGINS = True
+SESSION_COOKIE_SAMESITE = "None"  
+CSRF_COOKIE_SAMESITE = "None"
+
+# If using CSRF protection
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = True
+
+# CORS_ALLOWED_ALL_ORIGINS = True
 
 # CORS_ALLOW_HEADERS = (
 #     "accept",

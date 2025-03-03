@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.text import slugify
@@ -157,9 +158,9 @@ class proforma(models.Model):
     
     company_ref = models.ForeignKey(leads, verbose_name=_("Company Ref"), on_delete=models.RESTRICT, blank=True, null=True)
     user_id = models.IntegerField(_("User Id"))
-    user_name = models.CharField(_("Team Member"), max_length=50, null=True, blank=True)
-    user_contact = models.CharField(_("User Contact"), max_length=50, null=True, blank=True)
-    user_email = models.EmailField(_("User Email"), max_length=50, null=True, blank=True)
+    user_name = models.CharField(_("Team Member"), max_length=50, null=True, blank=True, default="ABC")
+    user_contact = models.CharField(_("User Contact"), max_length=50, null=True, blank=True, default="9899999")
+    user_email = models.EmailField(_("User Email"), max_length=50, null=True, blank=True, default="email@email.com")
     company_name = models.CharField(_("Company Name"), max_length=150, null=False, blank=False)
     gstin = models.CharField(_("GSTIN"), max_length=50, null=True, blank=True)
     is_sez = models.BooleanField(_("Is_SEZ"), default=False)
@@ -233,7 +234,7 @@ class orderList(models.Model):
         return f'PI No.: {self.proforma_id.pi_no} - {self.report_type}: {self.category}'
     
 class convertedPI(models.Model):
-    pi_id = models.OneToOneField(proforma, verbose_name=_("PI ID"), on_delete=models.CASCADE)
+    pi_id = models.OneToOneField(proforma, verbose_name=_("PI ID"), on_delete=models.CASCADE, related_name="convertedpi")
     is_processed = models.BooleanField(_("Is Processed"), default=False)
     is_invoiceRequire = models.BooleanField(_("Is Invoice Required"), default=False)
     is_taxInvoice = models.BooleanField(_("Is Tax Invoice"), default=False)
@@ -262,7 +263,7 @@ class convertedPI(models.Model):
         return f'PI No.-{self.pi_id.pi_no}, Invoice No.-{self.invoice_no}'
 
 class processedOrder(models.Model):
-    pi_id = models.ForeignKey(proforma, verbose_name=_("PI ID"), on_delete=models.CASCADE)
+    pi_id = models.ForeignKey(proforma, verbose_name=_("PI ID"), on_delete=models.CASCADE, related_name="processedorders")
     report_type = models.CharField(_("Report Type"), max_length=150, choices=REPORT_TYPE)
     format = models.CharField(_("Format"), max_length=250, choices=REPORT_FORMAT)
     country = models.CharField(_("Country"), max_length=150, blank=True, null=True)

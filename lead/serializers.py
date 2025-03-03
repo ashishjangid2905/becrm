@@ -12,30 +12,11 @@ class contactPersonSerializer(serializers.ModelSerializer):
 class leadsSerializer(serializers.ModelSerializer):
     contactpersons = contactPersonSerializer(many=True, read_only=True)
     user = serializers.IntegerField(read_only=True)
-    full_address = serializers.SerializerMethodField(read_only=True)
     user_name = serializers.SerializerMethodField(read_only=True)
     uuid = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model= leads
         fields = [ 'id', 'uuid', 'company_name', 'gstin', 'full_address', 'address1', 'address2', 'city', 'state', 'country', 'pincode', 'industry', 'source', 'created_at', 'user', 'user_name', 'status', 'contactpersons']
-
-    def get_full_address(self, obj):
-        try:
-            state_name = dict(STATE_CHOICE).get(int(obj.state)) if obj.state != 500 else ""
-            country = dict(COUNTRY_CHOICE).get(obj.country)
-        except:
-            state_name = obj.state
-            country = obj.country
-
-        address_parts = [
-            obj.address1,
-            obj.address2,
-            obj.city,
-            obj.pincode,
-            state_name,
-            country,
-        ]
-        return ', '.join(filter(None, address_parts))
     
     def get_user_name(self, obj):
         if obj.user:

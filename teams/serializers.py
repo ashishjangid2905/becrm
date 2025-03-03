@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.hashers import make_password
 from .models import User, Profile, Branch, UserVariable, SmtpConfig
 from django.shortcuts import get_object_or_404
@@ -125,3 +126,19 @@ class UserSerializer(serializers.ModelSerializer):
                     )
         
         return instance
+
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['username'] = f'{user.first_name} {user.last_name}'
+        token['email'] = user.email
+        token['contact'] = user.profile.phone
+        token['role'] = user.role if getattr(user, 'role') else "User"
+        token['department'] = user.department if getattr(user, 'department') else "Sales"
+
+        return token
+
+
+

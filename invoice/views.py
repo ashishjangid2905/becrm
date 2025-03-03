@@ -1,18 +1,14 @@
-import os, math
-import re
+import os, math, re
 from pathlib import Path
 
 # all Django imports
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseRedirect, HttpResponse, HttpResponseForbidden
 from django.urls import reverse
-# from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Min, Max
-from django.db import transaction
 from django.contrib import messages
-# from django.contrib.staticfiles import finders
 from django.utils import timezone
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.core.mail import EmailMultiAlternatives
@@ -33,33 +29,65 @@ from .tasks import get_pi_list, pi_count
 import fiscalyear
 from datetime import datetime, timedelta
 from num2words import num2words
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
-from reportlab.lib.units import inch
-from reportlab.pdfgen import canvas
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
-from reportlab.platypus import Image as Im
-from pypdf import PdfReader, PdfWriter
-from io import BytesIO
-
-# from docx import Document
-# from docx.shared import Pt, RGBColor
-# from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
-
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font, NamedStyle
-# from openpyxl.drawing.image import Image
-# from openpyxl.cell.text import InlineFont
-# from openpyxl.cell.rich_text import TextBlock, CellRichText
-# from openpyxl.worksheet.page import PageMargins
+
 from openpyxl.utils import get_column_letter
 
 
 from django.core.cache import cache
+
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from .serializers import ProformaSerializer
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.filters import OrderingFilter, SearchFilter
+from django_filters.rest_framework import FilterSet
+
+class PiPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+class PiFilters(FilterSet):
+    class Meta:
+        model = proforma
+        fields = ['company_name', 'gstin', 'address' ]
+
+class ProformaView(APIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = PiPagination
+    search_fields = ['company_name', 'gstin', 'address']
+    ordering_fields = ['company_name', 'gstin', 'address','pi_no', 'pi_date', 'user_name', 'created_at']
+    ordering = ['-created_at']
+
+    def get(self, request):
+        try:
+            pi_list = proforma.objects.filter(user_id = request.user.id)
+            search_query = request.GET.get('search', None)
+            if search_query:
+                search_filter = SearchFilter()
+                pi_list = search_filter.filter_queryset(request, pi_list, self)
+            filtered_pi = PiFilters(request.GET, queryset=pi_list)
+            if filtered_pi.is_valid():
+                pi_list = filtered_pi.qs
+            ordering_query = request.GET.get('ordering', None)
+            if ordering_query:
+                ordering_filter = OrderingFilter()
+                pi_list = ordering_filter.filter_queryset(request, pi_list, self)
+            paginator = self.pagination_class()
+            paginated_pi = paginator.paginate_queryset(pi_list, request)
+            serializer = ProformaSerializer(paginated_pi, many = True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except proforma.DoesNotExist:
+            return Response({"message": "No Proforma Invoice exists"})
+
+
+
+
 
 
 @login_required(login_url='app:login')
@@ -1383,680 +1411,680 @@ def int_to_roman(num):
 
 
 
-def pdf_PI(pi):
-    pi = get_object_or_404(proforma, pk = pi)
-    orders = orderList.objects.filter(proforma_id= pi)
+# def pdf_PI(pi):
+#     pi = get_object_or_404(proforma, pk = pi)
+#     orders = orderList.objects.filter(proforma_id= pi)
 
-    user_obj = get_object_or_404(User, pk=pi.user_id)  # Fetch the User object
-    user = get_object_or_404(Profile, user=user_obj)
+#     user_obj = get_object_or_404(User, pk=pi.user_id)  # Fetch the User object
+#     user = get_object_or_404(Profile, user=user_obj)
 
-    reg_address = pi.bank.biller_id.get_reg_full_address()
-    corp_address = pi.bank.biller_id.get_corp_full_address()
+#     reg_address = pi.bank.biller_id.get_reg_full_address()
+#     corp_address = pi.bank.biller_id.get_corp_full_address()
 
-    net_total = total_order_value(pi)
-    lumpsumAmt = total_lumpsums(pi)
+#     net_total = total_order_value(pi)
+#     lumpsumAmt = total_lumpsums(pi)
 
-    if pi.currency == 'inr':
-        curr = '₹'
-    else:
-        curr = '$'
+#     if pi.currency == 'inr':
+#         curr = '₹'
+#     else:
+#         curr = '$'
 
-    if pi.is_sez:
-        cgst = 0
-        sgst = 0
-        igst = 0
-        total_inc_tax = net_total
-    else:
-        if pi.bank.biller_id.biller_gstin:
-            if str(pi.state) == pi.bank.biller_id.biller_gstin[0:2]:
-                cgst = net_total*0.09
-                sgst = net_total*0.09
-                igst = 0
-                total_inc_tax = net_total*1.18
-            elif pi.state == "500":   #for Foreign Clients
-                cgst = 0
-                sgst = 0
-                igst = 0
-                total_inc_tax = net_total
-            else:
-                cgst = 0
-                sgst = 0
-                igst = net_total*0.18
-                total_inc_tax = net_total*1.18
-        else:
-            cgst = 0
-            sgst = 0
-            igst = 0
-            total_inc_tax = net_total
-
-
-    roundOff = total_inc_tax - round(total_inc_tax,0)
-
-    if pi.currency == 'inr':
-        total_val_words = f'Rs. {num2words(round(total_inc_tax,0), lang='en').replace(',', '').title()} Only'
-    else:
-        total_val_words = f'Usd {num2words(round(total_inc_tax,0), lang='en').replace(',', '').title()} Only'
-
-    basedir = Path(__file__).resolve().parent.parent
-
-    buffer = BytesIO()
-
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0*inch, rightMargin=0*inch, topMargin=0.2 * inch, bottomMargin=3 * inch,)
-
-    pdfmetrics.registerFont(TTFont('Montserrat-Light', os.path.join(basedir,'static/becrm/fonts/Montserrat-Light.ttf')))
-    pdfmetrics.registerFont(TTFont('Montserrat-Regular', os.path.join(basedir,'static/becrm/fonts/Montserrat-Regular.ttf')))
-    pdfmetrics.registerFont(TTFont('Montserrat-Medium', os.path.join(basedir,'static/becrm/fonts/Montserrat-Medium.ttf')))
-    pdfmetrics.registerFont(TTFont('Montserrat-Bold', os.path.join(basedir,'static/becrm/fonts/Montserrat-Bold.ttf')))
-    pdfmetrics.registerFont(TTFont('Quicksand-Bold', os.path.join(basedir,'static/becrm/fonts/Quicksand-Bold.ttf')))
-    pdfmetrics.registerFont(TTFont('Quicksand-Light', os.path.join(basedir,'static/becrm/fonts/Quicksand-Light.ttf')))
-    pdfmetrics.registerFont(TTFont('Quicksand-Medium', os.path.join(basedir,'static/becrm/fonts/Quicksand-Medium.ttf')))
-    pdfmetrics.registerFont(TTFont('Quicksand-Regular', os.path.join(basedir,'static/becrm/fonts/Quicksand-VariableFont_wght.ttf')))
-    pdfmetrics.registerFont(TTFont('Quicksand-SemiBold', os.path.join(basedir,'static/becrm/fonts/Quicksand-SemiBold.ttf')))
-    pdfmetrics.registerFont(TTFont('Roboto-Medium', os.path.join(basedir,'static/becrm/fonts/Roboto-Medium.ttf')))
-    pdfmetrics.registerFont(TTFont('Roboto-Regular', os.path.join(basedir,'static/becrm/fonts/Roboto-Regular.ttf')))
-    pdfmetrics.registerFont(TTFont('Roboto-Bold', os.path.join(basedir,'static/becrm/fonts/Roboto-Bold.ttf')))
-    pdfmetrics.registerFont(TTFont('Roboto-Light', os.path.join(basedir,'static/becrm/fonts/Roboto-Light.ttf')))
+#     if pi.is_sez:
+#         cgst = 0
+#         sgst = 0
+#         igst = 0
+#         total_inc_tax = net_total
+#     else:
+#         if pi.bank.biller_id.biller_gstin:
+#             if str(pi.state) == pi.bank.biller_id.biller_gstin[0:2]:
+#                 cgst = net_total*0.09
+#                 sgst = net_total*0.09
+#                 igst = 0
+#                 total_inc_tax = net_total*1.18
+#             elif pi.state == "500":   #for Foreign Clients
+#                 cgst = 0
+#                 sgst = 0
+#                 igst = 0
+#                 total_inc_tax = net_total
+#             else:
+#                 cgst = 0
+#                 sgst = 0
+#                 igst = net_total*0.18
+#                 total_inc_tax = net_total*1.18
+#         else:
+#             cgst = 0
+#             sgst = 0
+#             igst = 0
+#             total_inc_tax = net_total
 
 
-    blue_font = ParagraphStyle(name="BlueStyle", fontSize=24, alignment=0, fontName='Helvetica-Bold', leading=20, underlineWidth=2 )
-    black_font = ParagraphStyle(name="BlueStyle", fontSize=12, alignment=0, fontName='Montserrat-Light' )
+#     roundOff = total_inc_tax - round(total_inc_tax,0)
 
-    font_xxs = ParagraphStyle(name="font_xxs", fontSize=8, fontName='Quicksand-bold', alignment=0, leading=8, textColor=colors.HexColor("#ffffff"))
-    font_xs = ParagraphStyle(name="font_xs", fontSize=7, fontName='Quicksand-Bold', alignment=0, leading=7, textColor=colors.HexColor("#ffffff"))
-    font_s = ParagraphStyle(name="font_s", fontSize=10, fontName='Quicksand-light', alignment=0)
-    font_m = ParagraphStyle(name="font_m", fontSize=11, fontName='Quicksand-light', alignment=0)
-    font_l = ParagraphStyle(name="font_l", fontSize=12, fontName='Quicksand-light', alignment=0)
+#     if pi.currency == 'inr':
+#         total_val_words = f'Rs. {num2words(round(total_inc_tax,0), lang='en').replace(',', '').title()} Only'
+#     else:
+#         total_val_words = f'Usd {num2words(round(total_inc_tax,0), lang='en').replace(',', '').title()} Only'
 
-    brand_text = f'{pi.bank.biller_id.brand_name}'
-    brand_name = Paragraph(f'<font color="#3182d9">{brand_text}</font>', blue_font)
+#     basedir = Path(__file__).resolve().parent.parent
 
-    if pi.bank.biller_id.biller_name != pi.bank.biller_id.brand_name:
-        founder_text = f'{pi.bank.biller_id.biller_name}'
-        founder_name = Paragraph(f'<font color="#000000" >founded by {founder_text}</font>', black_font)
-    else:
-        founder_name = ""
+#     buffer = BytesIO()
 
-    imagepath = os.path.join(basedir,'static/becrm/image/pi_back.png')
-    logo = Im(imagepath, 8.25*inch,3*inch)
+#     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0*inch, rightMargin=0*inch, topMargin=0.2 * inch, bottomMargin=3 * inch,)
 
-    taxAmount = Paragraph(f'<font>₹ {total_inc_tax}</font>', black_font)
-
-    biller_font = ParagraphStyle(name="BlueStyle", fontSize=11, alignment=0, textColor='white', fontName='Roboto-Bold' )
-
-    if corp_address:
-        corpAddress = Paragraph(f'<strong>Corporate Office: </strong><font>{corp_address}</font>', font_xs)
-    else:
-        corpAddress = ""
-    regAddress = Paragraph(f'<b>Reg. Office: </b><font>{reg_address}</font>', font_xs)
-    gstin_text = f'<b>GSTIN: </b><font>{pi.bank.biller_id.biller_gstin}</font>' if corp_address else ''
-
-    biller_Name = Paragraph(f"<b>{pi.bank.biller_id.biller_name} | {gstin_text}</b>", biller_font)
-
-    user_dtl = None
-    if pi.bank.biller_id.biller_gstin != '':
-        user_dtl = Paragraph(f"<b>Email: </b><font>{user.user.email} || </font><b>Contact: </b><font>{user.phone}</font><br/><b>Website: </b><font>www.besmartexim.com</font>", biller_font)
-
-    address = Paragraph(f"<b>Address: </b><font>{pi.address}</font>", font_xxs)
-
-    email_symbol = "\u2709"
-    email = Paragraph(f'<b>E: </b><font>{pi.email_id}</font>', font_xxs)
-    contact = Paragraph(f"<b>M: </b><font>{pi.contact}</font>", font_xxs)
-
-    piDate = pi.pi_date.strftime("%d-%b-%y")
-
-    user_name = Paragraph(f"<font>{user.user.first_name} {user.user.last_name}</font>", font_m)
-    requistioner = Paragraph(f"<font>{pi.requistioner}</font>", font_m)
-    subs = Paragraph(f"<font>{pi.subscription}</font>", font_m)
-    pay_m = Paragraph(f"<font>{pi.payment_term}</font>", font_m)
-
-    unit_price_h = Paragraph(f"<b><font>Unit Price ({pi.currency.upper()})</font></b>", font_s)
-    total_price_h = Paragraph(f"<b><font>Total ({pi.currency.upper()})</font></b>", font_s)
-    if hasattr(pi, 'convertedpi'):
-        invoice_type = 'TAX INVOICE' if pi.convertedpi.is_taxInvoice else 'PRO FORMA INVOICE'
-    else:
-        invoice_type = 'PRO FORMA INVOICE'
-
-    data = [
-        [brand_name,'','','','','','','','','',''],
-        [founder_name,'','','','','','','','','', invoice_type],
-        ['','','','','','','','','','',''],
-        ['','','','','',logo,'','','','',''],
-        ['Issued by:','','','','','','','',f'{curr} {round(total_inc_tax,0):.2f}','','',],
-        [biller_Name,'','','','','','','','','','',],
-        [regAddress,'','',corpAddress,'','','','','Total Payable Amount','',''],
-        ['','','','','','','','','','',''],
-        ['Customer Details:','','','','','','','','VENDOR CODE:' if pi.vendor_code else '',pi.vendor_code,''],
-        [pi.company_name.upper(),'','','','','','','','LUT NO:'if pi.lut_no else '',pi.lut_no,''],
-        [f'GSTIN: {pi.gstin}','','','','','','','','PO DATE:' if pi.po_date else '','',''],
-        [address,'','','','','','','','PO NUMBER:' if pi.po_no else '','',''],
-        ['','','','','','','','','PI DATE:',piDate,''],
-        [email,'','','','','','','','PI NUMBER:',pi.pi_no,''],
-        [contact,'','','','','','','','Invoice Date:' if invoice_type=='TAX INVOICE' else '',pi.convertedpi.invoice_date if invoice_type=='TAX INVOICE' else '',''],
-        ['','','','','','','','','Invoice No.:' if invoice_type=='TAX INVOICE' else '',pi.convertedpi.invoice_no if invoice_type=='TAX INVOICE' else '',''],
-        ['','','','','','','','','','',''],
-        ['','','','','','','','','','',''],
-        ['','S.N','ITEM DESCRIPTION','','','','','RATE','',f'TOTAL ({curr})',''],
-        ['','','','','','','','','','',''],
-    ]
+#     pdfmetrics.registerFont(TTFont('Montserrat-Light', os.path.join(basedir,'static/becrm/fonts/Montserrat-Light.ttf')))
+#     pdfmetrics.registerFont(TTFont('Montserrat-Regular', os.path.join(basedir,'static/becrm/fonts/Montserrat-Regular.ttf')))
+#     pdfmetrics.registerFont(TTFont('Montserrat-Medium', os.path.join(basedir,'static/becrm/fonts/Montserrat-Medium.ttf')))
+#     pdfmetrics.registerFont(TTFont('Montserrat-Bold', os.path.join(basedir,'static/becrm/fonts/Montserrat-Bold.ttf')))
+#     pdfmetrics.registerFont(TTFont('Quicksand-Bold', os.path.join(basedir,'static/becrm/fonts/Quicksand-Bold.ttf')))
+#     pdfmetrics.registerFont(TTFont('Quicksand-Light', os.path.join(basedir,'static/becrm/fonts/Quicksand-Light.ttf')))
+#     pdfmetrics.registerFont(TTFont('Quicksand-Medium', os.path.join(basedir,'static/becrm/fonts/Quicksand-Medium.ttf')))
+#     pdfmetrics.registerFont(TTFont('Quicksand-Regular', os.path.join(basedir,'static/becrm/fonts/Quicksand-VariableFont_wght.ttf')))
+#     pdfmetrics.registerFont(TTFont('Quicksand-SemiBold', os.path.join(basedir,'static/becrm/fonts/Quicksand-SemiBold.ttf')))
+#     pdfmetrics.registerFont(TTFont('Roboto-Medium', os.path.join(basedir,'static/becrm/fonts/Roboto-Medium.ttf')))
+#     pdfmetrics.registerFont(TTFont('Roboto-Regular', os.path.join(basedir,'static/becrm/fonts/Roboto-Regular.ttf')))
+#     pdfmetrics.registerFont(TTFont('Roboto-Bold', os.path.join(basedir,'static/becrm/fonts/Roboto-Bold.ttf')))
+#     pdfmetrics.registerFont(TTFont('Roboto-Light', os.path.join(basedir,'static/becrm/fonts/Roboto-Light.ttf')))
 
 
-    row_heights = [0.4*inch, 0.3*inch] + 3*[0.1*inch] + 15*[0.2*inch]
-    col_widths = 11*[0.7*inch]
+#     blue_font = ParagraphStyle(name="BlueStyle", fontSize=24, alignment=0, fontName='Helvetica-Bold', leading=20, underlineWidth=2 )
+#     black_font = ParagraphStyle(name="BlueStyle", fontSize=12, alignment=0, fontName='Montserrat-Light' )
 
-    table = Table(data, col_widths, row_heights)
+#     font_xxs = ParagraphStyle(name="font_xxs", fontSize=8, fontName='Quicksand-bold', alignment=0, leading=8, textColor=colors.HexColor("#ffffff"))
+#     font_xs = ParagraphStyle(name="font_xs", fontSize=7, fontName='Quicksand-Bold', alignment=0, leading=7, textColor=colors.HexColor("#ffffff"))
+#     font_s = ParagraphStyle(name="font_s", fontSize=10, fontName='Quicksand-light', alignment=0)
+#     font_m = ParagraphStyle(name="font_m", fontSize=11, fontName='Quicksand-light', alignment=0)
+#     font_l = ParagraphStyle(name="font_l", fontSize=12, fontName='Quicksand-light', alignment=0)
 
-    style = TableStyle([
-        ('SPAN',(0,0),(5,0)),
-        ('FONT',(0,1),(6,1),'Montserrat-Regular', 13),
-        ('SPAN',(0,1),(5,1)),
-        ('VALIGN',(0,0),(-1,-1), 'TOP'),
-        ('VALIGN',(7,1),(10,1),'BOTTOM'),
-        ('TEXTCOLOR',(7,1),(10,1), colors.HexColor('#545454')),
-        ('ALIGN',(0,0),(-1,-1), 'LEFT'),
-        ('ALIGN',(5,3),(5,3), 'CENTER'),
-        ('ALIGN',(7,1),(10,4), 'RIGHT'),
-        ('FONT',(7,1),(10,3),'Montserrat-Regular', 22),
-        ('FONT',(7,3),(10,4),'Roboto-Medium', 16),
-        ('TEXTCOLOR',(7,3),(10,4),colors.HexColor('#545454')),
-        ('VALIGN',(0,4),(6,4),'MIDDLE',),
-        ('FONT',(0,4),(6,4),'Montserrat-Medium', 8),
-        ('TEXTCOLOR',(0,3),(6,4),colors.HexColor('#ffffff')),
-        ('SPAN',(8,4),(10,4)),
-        ('SPAN',(8,6),(10,6)),
-        ('ALIGN',(7,4),(10,6), 'CENTER'),
-        ('VALIGN',(7,6),(10,6), 'TOP'),
-        ('FONT',(7,6),(10,6),'Montserrat-Light', 9),
-        ('ALIGN',(7,3),(9,3), 'CENTER'),
-        ('SPAN',(0,5),(5,5)),
-        ('SPAN',(0,6),(2,6)),
-        ('SPAN',(3,6),(5,6)),
-        ('FONT',(0,8),(10,8),'Montserrat-Regular', 9),
-        ('FONT',(0,9),(4,9),'Roboto-Bold', 13),
-        ('FONT',(0,10),(4,10),'Roboto-Regular', 10),
-        ('SPAN',(0,11),(5,11)),
-        ('SPAN',(0,13),(6,13)),
-        ('SPAN',(0,14),(5,14)),
-        ('ALIGN',(8,8),(8,15),'RIGHT'),
-        ('FONT',(8,8),(8,15),'Quicksand-Bold', 9),
-        ('FONT',(9,8),(9,15),'Quicksand-Medium', 9),
-        ('LINEAFTER',(6,9),(6,13), 2,colors.white),
-        ('TEXTCOLOR',(0,7),(10,15), colors.HexColor('#ffffff')),
-        ('FONT',(0,18),(10,18),'Quicksand-Bold', 11),
-        ('ALIGN',(7,18),(9,19),'RIGHT'),
-    ])
+#     brand_text = f'{pi.bank.biller_id.brand_name}'
+#     brand_name = Paragraph(f'<font color="#3182d9">{brand_text}</font>', blue_font)
 
-    table.setStyle(style)
+#     if pi.bank.biller_id.biller_name != pi.bank.biller_id.brand_name:
+#         founder_text = f'{pi.bank.biller_id.biller_name}'
+#         founder_name = Paragraph(f'<font color="#000000" >founded by {founder_text}</font>', black_font)
+#     else:
+#         founder_name = ""
+
+#     imagepath = os.path.join(basedir,'static/becrm/image/pi_back.png')
+#     logo = Im(imagepath, 8.25*inch,3*inch)
+
+#     taxAmount = Paragraph(f'<font>₹ {total_inc_tax}</font>', black_font)
+
+#     biller_font = ParagraphStyle(name="BlueStyle", fontSize=11, alignment=0, textColor='white', fontName='Roboto-Bold' )
+
+#     if corp_address:
+#         corpAddress = Paragraph(f'<strong>Corporate Office: </strong><font>{corp_address}</font>', font_xs)
+#     else:
+#         corpAddress = ""
+#     regAddress = Paragraph(f'<b>Reg. Office: </b><font>{reg_address}</font>', font_xs)
+#     gstin_text = f'<b>GSTIN: </b><font>{pi.bank.biller_id.biller_gstin}</font>' if corp_address else ''
+
+#     biller_Name = Paragraph(f"<b>{pi.bank.biller_id.biller_name} | {gstin_text}</b>", biller_font)
+
+#     user_dtl = None
+#     if pi.bank.biller_id.biller_gstin != '':
+#         user_dtl = Paragraph(f"<b>Email: </b><font>{user.user.email} || </font><b>Contact: </b><font>{user.phone}</font><br/><b>Website: </b><font>www.besmartexim.com</font>", biller_font)
+
+#     address = Paragraph(f"<b>Address: </b><font>{pi.address}</font>", font_xxs)
+
+#     email_symbol = "\u2709"
+#     email = Paragraph(f'<b>E: </b><font>{pi.email_id}</font>', font_xxs)
+#     contact = Paragraph(f"<b>M: </b><font>{pi.contact}</font>", font_xxs)
+
+#     piDate = pi.pi_date.strftime("%d-%b-%y")
+
+#     user_name = Paragraph(f"<font>{user.user.first_name} {user.user.last_name}</font>", font_m)
+#     requistioner = Paragraph(f"<font>{pi.requistioner}</font>", font_m)
+#     subs = Paragraph(f"<font>{pi.subscription}</font>", font_m)
+#     pay_m = Paragraph(f"<font>{pi.payment_term}</font>", font_m)
+
+#     unit_price_h = Paragraph(f"<b><font>Unit Price ({pi.currency.upper()})</font></b>", font_s)
+#     total_price_h = Paragraph(f"<b><font>Total ({pi.currency.upper()})</font></b>", font_s)
+#     if hasattr(pi, 'convertedpi'):
+#         invoice_type = 'TAX INVOICE' if pi.convertedpi.is_taxInvoice else 'PRO FORMA INVOICE'
+#     else:
+#         invoice_type = 'PRO FORMA INVOICE'
+
+#     data = [
+#         [brand_name,'','','','','','','','','',''],
+#         [founder_name,'','','','','','','','','', invoice_type],
+#         ['','','','','','','','','','',''],
+#         ['','','','','',logo,'','','','',''],
+#         ['Issued by:','','','','','','','',f'{curr} {round(total_inc_tax,0):.2f}','','',],
+#         [biller_Name,'','','','','','','','','','',],
+#         [regAddress,'','',corpAddress,'','','','','Total Payable Amount','',''],
+#         ['','','','','','','','','','',''],
+#         ['Customer Details:','','','','','','','','VENDOR CODE:' if pi.vendor_code else '',pi.vendor_code,''],
+#         [pi.company_name.upper(),'','','','','','','','LUT NO:'if pi.lut_no else '',pi.lut_no,''],
+#         [f'GSTIN: {pi.gstin}','','','','','','','','PO DATE:' if pi.po_date else '','',''],
+#         [address,'','','','','','','','PO NUMBER:' if pi.po_no else '','',''],
+#         ['','','','','','','','','PI DATE:',piDate,''],
+#         [email,'','','','','','','','PI NUMBER:',pi.pi_no,''],
+#         [contact,'','','','','','','','Invoice Date:' if invoice_type=='TAX INVOICE' else '',pi.convertedpi.invoice_date if invoice_type=='TAX INVOICE' else '',''],
+#         ['','','','','','','','','Invoice No.:' if invoice_type=='TAX INVOICE' else '',pi.convertedpi.invoice_no if invoice_type=='TAX INVOICE' else '',''],
+#         ['','','','','','','','','','',''],
+#         ['','','','','','','','','','',''],
+#         ['','S.N','ITEM DESCRIPTION','','','','','RATE','',f'TOTAL ({curr})',''],
+#         ['','','','','','','','','','',''],
+#     ]
 
 
-    nr = 0
-    s = 1
-    order_list = []
-    lumpsumRow = 0
+#     row_heights = [0.4*inch, 0.3*inch] + 3*[0.1*inch] + 15*[0.2*inch]
+#     col_widths = 11*[0.7*inch]
+
+#     table = Table(data, col_widths, row_heights)
+
+#     style = TableStyle([
+#         ('SPAN',(0,0),(5,0)),
+#         ('FONT',(0,1),(6,1),'Montserrat-Regular', 13),
+#         ('SPAN',(0,1),(5,1)),
+#         ('VALIGN',(0,0),(-1,-1), 'TOP'),
+#         ('VALIGN',(7,1),(10,1),'BOTTOM'),
+#         ('TEXTCOLOR',(7,1),(10,1), colors.HexColor('#545454')),
+#         ('ALIGN',(0,0),(-1,-1), 'LEFT'),
+#         ('ALIGN',(5,3),(5,3), 'CENTER'),
+#         ('ALIGN',(7,1),(10,4), 'RIGHT'),
+#         ('FONT',(7,1),(10,3),'Montserrat-Regular', 22),
+#         ('FONT',(7,3),(10,4),'Roboto-Medium', 16),
+#         ('TEXTCOLOR',(7,3),(10,4),colors.HexColor('#545454')),
+#         ('VALIGN',(0,4),(6,4),'MIDDLE',),
+#         ('FONT',(0,4),(6,4),'Montserrat-Medium', 8),
+#         ('TEXTCOLOR',(0,3),(6,4),colors.HexColor('#ffffff')),
+#         ('SPAN',(8,4),(10,4)),
+#         ('SPAN',(8,6),(10,6)),
+#         ('ALIGN',(7,4),(10,6), 'CENTER'),
+#         ('VALIGN',(7,6),(10,6), 'TOP'),
+#         ('FONT',(7,6),(10,6),'Montserrat-Light', 9),
+#         ('ALIGN',(7,3),(9,3), 'CENTER'),
+#         ('SPAN',(0,5),(5,5)),
+#         ('SPAN',(0,6),(2,6)),
+#         ('SPAN',(3,6),(5,6)),
+#         ('FONT',(0,8),(10,8),'Montserrat-Regular', 9),
+#         ('FONT',(0,9),(4,9),'Roboto-Bold', 13),
+#         ('FONT',(0,10),(4,10),'Roboto-Regular', 10),
+#         ('SPAN',(0,11),(5,11)),
+#         ('SPAN',(0,13),(6,13)),
+#         ('SPAN',(0,14),(5,14)),
+#         ('ALIGN',(8,8),(8,15),'RIGHT'),
+#         ('FONT',(8,8),(8,15),'Quicksand-Bold', 9),
+#         ('FONT',(9,8),(9,15),'Quicksand-Medium', 9),
+#         ('LINEAFTER',(6,9),(6,13), 2,colors.white),
+#         ('TEXTCOLOR',(0,7),(10,15), colors.HexColor('#ffffff')),
+#         ('FONT',(0,18),(10,18),'Quicksand-Bold', 11),
+#         ('ALIGN',(7,18),(9,19),'RIGHT'),
+#     ])
+
+#     table.setStyle(style)
+
+
+#     nr = 0
+#     s = 1
+#     order_list = []
+#     lumpsumRow = 0
     
-    net_total = total_order_value(pi)
-    lumpsumAmt = total_lumpsums(pi)
+#     net_total = total_order_value(pi)
+#     lumpsumAmt = total_lumpsums(pi)
 
-    for order in filter_by_lumpsum(orders,True):
-        if order.is_lumpsum:
-            cat = dict(CATEGORY).get(str(order.category))
-            report = dict(REPORT_TYPE).get(str(order.report_type))
-            product = order.product
-            from_month = datetime.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
-            to_month = datetime.strptime(order.to_month, '%Y-%m').strftime("%b'%y")
-            period = f'{from_month} - {to_month}'
+#     for order in filter_by_lumpsum(orders,True):
+#         if order.is_lumpsum:
+#             cat = dict(CATEGORY).get(str(order.category))
+#             report = dict(REPORT_TYPE).get(str(order.report_type))
+#             product = order.product
+#             from_month = datetime.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
+#             to_month = datetime.strptime(order.to_month, '%Y-%m').strftime("%b'%y")
+#             period = f'{from_month} - {to_month}'
 
-            if pi.currency == 'inr':
-                unitPrice = f'Lumpsum'
-                totalPrice = f'{lumpsumAmt:.2f}'
-            else:
-                unitPrice = f'Lumpsum'
-                totalPrice = f'{lumpsumAmt:.2f}'
+#             if pi.currency == 'inr':
+#                 unitPrice = f'Lumpsum'
+#                 totalPrice = f'{lumpsumAmt:.2f}'
+#             else:
+#                 unitPrice = f'Lumpsum'
+#                 totalPrice = f'{lumpsumAmt:.2f}'
 
-            sac = f'SAC: 998399'
+#             sac = f'SAC: 998399'
 
-        from_m = datetime.strptime(order.from_month, '%Y-%m')
-        to_m = datetime.strptime(order.to_month, '%Y-%m')
+#         from_m = datetime.strptime(order.from_month, '%Y-%m')
+#         to_m = datetime.strptime(order.to_month, '%Y-%m')
 
-        orderDes = Paragraph(f'<font>{report} | {product} | Period: {from_month} - {to_month}</font>', font_s)
-        no_months = (to_m.year - from_m.year)*12 + to_m.month - from_m.month + 1
+#         orderDes = Paragraph(f'<font>{report} | {product} | Period: {from_month} - {to_month}</font>', font_s)
+#         no_months = (to_m.year - from_m.year)*12 + to_m.month - from_m.month + 1
 
-        total_m = f'Total: {no_months}'
+#         total_m = f'Total: {no_months}'
 
-        order_list.extend([
-            [f'{int_to_roman(s)})',f'{cat} | SAC: 998399','','','','','','',''],
-            ['',orderDes,'','','','','','',''],
-            ])
-        nr+= 2
-        s+= 1
-        lumpsumRow+=2
+#         order_list.extend([
+#             [f'{int_to_roman(s)})',f'{cat} | SAC: 998399','','','','','','',''],
+#             ['',orderDes,'','','','','','',''],
+#             ])
+#         nr+= 2
+#         s+= 1
+#         lumpsumRow+=2
 
-    for order in filter_by_lumpsum(orders,False):
-            cat = dict(CATEGORY).get(str(order.category))
-            report = dict(REPORT_TYPE).get(str(order.report_type))
-            product = order.product
-            from_month = datetime.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
-            to_month = datetime.strptime(order.to_month, '%Y-%m').strftime("%b'%y")
+#     for order in filter_by_lumpsum(orders,False):
+#             cat = dict(CATEGORY).get(str(order.category))
+#             report = dict(REPORT_TYPE).get(str(order.report_type))
+#             product = order.product
+#             from_month = datetime.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
+#             to_month = datetime.strptime(order.to_month, '%Y-%m').strftime("%b'%y")
 
-            orderDes = Paragraph(f'<font>{report} | {product} | Period: {from_month} - {to_month}</font>', font_s)
-            period = f'{from_month} - {to_month}'
+#             orderDes = Paragraph(f'<font>{report} | {product} | Period: {from_month} - {to_month}</font>', font_s)
+#             period = f'{from_month} - {to_month}'
 
 
-            unitPrice = f'{curr} {order.unit_price}'
-            totalPrice = f'{order.total_price:.2f}'
+#             unitPrice = f'{curr} {order.unit_price}'
+#             totalPrice = f'{order.total_price:.2f}'
 
-            sac = f'SAC: 998399'
+#             sac = f'SAC: 998399'
 
-            from_m = datetime.strptime(order.from_month, '%Y-%m')
-            to_m = datetime.strptime(order.to_month, '%Y-%m')
+#             from_m = datetime.strptime(order.from_month, '%Y-%m')
+#             to_m = datetime.strptime(order.to_month, '%Y-%m')
 
-            no_months = (to_m.year - from_m.year)*12 + to_m.month - from_m.month + 1
+#             no_months = (to_m.year - from_m.year)*12 + to_m.month - from_m.month + 1
 
-            total_m = f'Total: {no_months}'
+#             total_m = f'Total: {no_months}'
 
-            order_list.extend([
-                [f'{int_to_roman(s)})',f'{cat} | SAC: 998399','','','','',unitPrice,'',totalPrice],
-                ['',orderDes,'','','','','','',''],
-                ])
-            nr+= 2
-            s+= 1    
+#             order_list.extend([
+#                 [f'{int_to_roman(s)})',f'{cat} | SAC: 998399','','','','',unitPrice,'',totalPrice],
+#                 ['',orderDes,'','','','','','',''],
+#                 ])
+#             nr+= 2
+#             s+= 1    
 
-    orderStyle = []
+#     orderStyle = []
 
-    if lumpsumRow>0:
-        for r in range(0, lumpsumRow, 2):
-            end_row = min(lumpsumRow - 1, r + 1)
-            order_list[0][6] = "Lumpsum"
-            order_list[0][8] = f'{lumpsumAmt:.2f}'
-            for i in range(r + 1, end_row + 1):
-                order_list[i][6] = ''
-                order_list[i][8] = ''
-            orderStyle.extend([
-                ('SPAN',(6,r),(6, lumpsumRow-1)),
-                ('SPAN',(8,r),(8, lumpsumRow-1)),
-                ])
+#     if lumpsumRow>0:
+#         for r in range(0, lumpsumRow, 2):
+#             end_row = min(lumpsumRow - 1, r + 1)
+#             order_list[0][6] = "Lumpsum"
+#             order_list[0][8] = f'{lumpsumAmt:.2f}'
+#             for i in range(r + 1, end_row + 1):
+#                 order_list[i][6] = ''
+#                 order_list[i][8] = ''
+#             orderStyle.extend([
+#                 ('SPAN',(6,r),(6, lumpsumRow-1)),
+#                 ('SPAN',(8,r),(8, lumpsumRow-1)),
+#                 ])
             
-    if nr>lumpsumRow:
-        for r in range(lumpsumRow,nr, 2):
-            orderStyle.extend([
-                ('SPAN',(6,r),(6, r+1)),
-                ('SPAN',(8,r),(8, r+1)),
-                ])
+#     if nr>lumpsumRow:
+#         for r in range(lumpsumRow,nr, 2):
+#             orderStyle.extend([
+#                 ('SPAN',(6,r),(6, r+1)),
+#                 ('SPAN',(8,r),(8, r+1)),
+#                 ])
 
-    for r in range(0, nr, 2):
-        orderStyle.extend([
-            ('LINEABOVE',(0,0),(-1,0),2,colors.HexColor('#c63545')),
-            ('SPAN',(1,r),(5,r)),
-            ('SPAN',(1,r+1),(5,r+1)),
-            ('FONT',(1,r),(5,r),'Quicksand-Bold',10),
-            ('FONT',(1,r+1),(5,r+1),'Quicksand-Medium',10),
-            ('FONT',(6,r),(8, -1),'Quicksand-Medium',10),
-            ('ALIGN',(6,r),(8, -1),'RIGHT'),
-            ('RIGHTPADDING',(6,r),(6, -1),-10),
-            ])
+#     for r in range(0, nr, 2):
+#         orderStyle.extend([
+#             ('LINEABOVE',(0,0),(-1,0),2,colors.HexColor('#c63545')),
+#             ('SPAN',(1,r),(5,r)),
+#             ('SPAN',(1,r+1),(5,r+1)),
+#             ('FONT',(1,r),(5,r),'Quicksand-Bold',10),
+#             ('FONT',(1,r+1),(5,r+1),'Quicksand-Medium',10),
+#             ('FONT',(6,r),(8, -1),'Quicksand-Medium',10),
+#             ('ALIGN',(6,r),(8, -1),'RIGHT'),
+#             ('RIGHTPADDING',(6,r),(6, -1),-10),
+#             ])
 
-    orderStyle.append(('ROWBACKGROUNDS', (0, 0), (5, -1), [colors.white, colors.white, colors.HexColor('#f1f1f1'), colors.HexColor('#f1f1f1')]))
+#     orderStyle.append(('ROWBACKGROUNDS', (0, 0), (5, -1), [colors.white, colors.white, colors.HexColor('#f1f1f1'), colors.HexColor('#f1f1f1')]))
     
-    order_table = Table(order_list, col_widths)
+#     order_table = Table(order_list, col_widths)
 
-    order_table.setStyle(orderStyle)
+#     order_table.setStyle(orderStyle)
 
-    pdf_canvas = canvas.Canvas(buffer, pagesize=A4)
-
-    
-    # Draw something on the canvas (example)
-    def add_canvas(canvas, doc):
-
-        canvas.setLineWidth(1)  # Set the border width
-
-        # You can also reset the font color if needed for further text
-        canvas.setFillColor(colors.HexColor('#004aad'))  # Reset to black or any other color after drawing
-        canvas.setStrokeColor(colors.white)  # Set stroke color for the border
-        canvas.setLineWidth(1)
-        canvas.roundRect(360, 165, 200, 95, 10, fill=1)
-
-        canvas.setFillColor(colors.HexColor('#3182d9'))  # Reset to black or any other color after drawing
-        canvas.rect(30,101, 150, 30, fill=1)
-        canvas.rect(180,101, 160, 30, fill=1)
-        canvas.rect(340,101, 120, 30, fill=1)
-        canvas.rect(460,101, 100, 30, fill=1)
-
-        canvas.setFillColor(colors.HexColor('#38b6ff'))  # Reset to black or any other color after drawing
-        canvas.rect(30,70, 150, 30, fill=1)
-        canvas.rect(180,70, 160, 30, fill=1)
-        canvas.rect(340,70, 120, 30, fill=1)
-        canvas.rect(460,70, 100, 30, fill=1)
-
-        canvas.rect(30,39, 530, 30, fill=1)
-
-
-
-    def add_text(canvas,doc):
-        canvas.setFont("Quicksand-Medium", 10)
-        canvas.setFillColor(colors.HexColor('#ffffff'))  # Set the font color to a shade of blue
-
-        # Set font color for the tax strings
-        canvas.drawRightString(440, 245, f"AMOUNT:")
-        canvas.drawRightString(530, 245, f"{curr} {net_total:.2f}")
-        canvas.drawRightString(440, 230, "IGST (18%):")
-        canvas.drawRightString(530, 230, f"{curr} {igst:.2f}")
-        canvas.drawRightString(440, 215, "CGST (9%):")  # Use different y-coordinates
-        canvas.drawRightString(530, 215, f"{curr} {cgst:.2f}")  # Use different y-coordinates
-        canvas.drawRightString(440, 200, "SGST (9%):")  # Use different y-coordinates
-        canvas.drawRightString(530, 200, f"{curr} {sgst:.2f}")  # Use different y-coordinates
-
-
-        canvas.setFont("Quicksand-Medium", 8)
-        canvas.drawRightString(440, 188, "rounded off (+/-):")  # Use different y-coordinates
-        canvas.drawRightString(530, 188, f"{curr} {roundOff:.2f}")  # Use different y-coordinates
-        canvas.setFont("Quicksand-Bold", 12)
-        canvas.drawRightString(440, 173, f"TOTAL:")    # Use different y-coordinates
-        canvas.drawRightString(530, 173, f"{curr} {round(total_inc_tax,0):.2f}")   # Use different y-coordinates
-        
-        canvas.setFont("Quicksand-Regular", 11)
-        canvas.setFillColor(colors.HexColor('#004aad'))  # Set the font color to a shade of blue
-        canvas.drawRightString(350, 230, f"AMOUNT PAYABLE IN WORDS:")   # Use different y-coordinates
-
-        words = total_val_words.split(" ")
-        line = []
-        current_line = ""
-
-        for word in words:
-            test_line = current_line + word + " "
-
-            if canvas.stringWidth(test_line,'Quicksand-Bold', 12) <= 250:
-                current_line = test_line
-            else:
-                line.append(current_line.strip())
-                current_line = word + " "
-        if current_line:
-            line.append(current_line.strip())
-
-        line_height = 13
-
-        canvas.setFont("Quicksand-Bold", 12)
-        for i, line in enumerate(line):
-
-            canvas.drawRightString(350, 215 - (i * line_height), f"{line}")   # Use different y-coordinates
-        
-        canvas.setFont("Montserrat-Medium", 10)
-        canvas.setFillColor(colors.HexColor('#3182d9'))  # Set the font color to a shade of blue
-        canvas.drawRightString(540, 145, "Whether Tax is payable under REVERSE CHARGE: ")   # Use different y-coordinates
-        canvas.setFont("Montserrat-Bold", 10)
-        canvas.drawRightString(560, 145, "NO")   # Use different y-coordinates
-        
-        canvas.setFillColor(colors.HexColor('#ffffff'))  # Set the font color to a shade of blue
-        canvas.setFont("Montserrat-Bold", 10)
-        canvas.drawCentredString(105, 112, "Team Member")
-        canvas.drawCentredString(260, 112, "Requisitioner")
-        canvas.drawCentredString(400, 112, "Subscription Mode")
-        canvas.drawCentredString(510, 112, "Payment Term")
-
-        canvas.setFont("Montserrat-Medium", 9)
-        canvas.drawCentredString(105, 80, f"{user}")
-        canvas.drawCentredString(260, 80, f"{pi.requistioner}")
-        canvas.drawCentredString(400, 80, f"{pi.subscription.capitalize()}")
-        canvas.drawCentredString(510, 80, f"{pi.payment_term.capitalize()}")
-
-        email_H_width = canvas.stringWidth('Email: ','Montserrat-Medium',9)
-        email_width = canvas.stringWidth(f'{user.user.email}','Montserrat-Bold',9)
-        contact_H_width = canvas.stringWidth(' | Contact: ','Montserrat-Medium',9)
-        contact_width = canvas.stringWidth(f'{user.phone}','Montserrat-Bold',9)
-        web_H_width = canvas.stringWidth(' | Website: ','Montserrat-Medium',9)
-        web_width = canvas.stringWidth('www.besmartexim.com','Montserrat-Bold',9)
-
-        start_point = 295 - (email_H_width + email_width + contact_H_width + contact_width + web_H_width + web_width) / 2
-
-        
-        canvas.setFont("Montserrat-Medium", 9)
-        canvas.drawString(start_point, 50, 'Email: ')
-        canvas.drawString(start_point + email_H_width + email_width, 50, ' | Contact: ')
-        canvas.drawString(start_point + email_H_width + email_width + contact_H_width + contact_width, 50, ' | Website: ')
-        canvas.setFont("Montserrat-Bold", 9)
-        canvas.drawString(start_point + email_H_width, 50, f'{user.user.email}')
-        canvas.drawString(start_point + email_H_width + email_width + contact_H_width, 50, f'{user.phone}')
-        canvas.drawString(start_point + email_H_width + email_width + contact_H_width + contact_width + web_H_width, 50, 'www.besmartexim.com')
-        
-        canvas.setFont("Montserrat-Regular", 7)
-        canvas.setFillColor(colors.HexColor('#545454'))
-        canvas.drawCentredString(300, 10, f'This is Computer generated {invoice_type}')
-
-    def add_last_page_text(canvas):
-
-        canvas.setFillColor(colors.HexColor('#004aad'))  # Reset to black or any other color after drawing
-        canvas.setStrokeColor(colors.white)  # Set stroke color for the border
-        canvas.setLineWidth(1)
-        canvas.roundRect(30, 640, 290, 170, 10, fill=1)
-
-        canvas.setFont("Montserrat-Medium", 11)
-        canvas.setFillColor(colors.HexColor('#ffffff'))
-        canvas.drawString(50, 780, "Kindly pay in favor of")
-        if pi.bank.is_upi:
-            canvas.drawRightString(145, 740, "Holder Name: ")
-            canvas.drawRightString(145, 725, "UPI ID.: ")
-            canvas.drawRightString(145, 710, "UPI No.: ")
-        else:
-            canvas.drawRightString(145, 740, "Bank Name: ")
-            canvas.drawRightString(145, 725, "A/C No.: ")
-            canvas.drawRightString(145, 710, "Branch Address: ")
-            canvas.drawRightString(145, 660, "IFSC: ")
-            if pi.country != 'IN':
-                canvas.drawRightString(145, 645, "SWIFT: ")
-            canvas.setFont("Montserrat-Bold", 11)
-
-
-        if pi.bank.is_upi:
-            canvas.drawString(150, 740, f'{pi.bank.bnf_name}')
-            canvas.drawString(150, 725, f'{pi.bank.upi_id}')
-            canvas.drawString(150, 710, f'{pi.bank.upi_no}')
-        else:
-            canvas.drawString(50, 760, f'{pi.bank.bnf_name}')
-            canvas.drawString(150, 740, f'{pi.bank.bank_name}')
-            canvas.drawString(150, 725, f'{pi.bank.ac_no}')
-
-            canvas.drawString(150, 660, f'{pi.bank.ifsc}')
-            if pi.country != 'IN':
-                canvas.drawString(150, 645, f'{pi.bank.swift_code}')
-
-        def wrap_string(string, font_size,wrap_length):
-
-            # Wraping Branch Address
-            string = string.split(" ")
-            line = []
-            current_line = ""
-
-            for word in string:
-                test_line = current_line + word + " "
-                if canvas.stringWidth(test_line,'Montserrat-Bold', font_size) <= wrap_length:
-                    current_line = test_line
-                else:
-                    line.append(current_line.strip())
-                    current_line = word + " "
-            if current_line:
-                line.append(current_line.strip())
-
-            return line
-
-        if not pi.bank.is_upi:
-            line = wrap_string(pi.bank.branch_address,11,150)
-            line_height = 13
-            for i, line in enumerate(line):
-                canvas.drawString(150, 710 - (i * line_height), f"{line}")
-
-        canvas.setFont("Montserrat-Bold", 11)
-        canvas.setFillColor(colors.HexColor('#545454'))
-        canvas.drawString(30, 580, f'Other {pi.bank.biller_id.biller_name} Details for future reference')
-        canvas.setFillColor(colors.HexColor('#3182d9'))
-        canvas.drawString(30, 500, f'Terms & Conditions')
-
-        canvas.setFont("Montserrat-Regular", 11)
-        canvas.setFillColor(colors.HexColor('#545454'))
-        canvas.circle(50, 553, 2, stroke=1, fill=1)
-        canvas.drawString(55, 550, f'PAN: {pi.bank.biller_id.biller_pan}')
-        canvas.circle(50, 533, 2, stroke=1, fill=1)
-        canvas.drawString(55, 530, f'Udyam Registration Number: {pi.bank.biller_id.biller_msme if pi.bank.biller_id.biller_msme else 'N/A' }')
-
-        canvas.setFont("Montserrat-Regular", 9)
-        canvas.setFillColor(colors.HexColor('#3182d9'))
-        canvas.circle(50, 483, 2, stroke=1, fill=1)
-        canvas.drawString(55, 480, 'Payment has to be made 100% in advance')
-        canvas.circle(50, 463, 2, stroke=1, fill=1)
-        canvas.drawString(55, 460, f'Company Legal Name is {pi.bank.biller_id.biller_name}')
-        canvas.circle(50, 443, 2, stroke=1, fill=1)
-        canvas.drawString(55, 440, 'Any changes in the order will attract cost once order is sent based on PI approval by the client')
-        canvas.circle(50, 423, 2, stroke=1, fill=1)
-        canvas.drawString(55, 420, f'18% GST will be applicable for all transactions')
-        canvas.circle(50, 403, 2, stroke=1, fill=1)
-        canvas.drawString(55, 400, f'E-Invoice is applicable w.e.f. 1st August 2023 and hence once filed, no changes cannot be made after 24 hrs.')
-
-
-
-    elements = []
-    elements.append(table)
-    elements.append(order_table)
+#     pdf_canvas = canvas.Canvas(buffer, pagesize=A4)
 
     
-    buffer.seek(0)
+#     # Draw something on the canvas (example)
+#     def add_canvas(canvas, doc):
 
-    doc.build(elements)
+#         canvas.setLineWidth(1)  # Set the border width
 
-    original_pdf = PdfReader(buffer)
-    total_pages = len(original_pdf.pages)
+#         # You can also reset the font color if needed for further text
+#         canvas.setFillColor(colors.HexColor('#004aad'))  # Reset to black or any other color after drawing
+#         canvas.setStrokeColor(colors.white)  # Set stroke color for the border
+#         canvas.setLineWidth(1)
+#         canvas.roundRect(360, 165, 200, 95, 10, fill=1)
 
-    buffer_2 = BytesIO()
+#         canvas.setFillColor(colors.HexColor('#3182d9'))  # Reset to black or any other color after drawing
+#         canvas.rect(30,101, 150, 30, fill=1)
+#         canvas.rect(180,101, 160, 30, fill=1)
+#         canvas.rect(340,101, 120, 30, fill=1)
+#         canvas.rect(460,101, 100, 30, fill=1)
 
-    pdf_writer = PdfWriter()
+#         canvas.setFillColor(colors.HexColor('#38b6ff'))  # Reset to black or any other color after drawing
+#         canvas.rect(30,70, 150, 30, fill=1)
+#         canvas.rect(180,70, 160, 30, fill=1)
+#         canvas.rect(340,70, 120, 30, fill=1)
+#         canvas.rect(460,70, 100, 30, fill=1)
 
-    for page_num in range(total_pages):
-        pdf_page = original_pdf.pages[page_num]
-        packet1 = BytesIO()
-        page_canvas = canvas.Canvas(packet1,pagesize=A4)
-        page_number_text = f"Page {page_num + 1} of {total_pages+1}"
-        page_canvas.setFont("Montserrat-Regular", 8)
-        page_canvas.setFillColor(colors.HexColor("#545454"))
-        page_canvas.drawString(510, 10, page_number_text)
-        page_canvas.save()
-        packet1.seek(0)
-        page_with_number = PdfReader(packet1)
-        pdf_page.merge_page(page_with_number.pages[0])
+#         canvas.rect(30,39, 530, 30, fill=1)
 
-        if page_num == total_pages - 1:
-            packet = BytesIO()
-            pdf_canvas1 = canvas.Canvas(packet, pagesize=A4)
-            add_canvas(pdf_canvas1, pdf_page)
-            add_text(pdf_canvas1, pdf_page)
 
-            pdf_canvas1.save()
 
-            packet.seek(0)
-            new_pdf = PdfReader(packet)
-            pdf_page.merge_page(new_pdf.pages[0])
+#     def add_text(canvas,doc):
+#         canvas.setFont("Quicksand-Medium", 10)
+#         canvas.setFillColor(colors.HexColor('#ffffff'))  # Set the font color to a shade of blue
+
+#         # Set font color for the tax strings
+#         canvas.drawRightString(440, 245, f"AMOUNT:")
+#         canvas.drawRightString(530, 245, f"{curr} {net_total:.2f}")
+#         canvas.drawRightString(440, 230, "IGST (18%):")
+#         canvas.drawRightString(530, 230, f"{curr} {igst:.2f}")
+#         canvas.drawRightString(440, 215, "CGST (9%):")  # Use different y-coordinates
+#         canvas.drawRightString(530, 215, f"{curr} {cgst:.2f}")  # Use different y-coordinates
+#         canvas.drawRightString(440, 200, "SGST (9%):")  # Use different y-coordinates
+#         canvas.drawRightString(530, 200, f"{curr} {sgst:.2f}")  # Use different y-coordinates
+
+
+#         canvas.setFont("Quicksand-Medium", 8)
+#         canvas.drawRightString(440, 188, "rounded off (+/-):")  # Use different y-coordinates
+#         canvas.drawRightString(530, 188, f"{curr} {roundOff:.2f}")  # Use different y-coordinates
+#         canvas.setFont("Quicksand-Bold", 12)
+#         canvas.drawRightString(440, 173, f"TOTAL:")    # Use different y-coordinates
+#         canvas.drawRightString(530, 173, f"{curr} {round(total_inc_tax,0):.2f}")   # Use different y-coordinates
         
-        pdf_writer.add_page(pdf_page)
+#         canvas.setFont("Quicksand-Regular", 11)
+#         canvas.setFillColor(colors.HexColor('#004aad'))  # Set the font color to a shade of blue
+#         canvas.drawRightString(350, 230, f"AMOUNT PAYABLE IN WORDS:")   # Use different y-coordinates
 
-    packet_new_page = BytesIO()
-    new_page_canvas = canvas.Canvas(packet_new_page, pagesize=A4)
-    add_last_page_text(new_page_canvas)
+#         words = total_val_words.split(" ")
+#         line = []
+#         current_line = ""
 
-    new_page_number_text = f"Page {total_pages + 1} of {total_pages + 1}"
-    new_page_canvas.setFont("Montserrat-Regular", 8)
-    new_page_canvas.setFillColor(colors.HexColor("#545454"))
-    new_page_canvas.drawString(510, 10, new_page_number_text)
+#         for word in words:
+#             test_line = current_line + word + " "
 
-    new_page_canvas.save()
-    packet_new_page.seek(0)
-    new_pdf_page = PdfReader(packet_new_page)
-    pdf_writer.add_page(new_pdf_page.pages[0])
+#             if canvas.stringWidth(test_line,'Quicksand-Bold', 12) <= 250:
+#                 current_line = test_line
+#             else:
+#                 line.append(current_line.strip())
+#                 current_line = word + " "
+#         if current_line:
+#             line.append(current_line.strip())
 
-    pdf_writer.write(buffer_2)
+#         line_height = 13
 
-    buffer_2.seek(0)
+#         canvas.setFont("Quicksand-Bold", 12)
+#         for i, line in enumerate(line):
 
-    buffer.close()
+#             canvas.drawRightString(350, 215 - (i * line_height), f"{line}")   # Use different y-coordinates
+        
+#         canvas.setFont("Montserrat-Medium", 10)
+#         canvas.setFillColor(colors.HexColor('#3182d9'))  # Set the font color to a shade of blue
+#         canvas.drawRightString(540, 145, "Whether Tax is payable under REVERSE CHARGE: ")   # Use different y-coordinates
+#         canvas.setFont("Montserrat-Bold", 10)
+#         canvas.drawRightString(560, 145, "NO")   # Use different y-coordinates
+        
+#         canvas.setFillColor(colors.HexColor('#ffffff'))  # Set the font color to a shade of blue
+#         canvas.setFont("Montserrat-Bold", 10)
+#         canvas.drawCentredString(105, 112, "Team Member")
+#         canvas.drawCentredString(260, 112, "Requisitioner")
+#         canvas.drawCentredString(400, 112, "Subscription Mode")
+#         canvas.drawCentredString(510, 112, "Payment Term")
 
-    return buffer_2.getvalue()
+#         canvas.setFont("Montserrat-Medium", 9)
+#         canvas.drawCentredString(105, 80, f"{user}")
+#         canvas.drawCentredString(260, 80, f"{pi.requistioner}")
+#         canvas.drawCentredString(400, 80, f"{pi.subscription.capitalize()}")
+#         canvas.drawCentredString(510, 80, f"{pi.payment_term.capitalize()}")
+
+#         email_H_width = canvas.stringWidth('Email: ','Montserrat-Medium',9)
+#         email_width = canvas.stringWidth(f'{user.user.email}','Montserrat-Bold',9)
+#         contact_H_width = canvas.stringWidth(' | Contact: ','Montserrat-Medium',9)
+#         contact_width = canvas.stringWidth(f'{user.phone}','Montserrat-Bold',9)
+#         web_H_width = canvas.stringWidth(' | Website: ','Montserrat-Medium',9)
+#         web_width = canvas.stringWidth('www.besmartexim.com','Montserrat-Bold',9)
+
+#         start_point = 295 - (email_H_width + email_width + contact_H_width + contact_width + web_H_width + web_width) / 2
+
+        
+#         canvas.setFont("Montserrat-Medium", 9)
+#         canvas.drawString(start_point, 50, 'Email: ')
+#         canvas.drawString(start_point + email_H_width + email_width, 50, ' | Contact: ')
+#         canvas.drawString(start_point + email_H_width + email_width + contact_H_width + contact_width, 50, ' | Website: ')
+#         canvas.setFont("Montserrat-Bold", 9)
+#         canvas.drawString(start_point + email_H_width, 50, f'{user.user.email}')
+#         canvas.drawString(start_point + email_H_width + email_width + contact_H_width, 50, f'{user.phone}')
+#         canvas.drawString(start_point + email_H_width + email_width + contact_H_width + contact_width + web_H_width, 50, 'www.besmartexim.com')
+        
+#         canvas.setFont("Montserrat-Regular", 7)
+#         canvas.setFillColor(colors.HexColor('#545454'))
+#         canvas.drawCentredString(300, 10, f'This is Computer generated {invoice_type}')
+
+#     def add_last_page_text(canvas):
+
+#         canvas.setFillColor(colors.HexColor('#004aad'))  # Reset to black or any other color after drawing
+#         canvas.setStrokeColor(colors.white)  # Set stroke color for the border
+#         canvas.setLineWidth(1)
+#         canvas.roundRect(30, 640, 290, 170, 10, fill=1)
+
+#         canvas.setFont("Montserrat-Medium", 11)
+#         canvas.setFillColor(colors.HexColor('#ffffff'))
+#         canvas.drawString(50, 780, "Kindly pay in favor of")
+#         if pi.bank.is_upi:
+#             canvas.drawRightString(145, 740, "Holder Name: ")
+#             canvas.drawRightString(145, 725, "UPI ID.: ")
+#             canvas.drawRightString(145, 710, "UPI No.: ")
+#         else:
+#             canvas.drawRightString(145, 740, "Bank Name: ")
+#             canvas.drawRightString(145, 725, "A/C No.: ")
+#             canvas.drawRightString(145, 710, "Branch Address: ")
+#             canvas.drawRightString(145, 660, "IFSC: ")
+#             if pi.country != 'IN':
+#                 canvas.drawRightString(145, 645, "SWIFT: ")
+#             canvas.setFont("Montserrat-Bold", 11)
 
 
-@login_required(login_url='app:login')
-def download_pdf2(request, pi_id):
+#         if pi.bank.is_upi:
+#             canvas.drawString(150, 740, f'{pi.bank.bnf_name}')
+#             canvas.drawString(150, 725, f'{pi.bank.upi_id}')
+#             canvas.drawString(150, 710, f'{pi.bank.upi_no}')
+#         else:
+#             canvas.drawString(50, 760, f'{pi.bank.bnf_name}')
+#             canvas.drawString(150, 740, f'{pi.bank.bank_name}')
+#             canvas.drawString(150, 725, f'{pi.bank.ac_no}')
+
+#             canvas.drawString(150, 660, f'{pi.bank.ifsc}')
+#             if pi.country != 'IN':
+#                 canvas.drawString(150, 645, f'{pi.bank.swift_code}')
+
+#         def wrap_string(string, font_size,wrap_length):
+
+#             # Wraping Branch Address
+#             string = string.split(" ")
+#             line = []
+#             current_line = ""
+
+#             for word in string:
+#                 test_line = current_line + word + " "
+#                 if canvas.stringWidth(test_line,'Montserrat-Bold', font_size) <= wrap_length:
+#                     current_line = test_line
+#                 else:
+#                     line.append(current_line.strip())
+#                     current_line = word + " "
+#             if current_line:
+#                 line.append(current_line.strip())
+
+#             return line
+
+#         if not pi.bank.is_upi:
+#             line = wrap_string(pi.bank.branch_address,11,150)
+#             line_height = 13
+#             for i, line in enumerate(line):
+#                 canvas.drawString(150, 710 - (i * line_height), f"{line}")
+
+#         canvas.setFont("Montserrat-Bold", 11)
+#         canvas.setFillColor(colors.HexColor('#545454'))
+#         canvas.drawString(30, 580, f'Other {pi.bank.biller_id.biller_name} Details for future reference')
+#         canvas.setFillColor(colors.HexColor('#3182d9'))
+#         canvas.drawString(30, 500, f'Terms & Conditions')
+
+#         canvas.setFont("Montserrat-Regular", 11)
+#         canvas.setFillColor(colors.HexColor('#545454'))
+#         canvas.circle(50, 553, 2, stroke=1, fill=1)
+#         canvas.drawString(55, 550, f'PAN: {pi.bank.biller_id.biller_pan}')
+#         canvas.circle(50, 533, 2, stroke=1, fill=1)
+#         canvas.drawString(55, 530, f'Udyam Registration Number: {pi.bank.biller_id.biller_msme if pi.bank.biller_id.biller_msme else 'N/A' }')
+
+#         canvas.setFont("Montserrat-Regular", 9)
+#         canvas.setFillColor(colors.HexColor('#3182d9'))
+#         canvas.circle(50, 483, 2, stroke=1, fill=1)
+#         canvas.drawString(55, 480, 'Payment has to be made 100% in advance')
+#         canvas.circle(50, 463, 2, stroke=1, fill=1)
+#         canvas.drawString(55, 460, f'Company Legal Name is {pi.bank.biller_id.biller_name}')
+#         canvas.circle(50, 443, 2, stroke=1, fill=1)
+#         canvas.drawString(55, 440, 'Any changes in the order will attract cost once order is sent based on PI approval by the client')
+#         canvas.circle(50, 423, 2, stroke=1, fill=1)
+#         canvas.drawString(55, 420, f'18% GST will be applicable for all transactions')
+#         canvas.circle(50, 403, 2, stroke=1, fill=1)
+#         canvas.drawString(55, 400, f'E-Invoice is applicable w.e.f. 1st August 2023 and hence once filed, no changes cannot be made after 24 hrs.')
+
+
+
+#     elements = []
+#     elements.append(table)
+#     elements.append(order_table)
+
     
-    pi = get_object_or_404(proforma, pk = pi_id)
+#     buffer.seek(0)
+
+#     doc.build(elements)
+
+#     original_pdf = PdfReader(buffer)
+#     total_pages = len(original_pdf.pages)
+
+#     buffer_2 = BytesIO()
+
+#     pdf_writer = PdfWriter()
+
+#     for page_num in range(total_pages):
+#         pdf_page = original_pdf.pages[page_num]
+#         packet1 = BytesIO()
+#         page_canvas = canvas.Canvas(packet1,pagesize=A4)
+#         page_number_text = f"Page {page_num + 1} of {total_pages+1}"
+#         page_canvas.setFont("Montserrat-Regular", 8)
+#         page_canvas.setFillColor(colors.HexColor("#545454"))
+#         page_canvas.drawString(510, 10, page_number_text)
+#         page_canvas.save()
+#         packet1.seek(0)
+#         page_with_number = PdfReader(packet1)
+#         pdf_page.merge_page(page_with_number.pages[0])
+
+#         if page_num == total_pages - 1:
+#             packet = BytesIO()
+#             pdf_canvas1 = canvas.Canvas(packet, pagesize=A4)
+#             add_canvas(pdf_canvas1, pdf_page)
+#             add_text(pdf_canvas1, pdf_page)
+
+#             pdf_canvas1.save()
+
+#             packet.seek(0)
+#             new_pdf = PdfReader(packet)
+#             pdf_page.merge_page(new_pdf.pages[0])
+        
+#         pdf_writer.add_page(pdf_page)
+
+#     packet_new_page = BytesIO()
+#     new_page_canvas = canvas.Canvas(packet_new_page, pagesize=A4)
+#     add_last_page_text(new_page_canvas)
+
+#     new_page_number_text = f"Page {total_pages + 1} of {total_pages + 1}"
+#     new_page_canvas.setFont("Montserrat-Regular", 8)
+#     new_page_canvas.setFillColor(colors.HexColor("#545454"))
+#     new_page_canvas.drawString(510, 10, new_page_number_text)
+
+#     new_page_canvas.save()
+#     packet_new_page.seek(0)
+#     new_pdf_page = PdfReader(packet_new_page)
+#     pdf_writer.add_page(new_pdf_page.pages[0])
+
+#     pdf_writer.write(buffer_2)
+
+#     buffer_2.seek(0)
+
+#     buffer.close()
+
+#     return buffer_2.getvalue()
+
+
+# @login_required(login_url='app:login')
+# def download_pdf2(request, pi_id):
     
-    if hasattr(pi, 'convertedpi'):
-        if pi.convertedpi.is_taxInvoice:
-            filename = f'Tax Invoice_{pi.company_name}_{pi.convertedpi.invoice_no}_{pi.convertedpi.invoice_date}.pdf'
-        else:
-            filename= f'PI_{pi.company_name}_{pi.pi_no}_{pi.pi_date}.pdf'
-    else:
-        filename= f'PI_{pi.company_name}_{pi.pi_no}_{pi.pi_date}.pdf'
-
-    response = HttpResponse(pdf_PI(pi_id), content_type = 'application/pdf')
-
-    response['Content-Disposition'] = f'attachment; filename={filename}' 
-
-    return response
-
-
-@login_required(login_url='app:login')
-def email_form(request, pi):
-    pi_instance = get_object_or_404(proforma, pk=pi)
-    smtp_details = SmtpConfig.objects.filter(user=request.user).first()
-    password = smtp_details.email_host_password
-    context = {
-        'pi_instance': pi_instance,
-        'smtp_details': password
-    }
-
-    if pi_instance.user_id != request.user.id:
-        return HttpResponse("You are not Authorised to Process the order.")
+#     pi = get_object_or_404(proforma, pk = pi_id)
     
-    return render(request, 'invoices/emailForm.html', context)
+#     if hasattr(pi, 'convertedpi'):
+#         if pi.convertedpi.is_taxInvoice:
+#             filename = f'Tax Invoice_{pi.company_name}_{pi.convertedpi.invoice_no}_{pi.convertedpi.invoice_date}.pdf'
+#         else:
+#             filename= f'PI_{pi.company_name}_{pi.pi_no}_{pi.pi_date}.pdf'
+#     else:
+#         filename= f'PI_{pi.company_name}_{pi.pi_no}_{pi.pi_date}.pdf'
 
-@login_required(login_url='app:login')
-def send_test_mail(request, pi):
-    pi_instance = get_object_or_404(proforma, pk=pi)
+#     response = HttpResponse(pdf_PI(pi_id), content_type = 'application/pdf')
 
-    smtp_details = SmtpConfig.objects.filter(user=request.user).first()
+#     response['Content-Disposition'] = f'attachment; filename={filename}' 
 
-    if pi_instance.user_id != request.user.id:
-        return HttpResponse("You are not Authorised to Process the order.")
-
-    if request.method == 'GET':
-        to_mail = request.GET.get('to')
-        subject = request.GET.get('mailSubject')
-        msg = request.GET.get('mailMessage')
-
-    smtp_settings = {
-        'host': smtp_details.smtp_server,
-        'port': smtp_details.smtp_port,
-        'username': smtp_details.user.email,
-        'password': smtp_details.email_host_password,
-        'use_tls': smtp_details.use_tls,
-    }
+#     return response
 
 
-    html_message = f'{msg}'
-    recipient_list=[email.strip() for email in to_mail.split(',')]
+# @login_required(login_url='app:login')
+# def email_form(request, pi):
+#     pi_instance = get_object_or_404(proforma, pk=pi)
+#     smtp_details = SmtpConfig.objects.filter(user=request.user).first()
+#     password = smtp_details.email_host_password
+#     context = {
+#         'pi_instance': pi_instance,
+#         'smtp_details': password
+#     }
 
-    email_backend = CustomEmailBackend(**smtp_settings)
+#     if pi_instance.user_id != request.user.id:
+#         return HttpResponse("You are not Authorised to Process the order.")
+    
+#     return render(request, 'invoices/emailForm.html', context)
 
-    email = EmailMultiAlternatives(
-            subject=subject,
-            body='plain_message',
-            from_email='info@besmartexim.com',
-            to=recipient_list,  # Replace with actual recipient
-            connection= email_backend
-        )
+# @login_required(login_url='app:login')
+# def send_test_mail(request, pi):
+#     pi_instance = get_object_or_404(proforma, pk=pi)
 
-    email.attach_alternative(html_message, "text/html")
+#     smtp_details = SmtpConfig.objects.filter(user=request.user).first()
 
-    fileValue = pdf_PI(pi_instance.id)
+#     if pi_instance.user_id != request.user.id:
+#         return HttpResponse("You are not Authorised to Process the order.")
 
-    fileName = f'PI_{pi_instance.company_name}_{pi_instance.pi_no}_{pi_instance.pi_date}.pdf'
+#     if request.method == 'GET':
+#         to_mail = request.GET.get('to')
+#         subject = request.GET.get('mailSubject')
+#         msg = request.GET.get('mailMessage')
 
-    email.attach(fileName, fileValue, "application/pdf" )
+#     smtp_settings = {
+#         'host': smtp_details.smtp_server,
+#         'port': smtp_details.smtp_port,
+#         'username': smtp_details.user.email,
+#         'password': smtp_details.email_host_password,
+#         'use_tls': smtp_details.use_tls,
+#     }
 
-    email.send()
-    return HttpResponse(f'status: success, message: Email has been sent')
+
+#     html_message = f'{msg}'
+#     recipient_list=[email.strip() for email in to_mail.split(',')]
+
+#     email_backend = CustomEmailBackend(**smtp_settings)
+
+#     email = EmailMultiAlternatives(
+#             subject=subject,
+#             body='plain_message',
+#             from_email='info@besmartexim.com',
+#             to=recipient_list,  # Replace with actual recipient
+#             connection= email_backend
+#         )
+
+#     email.attach_alternative(html_message, "text/html")
+
+#     fileValue = pdf_PI(pi_instance.id)
+
+#     fileName = f'PI_{pi_instance.company_name}_{pi_instance.pi_no}_{pi_instance.pi_date}.pdf'
+
+#     email.attach(fileName, fileValue, "application/pdf" )
+
+#     email.send()
+#     return HttpResponse(f'status: success, message: Email has been sent')
 
 
 # def set_custom_margins(document, left, right, top, bottom):

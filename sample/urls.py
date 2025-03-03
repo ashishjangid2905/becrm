@@ -5,6 +5,7 @@ from . import views
 
 app_name = 'sample'
 urlpatterns = [
+    path('list/', views.SampleViews.as_view()),
     path('request', views.sample_request, name='sample_request'),
     path('edit/<slug:sample_slug>', views.edit_sample, name = 'edit_sample'),
     path('list', views.sample_list, name='samples'),
