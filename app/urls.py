@@ -8,7 +8,7 @@ from django.views.defaults import page_not_found
 app_name = 'app'
 
 urlpatterns = [
-    path('', views.home, name='home'),
+    # path('', views.home, name='home'),
     path('', views.Home.as_view()),
     path('login/', views.login_user, name='login'),
     path('logout/', views.logout_user , name="logout"),

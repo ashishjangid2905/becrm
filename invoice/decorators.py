@@ -10,10 +10,10 @@ def can_approve_proforma(user):
         user_profile = get_object_or_404(Profile, user = user)
         current_position = get_current_position(user_profile)
 
-        if current_position == 'Head' or current_position == 'VP' or current_position == 'Sr. Executive':
+        if current_position in ['Head', 'VP', 'Sr. Executive']:
             return True
     except Profile.DoesNotExist:
-        pass
+        return False
 
     return False
     

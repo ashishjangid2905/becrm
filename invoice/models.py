@@ -3,8 +3,10 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.text import slugify
+from django.core.exceptions import ObjectDoesNotExist
+from django.shortcuts import get_object_or_404
 from lead.models import contactPerson, leads
-from teams.models import Profile
+from teams.models import Profile, User
 import fiscalyear, datetime
 from .utils import STATUS_CHOICES, REPORT_FORMAT, REPORT_TYPE, ORDER_STATUS, PAYMENT_STATUS, VARIABLES
 
@@ -158,9 +160,9 @@ class proforma(models.Model):
     
     company_ref = models.ForeignKey(leads, verbose_name=_("Company Ref"), on_delete=models.RESTRICT, blank=True, null=True)
     user_id = models.IntegerField(_("User Id"))
-    user_name = models.CharField(_("Team Member"), max_length=50, null=True, blank=True, default="ABC")
-    user_contact = models.CharField(_("User Contact"), max_length=50, null=True, blank=True, default="9899999")
-    user_email = models.EmailField(_("User Email"), max_length=50, null=True, blank=True, default="email@email.com")
+    user_name = models.CharField(_("Team Member"), max_length=50, null=True, blank=True)
+    user_contact = models.CharField(_("User Contact"), max_length=50, null=True, blank=True)
+    user_email = models.EmailField(_("User Email"), max_length=50, null=True, blank=True)
     company_name = models.CharField(_("Company Name"), max_length=150, null=False, blank=False)
     gstin = models.CharField(_("GSTIN"), max_length=50, null=True, blank=True)
     is_sez = models.BooleanField(_("Is_SEZ"), default=False)
@@ -196,6 +198,14 @@ class proforma(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.pi_no)
+        try:
+            user = get_object_or_404(User,pk=self.user_id)
+            if not self.user_name:
+                self.user_name = user.full_name()
+                self.user_email = user.email
+                self.user_contact = user.profile.phone
+        except ObjectDoesNotExist:
+            pass
         super().save(*args,**kwargs)
 
     class Meta:

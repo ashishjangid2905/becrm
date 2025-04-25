@@ -5,6 +5,7 @@ from .models import User, Profile, Branch, UserVariable, SmtpConfig
 from django.shortcuts import get_object_or_404
 from datetime import datetime, timedelta
 from django.db.models import Q
+from .templatetags.teams_custom_filters import get_current_position, get_current_target
 
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
@@ -137,6 +138,8 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['contact'] = user.profile.phone
         token['role'] = user.role if getattr(user, 'role') else "User"
         token['department'] = user.department if getattr(user, 'department') else "Sales"
+        token['position'] = get_current_position(user.profile)
+        token['target'] = get_current_target(user.profile)
 
         return token
 

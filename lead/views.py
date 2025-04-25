@@ -36,7 +36,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from django_filters.rest_framework import FilterSet
 
 
-class LeadsPagination(PageNumberPagination):
+class BasePagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
     max_page_size = 100
@@ -49,7 +49,7 @@ class LeadsFilters(FilterSet):
 
 class lead_list(APIView):
     permission_classes = [IsAuthenticated]
-    pagination_class = LeadsPagination
+    pagination_class = BasePagination
     search_fields = ['company_name', 'gstin', 'full_address', 'industry']
     ordering_fields = ['company_name', 'gstin', 'full_address', 'industry', 'user_name', 'created_at']
     ordering = ['-created_at']

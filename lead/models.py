@@ -42,7 +42,7 @@ class leads(models.Model):
             state_name,
             country,
         ]
-        return ', '.join(filter(None, address_parts))
+        return ', '.join(filter(None, address_parts)).replace(",,",",")
 
     def save(self, *args, **kwargs):
         self.full_address = self.get_full_address()

@@ -12,20 +12,72 @@ from django.db.models import Q
 import datetime
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
-from .serializers import SampleSerializer
+from .serializers import SampleSerializer, CountryMasterSerializer, PortSerializer
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.views import APIView
 from rest_framework.viewsets import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.filters import OrderingFilter, SearchFilter
+from lead.views import BasePagination
 
 
-class SampleViews(generics.ListCreateAPIView):
+class SampleViews(APIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = SampleSerializer
+    pagination_class = BasePagination
+    search_fields = ['sample_id', 'report_type', 'report_format', 'country', 'hs_code', 'product', 'iec', 'shipper',
+                     'consignee', 'foreign_country', 'port']
+    ordering_fields = ['sample_id', 'report_type', 'report_format', 'country', 'client_name', 'requested_at']
+    ordering = ['-requested_at']
 
-    def get_queryset(self):
-        user_profile = Profile.objects.get(user = self.request.user)
-        return sample.objects.filter(user__profile__branch=user_profile.branch).select_related("user").order_by('-requested_at')
+    def get(self, request):
+        try:
+            user_profile = Profile.objects.get(user = request.user)
+            sample_list = sample.objects.filter(user__profile__branch=user_profile.branch)
+            search_query = request.GET.get('search', None)
+            if search_query:
+                search_filter = SearchFilter()
+                sample_list = search_filter.filter_queryset(request, sample_list, self)
+
+            ordering_query = request.GET.get('ordering', None)
+            if ordering_query:
+                ordering_filter = OrderingFilter()
+                sample_list = ordering_filter.filter_queryset(request, sample_list, self)
+            paginator = self.pagination_class()
+            paginated_sample = paginator.paginate_queryset(sample_list, request)
+            serializer = SampleSerializer(paginated_sample, many = True)
+            return paginator.get_paginated_response(serializer.data)
+        except sample.DoesNotExist:
+            return Response({"message": "No Sample founded"}, status=status.HTTP_404_NOT_FOUND)
+    
+    def post(self, request):
+        serializer = SampleSerializer(data = request.data)
+        if serializer.is_valid():
+            sample_id = sample_no(request.user)
+            serializer.save(user=request.user, sample_id=sample_id)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request, slug):
+        sampleInstance = get_object_or_404(sample, slug=slug)
+        serializer = SampleSerializer(sampleInstance, data = request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+class CountryAndPortOption(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, *args, **kwargs):
+        queryset = CountryMaster.objects.all()
+        queryset_port = Portmaster.objects.all()
+        country_serializer = CountryMasterSerializer(queryset, many = True)
+        port_serializer = PortSerializer(queryset_port, many = True)
+
+        data = {"countries": country_serializer.data, "ports": port_serializer.data}
+
+        return Response(data)
     
 
 

@@ -23,6 +23,7 @@ from celery.result import AsyncResult
 from django.core.cache import cache
 # Create your views here.
 
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -32,6 +33,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
 from teams.serializers import MyTokenObtainPairSerializer
+from .serializers import DashboardSaleSerializer
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -48,12 +50,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         return response
 
 class Home(APIView):
-    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        content = {'message': 'hello world'}
-        return Response(content)
+        user_profile = get_object_or_404(Profile, user=request.user)
+        all_users = User.objects.filter(profile__branch = user_profile.branch).values_list('id', flat=True)
+        pi_list = proforma.objects.filter(user_id__in = list(all_users))
+        serializer = DashboardSaleSerializer(pi_list, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 

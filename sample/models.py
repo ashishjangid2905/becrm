@@ -24,9 +24,10 @@ class CountryMaster(models.Model):
 
     country_code = models.CharField(max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS', blank=True, null=True)
     country = models.CharField(max_length=100, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    is_active = models.BooleanField(_("is active"), default=False)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'country_master'
 
 def sample_no(user):
