@@ -40,7 +40,7 @@ class ConversationDetailsSerializer(serializers.ModelSerializer):
 
 
 class ConversationSerializer(serializers.ModelSerializer):
-    conversationdetails = ConversationDetailsSerializer(many=True)
+    # conversationdetails = ConversationDetailsSerializer(many=True)
     class Meta:
         model = Conversation
-        fields = ['id', 'title', 'company_id', 'conversationdetails','start_at']
+        fields = ['id', 'title', 'company_id','start_at']

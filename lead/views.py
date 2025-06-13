@@ -7,6 +7,7 @@ from django.http import HttpResponseRedirect, FileResponse
 from django.db.models import OuterRef, Subquery, Max, F, Q
 from django.conf import settings
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from django.db import transaction, IntegrityError
 
 # Import from  app models, utils
 from .models import leads, contactPerson, Conversation, conversationDetails
@@ -30,7 +31,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .serializers import leadsSerializer, ConversationSerializer
+from .serializers import *
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter, SearchFilter
 from django_filters.rest_framework import FilterSet
@@ -102,17 +103,130 @@ class lead_list(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class LeadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+        try:
+            lead = get_object_or_404(leads, pk=id)
+            serializer = leadsSerializer(lead)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class ContactView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, id):
+        try:
+            leadInstance = get_object_or_404(leads, id=id)
+            data = request.data
+            company_id = data.pop("company")
+            print(data)
+            serializer = contactPersonSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save(company = leadInstance)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
 
 class ConversationView(APIView):
     permission_classes = [IsAuthenticated]
+
+    # get conversation object
+    def get_object(self, id):
+        return get_object_or_404(Conversation, id=id)
+
+    # fetch conversation list with respect to lead
     def get(self, request, id):
         try:
-            conversation = Conversation.objects.filter(company_id = id).select_related("company_id")
+            conversation = Conversation.objects.filter(company_id = id).select_related("company_id").order_by("-start_at")
             serializer = ConversationSerializer(conversation, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Conversation.DoesNotExist:
             return Response({"message": "No Conversation found for this Company"}, status=status.HTTP_404_NOT_FOUND)
+        
+    # Create/Start New Conversation
+    def post(self, request, id):
+        try:
+            data = request.data.copy()
+            title = data.get("title")
+            company_id = data.get("company")
+            if not title or not company_id:
+                return Response({"error": "Missing 'title' or 'company' in request data"}, status=status.HTTP_400_BAD_REQUEST)
 
+            with transaction.atomic():
+                deal_data = {
+                    "title": title,
+                    "company_id": company_id
+                }
+                dealSerializer = ConversationSerializer(data=deal_data)
+                if not dealSerializer.is_valid():
+                    raise IntegrityError(dealSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                deal = dealSerializer.save()
+                
+                serializer = ConversationDetailsSerializer(data=data)
+                if not serializer.is_valid():
+                    raise IntegrityError(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+                serializer.save(chat_no = deal)
+                return Response(dealSerializer.data, status=status.HTTP_201_CREATED)
+
+        except IntegrityError as ie:
+            return Response({'error': str(ie)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        
+
+
+class dealActivityView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, id):
+        return get_object_or_404(Conversation, id=id)
+    
+    def get(self, request, id):
+        try:
+            deal = self.get_object(id)
+
+            activities = conversationDetails.objects.filter(chat_no=deal).select_related('chat_no')
+            if activities:
+                serializer = ConversationDetailsSerializer(activities, many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def post(self, request, id):
+        try:
+            deal = self.get_object(id)
+            # print(deal)
+            data = request.data
+            chat_no = data.pop("chat_no")
+            if data.get("follow_up") == "":
+                data["follow_up"] = None
+            
+            print(data)
+
+            serializer = ConversationDetailsSerializer(data=data)
+
+            if serializer.is_valid():
+                serializer.save(chat_no=deal)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
