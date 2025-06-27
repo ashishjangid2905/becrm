@@ -5,10 +5,10 @@ from pathlib import Path
 
 # Import from django modules
 from django.db.models import Q
-from datetime import datetime
 from django.utils import timezone
-from django.http import HttpResponseRedirect, HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from datetime import datetime as dt
 
 # Import from app model, utils permission etc
 from .utils import (
@@ -16,7 +16,9 @@ from .utils import (
     CATEGORY,
     REPORT_TYPE,
 )
-from invoice.models import proforma, BillerVariable, convertedPI, orderList
+from invoice.models import *
+from billers.models import *
+from decimal import Decimal
 
 # Import from third party modules
 
@@ -46,9 +48,11 @@ from openpyxl import Workbook
 from openpyxl.styles import (
     PatternFill,
     Font,
+    Alignment
 )
 
 from openpyxl.utils import get_column_letter
+
 
 # funtion to use get roman no
 def int_to_roman(num):
@@ -64,21 +68,23 @@ def int_to_roman(num):
         i += 1
     return roman_num
 
+
 # function to format month value
 def format_month(value):
     try:
         if value == None or value == "":
             return ""
         else:
-            return datetime.strptime(value, "%Y-%m").strftime("%b'%y")
+            return dt.strptime(value, "%Y-%m").strftime("%b'%y")
     except ValueError:
         return value
+
 
 # Calculate total number of month
 def total_month(from_month, to_month):
     try:
-        from_m = datetime.strptime(from_month, "%Y-%m")
-        to_m = datetime.strptime(to_month, "%Y-%m")
+        from_m = dt.strptime(from_month, "%Y-%m")
+        to_m = dt.strptime(to_month, "%Y-%m")
         return (to_m.year - from_m.year) * 12 + to_m.month - from_m.month + 1
     except (ValueError, TypeError):
         return 0
@@ -129,6 +135,7 @@ def sale_category(pi):
     }
     return sale_category
 
+
 # calulate total pi value
 def total_order_value(pi):
 
@@ -144,6 +151,7 @@ def total_order_value(pi):
 
     total_sum += sum(unique_lumpsum_amt)
     return total_sum
+
 
 # calculate total pi value including tax as tax criterias
 def total_pi_value_inc_tax(pi):
@@ -175,9 +183,11 @@ def total_pi_value_inc_tax(pi):
 
     return f"{round(total_inc_tax,0):.0f}"
 
+
 # filter pi orders according to Is_lumpsum
 def filter_by_lumpsum(queryset, is_lumpsum):
     return queryset.filter(is_lumpsum=is_lumpsum)
+
 
 # calulate total lumpsum amount in PI if available
 def total_lumpsums(pi):
@@ -195,6 +205,7 @@ def split(value, delimiter):
     """Splits the string by the given delimiter."""
     return value.split(delimiter)
 
+
 # calculate total due amount as per pi total value and reeived value
 def total_dues(pi):
     pi = proforma.objects.get(pk=pi)
@@ -208,6 +219,7 @@ def total_dues(pi):
     total_receive = payment1_amt + payment2_amt + payment3_amt
     total_due = total_amt - total_receive
     return int(total_due)
+
 
 # get billers additional active variables
 def get_biller_variable(biller_dtl, variable_name):
@@ -224,6 +236,7 @@ def get_biller_variable(biller_dtl, variable_name):
     ).last()
 
     return variable.variable_value if variable else None
+
 
 # get new pi number
 def pi_number(biller_id):
@@ -258,11 +271,48 @@ def pi_number(biller_id):
 
     return pi_no
 
-# get current fisal year 
+
+def calculate_summery(pi):
+
+    subtotal = total_order_value(pi.id)
+    total_value = total_pi_value_inc_tax(pi.id)
+    category_sales = sale_category(pi.id)
+
+    if not pi.bank.biller_id.biller_gstin or pi.is_sez:
+        cgst_rate = sgst_rate = igst_rate = 0
+    else:
+        state_code = str(pi.state)
+        biller_state_code = pi.bank.biller_id.biller_gstin[0:2]
+        if state_code == biller_state_code:
+            cgst_rate, sgst_rate, igst_rate = 9, 9, 0
+        elif state_code == "500":
+            cgst_rate = sgst_rate = igst_rate = 0
+        else:
+            cgst_rate = sgst_rate = 0
+            igst_rate = 18
+
+    return {
+        "subtotal": Decimal(subtotal),
+        "total_value": Decimal(total_value),
+        "cgst_rate": Decimal(cgst_rate),
+        "sgst_rate": Decimal(sgst_rate),
+        "igst_rate": Decimal(igst_rate),
+        "offline_sale": Decimal(category_sales["offline_sale"]),
+        "online_sale": Decimal(category_sales["online_sale"]),
+        "other_sale": Decimal(category_sales["domestic_sale"]),
+    }
+
+
+def update_or_create_summery(pi):
+    summery_data = calculate_summery(pi)
+    PiSummary.objects.update_or_create(proforma=pi, defaults=summery_data)
+
+
+# get current fisal year
 def current_fy(date=None):
     today = timezone.now().date()
-    if date:
-        today = datetime.strptime(date, "%Y-%m-%d").date()
+    if isinstance(date, str):
+        today = dt.strptime(date, "%Y-%m-%d").date()
     year = today.year
 
     if today.month >= 4:
@@ -273,6 +323,7 @@ def current_fy(date=None):
         end_year = year
 
     return f"{start_year}-{end_year}"
+
 
 # get formatted invoice no as per current fiscal year
 def get_invoice_no(biller_id, invoice_tag, invoice_format, new_no=None):
@@ -292,7 +343,7 @@ def get_invoice_no(biller_id, invoice_tag, invoice_format, new_no=None):
     if not new_no:
         last_invoice = (
             convertedPI.objects.filter(
-                invoice_no__startswith=search_prefix, pi_id__bank__biller_id=biller_id
+                formatted_invoice__startswith=search_prefix, pi_id__bank__biller_id=biller_id
             )
             .order_by("pi_no")
             .last()
@@ -311,10 +362,9 @@ def get_invoice_no(biller_id, invoice_tag, invoice_format, new_no=None):
 
     return invoice_no
 
+
 # get formatted invoice no as per invoice date fiscal year
-def get_invoice_no_from_date(
-    biller_id, invoice_tag, invoice_format, invoice_date, new_no=None
-):
+def get_invoice_no_from_date(invoice_tag, invoice_format, invoice_date, new_no):
     fiscalYear = current_fy(invoice_date)
     fy = fiscalYear.split("-")[1][-2:]
     py = fiscalYear.split("-")[0][-2:]
@@ -324,31 +374,10 @@ def get_invoice_no_from_date(
             f"Expected pi_format to be a string, got {type(invoice_format)}"
         )
 
-    search_prefix = invoice_format.format(py=py, fy=fy, tag=invoice_tag, num=0).rstrip(
-        "0"
-    )
-
-    if not new_no:
-        last_invoice = (
-            convertedPI.objects.filter(
-                invoice_no__startswith=search_prefix, pi_id__bank__biller_id=biller_id
-            )
-            .order_by("pi_no")
-            .last()
-        )
-
-        if last_invoice:
-            try:
-                last_no = int(last_invoice.pi_no.split(search_prefix)[-1])
-            except:
-                last_no = 0
-            new_no = last_no + 1
-        else:
-            new_no = 1
-
     invoice_no = invoice_format.format(py=py, fy=fy, tag=invoice_tag, num=new_no)
 
     return invoice_no
+
 
 # export xls file
 def exportInvoicelist(invoices):
@@ -402,6 +431,8 @@ def exportInvoicelist(invoices):
 
     s = 1
 
+    extracted_number = []
+
     for invoice in invoices:
         total_received = (
             int(
@@ -448,11 +479,13 @@ def exportInvoicelist(invoices):
             total_pi_value_inc_tax(invoice.id),
             total_received,
             invoice.convertedpi.is_taxInvoice,
-            invoice.convertedpi.invoice_no,
+            invoice.convertedpi.formatted_invoice,
             invoice.convertedpi.invoice_date,
         ]
 
         ws.append(row)
+        if invoice.convertedpi.formatted_invoice:
+            extracted_number.append(invoice.convertedpi.invoice_number)
         s += 1
 
     for column in ws.columns:
@@ -468,6 +501,28 @@ def exportInvoicelist(invoices):
         adjusted_width = max_length + 2
         ws.column_dimensions[get_column_letter(column[0].column)].width = adjusted_width
 
+    if len(extracted_number) != 0:
+        min_num = min(extracted_number)
+        max_num = max(extracted_number)
+
+        full_range = set(range(min_num, max_num+1))
+        existing = set(extracted_number)
+        missing = sorted(full_range - existing)
+
+        col_index = len(headers)+2
+        start_row = 2
+
+        cell = ws.cell(row=1, column=col_index)
+        cell.value = "Missing Invoice Numbers"
+        cell.fill = header_fill
+        cell.font = header_font
+        ws.column_dimensions[get_column_letter(col_idx=col_index)].width = len(cell.value)+2
+
+        for i, inv in enumerate(missing):
+            cell = ws.cell(row=start_row+i, column=col_index)
+            cell.value = inv
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+
     today = timezone.now().date()
 
     response = HttpResponse(
@@ -479,8 +534,9 @@ def exportInvoicelist(invoices):
     wb.save(response)
     return response
 
+
 # download pdf file of invoice
-def pdf_PI(pi_id):
+def pdf_PI(pi_id, is_invoice):
     pi = get_object_or_404(proforma, pk=pi_id)
     orders = orderList.objects.filter(proforma_id=pi)
 
@@ -495,40 +551,16 @@ def pdf_PI(pi_id):
     else:
         curr = "$"
 
-    if pi.is_sez:
-        cgst = 0
-        sgst = 0
-        igst = 0
-        total_inc_tax = net_total
-    else:
-        if pi.bank.biller_id.biller_gstin:
-            if str(pi.state) == pi.bank.biller_id.biller_gstin[0:2]:
-                cgst = net_total * 0.09
-                sgst = net_total * 0.09
-                igst = 0
-                total_inc_tax = net_total * 1.18
-            elif pi.state == "500":  # for Foreign Clients
-                cgst = 0
-                sgst = 0
-                igst = 0
-                total_inc_tax = net_total
-            else:
-                cgst = 0
-                sgst = 0
-                igst = net_total * 0.18
-                total_inc_tax = net_total * 1.18
-        else:
-            cgst = 0
-            sgst = 0
-            igst = 0
-            total_inc_tax = net_total
-
-    roundOff = total_inc_tax - round(total_inc_tax, 0)
+    roundOff = pi.summary.total_value - round(pi.summary.total_value, 0)
 
     if pi.currency == "inr":
-        total_val_words = f"Rs. {num2words(round(total_inc_tax,0), lang='en-IN').replace(',', '').title()} Only"
+        total_val_words = f"Rs. {num2words(round(pi.summary.total_value,0), lang='en-IN').replace(',', '').title()} Only"
     else:
-        total_val_words = f"Usd {num2words(round(total_inc_tax,0), lang='en-IN').replace(',', '').title()} Only"
+        total_val_words = f"Usd {num2words(round(pi.summary.total_value,0), lang='en-IN').replace(',', '').title()} Only"
+
+    igst = pi.summary.subtotal * (pi.summary.igst_rate/100)
+    cgst = pi.summary.subtotal * (pi.summary.cgst_rate/100)
+    sgst = pi.summary.subtotal * (pi.summary.sgst_rate/100)
 
     basedir = Path(__file__).resolve().parent.parent
 
@@ -652,6 +684,10 @@ def pdf_PI(pi_id):
         name="font_s", fontSize=10, fontName="Quicksand-light", alignment=0
     )
 
+    font_s_b = ParagraphStyle(
+        name="font_s", fontSize=10, fontName="Quicksand-SemiBold", alignment=2
+    )
+
     brand_text = f"{pi.bank.biller_id.brand_name}"
     brand_name = Paragraph(f'<font color="#3182d9">{brand_text}</font>', blue_font)
 
@@ -699,7 +735,7 @@ def pdf_PI(pi_id):
     piDate = pi.pi_date.strftime("%d-%b-%y")
     poDate = pi.po_date.strftime("%d-%b-%y") if pi.po_date else ""
 
-    if hasattr(pi, "convertedpi"):
+    if hasattr(pi, "convertedpi") and is_invoice:
         invoice_type = (
             "TAX INVOICE" if pi.convertedpi.is_taxInvoice else "PRO FORMA INVOICE"
         )
@@ -726,7 +762,7 @@ def pdf_PI(pi_id):
             "",
             "",
             "",
-            f"{curr} {round(total_inc_tax,0):.2f}",
+            f"{curr} {round(pi.summary.total_value,0):.2f}",
             "",
             "",
         ],
@@ -834,7 +870,7 @@ def pdf_PI(pi_id):
             "",
             "",
             "Invoice No.:" if invoice_type == "TAX INVOICE" else "",
-            pi.convertedpi.invoice_no if invoice_type == "TAX INVOICE" else "",
+            pi.convertedpi.formatted_invoice if invoice_type == "TAX INVOICE" else "",
             "",
         ],
         ["", "", "", "", "", "", "", "", "", "", ""],
@@ -919,8 +955,8 @@ def pdf_PI(pi_id):
             cat = dict(CATEGORY).get(str(order.category))
             report = dict(REPORT_TYPE).get(str(order.report_type))
             product = order.product
-            from_month = datetime.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
-            to_month = datetime.strptime(order.to_month, "%Y-%m").strftime("%b'%y")
+            from_month = dt.strptime
+            to_month = dt.strptime(order.to_month, "%Y-%m").strftime("%b'%y")
             period = (
                 f"{from_month} - {to_month}"
                 if from_month != to_month
@@ -936,8 +972,8 @@ def pdf_PI(pi_id):
 
             sac = f"SAC: 998399"
 
-        from_m = datetime.strptime(order.from_month, "%Y-%m")
-        to_m = datetime.strptime(order.to_month, "%Y-%m")
+        from_m = dt.strptime(order.from_month, "%Y-%m")
+        to_m = dt.strptime(order.to_month, "%Y-%m")
 
         no_months = (to_m.year - from_m.year) * 12 + to_m.month - from_m.month + 1
 
@@ -972,18 +1008,18 @@ def pdf_PI(pi_id):
         cat = dict(CATEGORY).get(str(order.category))
         report = dict(REPORT_TYPE).get(str(order.report_type))
         product = order.product
-        from_month = datetime.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
-        to_month = datetime.strptime(order.to_month, "%Y-%m").strftime("%b'%y")
+        from_month = dt.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
+        to_month = dt.strptime(order.to_month, "%Y-%m").strftime("%b'%y")
 
         period = f"{from_month} - {to_month}"
 
-        unitPrice = f"{curr} {order.unit_price}"
+        # unitPrice = f"{curr} {order.unit_price}"
         totalPrice = f"{order.total_price:.2f}"
 
         sac = f"SAC: 998399"
 
-        from_m = datetime.strptime(order.from_month, "%Y-%m")
-        to_m = datetime.strptime(order.to_month, "%Y-%m")
+        from_m = dt.strptime(order.from_month, "%Y-%m")
+        to_m = dt.strptime(order.to_month, "%Y-%m")
 
         no_months = (to_m.year - from_m.year) * 12 + to_m.month - from_m.month + 1
 
@@ -992,6 +1028,11 @@ def pdf_PI(pi_id):
         orderDes = Paragraph(
             f"<font>{report} | {product} | {"Period" if order.category =="offline" else "Validity"}: {period if order.category =="offline" else total_m}</font>",
             font_s,
+        )
+
+        unitPrice = Paragraph(
+            f"<font>{curr} {order.unit_price}</font>",
+            font_s_b,
         )
 
         order_list.extend(
@@ -1113,16 +1154,12 @@ def pdf_PI(pi_id):
         # Set font color for the tax strings
         canvas.drawRightString(440, 245, f"AMOUNT:")
         canvas.drawRightString(530, 245, f"{curr} {net_total:.2f}")
-        canvas.drawRightString(440, 230, "IGST (18%):")
+        canvas.drawRightString(440, 230, f"IGST (18%):")
         canvas.drawRightString(530, 230, f"{curr} {igst:.2f}")
-        canvas.drawRightString(440, 215, "CGST (9%):")  # Use different y-coordinates
-        canvas.drawRightString(
-            530, 215, f"{curr} {cgst:.2f}"
-        )  # Use different y-coordinates
-        canvas.drawRightString(440, 200, "SGST (9%):")  # Use different y-coordinates
-        canvas.drawRightString(
-            530, 200, f"{curr} {sgst:.2f}"
-        )  # Use different y-coordinates
+        canvas.drawRightString(440, 215, f"CGST (9%):") # Use different y-coordinates
+        canvas.drawRightString(530, 215, f"{curr} {cgst:.2f}") # Use different y-coordinates
+        canvas.drawRightString(440, 200, f"SGST (9%):") # Use different y-coordinates
+        canvas.drawRightString(530, 200, f"{curr} {sgst:.2f}") # Use different y-coordinates
 
         canvas.setFont("Quicksand-Medium", 8)
         canvas.drawRightString(
@@ -1134,7 +1171,7 @@ def pdf_PI(pi_id):
         canvas.setFont("Quicksand-Bold", 12)
         canvas.drawRightString(440, 173, f"TOTAL:")  # Use different y-coordinates
         canvas.drawRightString(
-            530, 173, f"{curr} {round(total_inc_tax,0):.2f}"
+            530, 173, f"{curr} {round(pi.summary.total_value,0):.2f}"
         )  # Use different y-coordinates
 
         canvas.setFont("Quicksand-Regular", 11)
@@ -1416,9 +1453,9 @@ def pdf_PI(pi_id):
 
     buffer.close()
 
-    if hasattr(pi, "convertedpi"):
+    if hasattr(pi, "convertedpi") and is_invoice:
         if pi.convertedpi.is_taxInvoice:
-            filename = f"Tax Invoice_{pi.company_name}_{pi.convertedpi.invoice_no}_{pi.convertedpi.invoice_date}.pdf"
+            filename = f"Tax Invoice_{pi.company_name}_{pi.convertedpi.formatted_invoice}_{pi.convertedpi.invoice_date}.pdf"
         else:
             filename = f"PI_{pi.company_name}_{pi.pi_no}_{pi.pi_date}.pdf"
     else:
@@ -1426,6 +1463,6 @@ def pdf_PI(pi_id):
 
     response = HttpResponse(buffer_2.getvalue(), content_type="application/pdf")
 
-    response["Content-Disposition"] = f"attachment; filename={filename}"
+    response["content-disposition"] = f"attachment; filename={filename}"
 
     return response

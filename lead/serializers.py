@@ -16,8 +16,9 @@ class leadsSerializer(serializers.ModelSerializer):
     uuid = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model= leads
-        fields = [ 'id', 'uuid', 'company_name', 'gstin', 'full_address', 'address1', 'address2', 'city', 'state', 'country', 'pincode', 'industry', 'source', 'created_at', 'user', 'user_name', 'status', 'contactpersons']
-    
+        # fields = [ 'id', 'uuid', 'company_name', 'gstin', 'full_address', 'address1', 'address2', 'city', 'state', 'country', 'pincode', 'industry', 'source', 'created_at', 'user', 'user_name', 'status', 'contactpersons']
+        fields = '__all__'
+        
     def get_user_name(self, obj):
         if obj.user:
             user_name = User.objects.get(pk=obj.user)

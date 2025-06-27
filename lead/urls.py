@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.leads_list, name='leads_list'),
     path('list', views.lead_list.as_view()),
     path('add-lead', views.lead_list.as_view()),
+    path('get-list', views.LeadListView.as_view()),
     path('<int:id>', views.LeadView.as_view()),
     path('<int:id>/add-contact', views.ContactView.as_view()),
     path('<int:id>/deals', views.ConversationView.as_view()),

@@ -30,23 +30,23 @@ class leads(models.Model):
     def user_id(self):
         return Profile.objects.get(pk=self.user)
     
-    def get_full_address(self):
-        state_name = dict(STATE_CHOICE).get(int(self.state), self.state) if self.state != 500 else ""
-        country = dict(COUNTRY_CHOICE).get(self.country, self.country)
+    # def get_full_address(self):
+    #     state_name = dict(STATE_CHOICE).get(int(self.state), self.state) if self.state != 500 else ""
+    #     country = dict(COUNTRY_CHOICE).get(self.country, self.country)
 
-        address_parts = [
-            self.address1,
-            self.address2,
-            self.city,
-            self.pincode,
-            state_name,
-            country,
-        ]
-        return ', '.join(filter(None, address_parts)).replace(",,",",")
+    #     address_parts = [
+    #         self.address1,
+    #         self.address2,
+    #         self.city,
+    #         self.pincode,
+    #         state_name,
+    #         country,
+    #     ]
+    #     return ', '.join(filter(None, address_parts)).replace(",,",",")
 
-    def save(self, *args, **kwargs):
-        self.full_address = self.get_full_address()
-        super().save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     self.full_address = self.get_full_address()
+    #     super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Lead"

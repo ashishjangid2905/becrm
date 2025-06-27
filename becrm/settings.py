@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+from corsheaders.defaults import default_headers
 
 
 load_dotenv()
@@ -51,6 +52,7 @@ INSTALLED_APPS = [
     'sample',
     'app',
     'lead',
+    'billers',
     'invoice',
     'django_session_timeout',
 ]
@@ -245,9 +247,17 @@ EMAIL_HOST_PASSWORD = 'jjcz artm csuu colt'
 
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS  = ['http://localhost:5173', 'http://localhost:3000']
+CORS_ALLOWED_ORIGINS  = ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.3.98:3000', 'http://172.18.16.1:3000']
 
-CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://localhost:3000']
+CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.3.98:3000', 'http://172.18.16.1:3000']
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "content-disposition",
+]
+
+CORS_EXPOSE_HEADERS = [
+    "Content-Disposition",
+]
 
 SESSION_COOKIE_SAMESITE = "None"  
 CSRF_COOKIE_SAMESITE = "None"

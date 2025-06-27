@@ -57,7 +57,7 @@ class lead_list(APIView):
 
     def get(self, request):
         try:
-            all_leads = leads.objects.filter(user=request.user.id)
+            all_leads = leads.objects.filter(user=request.user.id).prefetch_related("contactpersons")
             search_query = request.GET.get('search', None)
             if search_query:
                 search_filter = SearchFilter()
@@ -102,6 +102,19 @@ class lead_list(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class LeadListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            all_leads = leads.objects.filter(user=request.user.id).prefetch_related("contactpersons").order_by("company_name")
+
+            serializer = leadsSerializer(all_leads, many = True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except leads.DoesNotExist:
+            return Response({"message": "No Lead founded"}, status=status.HTTP_404_NOT_FOUND)
 
 class LeadView(APIView):
     permission_classes = [IsAuthenticated]

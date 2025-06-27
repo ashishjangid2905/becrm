@@ -89,7 +89,9 @@ class UserListSerializer(serializers.ModelSerializer):
 
     name = serializers.SerializerMethodField()
     dob = serializers.SerializerMethodField()
-    contact = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
+    gender = serializers.SerializerMethodField()
+    employee_code = serializers.SerializerMethodField()
     profile_img = serializers.SerializerMethodField()
     position = serializers.SerializerMethodField()
     target = serializers.SerializerMethodField()
@@ -99,27 +101,38 @@ class UserListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "first_name",
+            "last_name",
             "email",
+            "is_active",
+            "gender",
+            "employee_code",
             "role",
             "department",
             "dob",
-            "contact",
+            "phone",
             "profile_img",
             "position",
             "target",
+            
         ]
 
     def get_name(self, obj):
         if obj.last_name:
             return f"{obj.first_name} {obj.last_name}"
         return obj.first_name
-        
     
     def get_dob(self, obj):
         return obj.profile.dob
 
-    def get_contact(self, obj):
+    def get_phone(self, obj):
         return obj.profile.phone
+    
+    def get_gender(self, obj):
+        return obj.profile.gender
+    
+    def get_employee_code(self, obj):
+        return obj.profile.employee_code
 
     def get_profile_img(self, obj):
         request = self.context.get("request")

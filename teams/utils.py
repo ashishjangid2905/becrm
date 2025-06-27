@@ -1,25 +1,26 @@
 from django.utils.translation import gettext_lazy as _
 
-ROLE_CHOICES = {
+ROLE_CHOICES = (
         ('admin',_('Admin')),
-        ('user',_('User'))
-        }
+        ('sub-admin', _('Sub-admin')),
+        ('user',_('User')),
+        )
 
 
-DEPARTMENTS = {
+DEPARTMENTS = (
     ('account',_('Account')),
     ('production',_('Production')),
     ('sales', _('Sales'))
-    }
+)
 
-VARIABLES = {
+VARIABLES = (
     ('position', _('Position')),
     ('sales_target', _('Sales Target')),
-}
+)
 
-POSITIONS = {
+POSITIONS = (
     ('head', _('HEAD')),
     ('vp', _('VP')),
     ('sr. manager', _('SR. MANAGER')),
     ('member', _('MEMBER'))
-}
+)

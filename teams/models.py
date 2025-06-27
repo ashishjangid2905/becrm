@@ -7,6 +7,7 @@ from .managers import UserManager
 from django.utils import timezone
 from .utils import ROLE_CHOICES, DEPARTMENTS, VARIABLES
 from cryptography.fernet import Fernet
+from django.core.validators import RegexValidator
 
 class User(AbstractUser):
 
@@ -67,12 +68,17 @@ def user_profile_path(instance, filename):
     
 class Profile(models.Model):
 
+    GENDER = (('male',_('Male')), ('female', _('Female')), ('non-binary', _('Non-Binary')), ('other', _('Other')))
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     dob = models.DateField(_("Date of Birth"), auto_now=False, blank = True, null = True)
-    phone = models.CharField(max_length = 50, blank=True, default="")
+    gender = models.CharField(_("gender"), max_length=50, default="male")
+    employee_code = models.CharField(_("employee code"), max_length=50, blank=True, null=True)
+    phone = models.CharField(max_length = 15, blank=True, null=True, validators=[RegexValidator(regex=r'^\+?1?\d{9,15}$')])
     profile_img = models.ImageField(_("Profile"), upload_to=user_profile_path, blank=True, default='profile/user-default-96.png')
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null = True)
-    last_edited = models.DateTimeField(auto_now_add=True)
+    last_edited = models.DateTimeField(_("last edited"), auto_now=True)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
 
     class Meta:
         verbose_name = 'Profile'
@@ -89,6 +95,7 @@ class UserVariable(models.Model):
     variable_value = models.CharField(_("Variable Value"), max_length=250)
     from_date = models.DateField(_("From Date"), default=timezone.now, blank=False, null=False)
     to_date = models.DateField(_("To Date"), null=True, blank=True)
+    is_active = models.BooleanField(_("is active"), default=True)
     created_at = models.DateTimeField(_("Created_at"), auto_now_add=True)
 
     class Meta:
@@ -96,6 +103,7 @@ class UserVariable(models.Model):
         verbose_name_plural = 'UserVariables'
         ordering = ['-from_date']
         db_table = "UserVariable"
+        unique_together = ('user_profile', 'variable_name', 'from_date', 'is_active')
 
     def __str__(self):
         return f'{self.user_profile.user.first_name} - {self.variable_name}: {self.variable_value}'
