@@ -12,6 +12,7 @@ from django.db.models import Q
 import datetime
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
+from .models import sample
 from .serializers import SampleSerializer, CountryMasterSerializer, PortSerializer
 from rest_framework.response import Response
 from rest_framework import status
@@ -20,6 +21,29 @@ from rest_framework.viewsets import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import OrderingFilter, SearchFilter
 from lead.views import BasePagination
+from django_filters import (
+    FilterSet,
+    CharFilter,
+    NumberFilter,
+    BooleanFilter,
+    ModelChoiceFilter,
+)
+
+
+class SampleFilters(FilterSet):
+    client_name = CharFilter(field_name="client_name", lookup_expr="icontains")
+    status = CharFilter(field_name="status", lookup_expr="exact")
+    country = CharFilter(field_name="country", lookup_expr="exact")
+    user = NumberFilter(field_name="user")
+
+    class Meta:
+        model = sample
+        fields = [
+            "client_name",
+            "status",
+            "country",
+            "user",
+        ]
 
 
 class SampleViews(APIView):
@@ -34,6 +58,13 @@ class SampleViews(APIView):
         try:
             user_profile = Profile.objects.get(user = request.user)
             sample_list = sample.objects.filter(user__profile__branch=user_profile.branch)
+
+            filtered_sample = SampleFilters(request.GET, queryset=sample_list)
+            if filtered_sample.is_valid():
+                sample_list = filtered_sample.qs
+            else:
+                print("Filter errors:", filtered_sample.errors)
+
             search_query = request.GET.get('search', None)
             if search_query:
                 search_filter = SearchFilter()

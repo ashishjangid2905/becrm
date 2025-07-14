@@ -54,7 +54,13 @@ from rest_framework.views import APIView
 from .serializers import *
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter
-from django_filters import FilterSet, CharFilter, NumberFilter, BooleanFilter, ModelChoiceFilter
+from django_filters import (
+    FilterSet,
+    CharFilter,
+    NumberFilter,
+    BooleanFilter,
+    ModelChoiceFilter,
+)
 from decimal import Decimal, InvalidOperation
 
 
@@ -70,15 +76,30 @@ class PiFilters(FilterSet):
     address = CharFilter(field_name="address", lookup_expr="icontains")
     subtotal = NumberFilter(field_name="summary__subtotal")
     status = CharFilter(field_name="status", lookup_expr="exact")
-    isApproved  = BooleanFilter(field_name="is_Approved")
-    isTaxInvoice  = BooleanFilter(field_name="convertedpi__is_taxInvoice")
-    paymentStatus  = CharFilter(field_name="convertedpi__payment_status", lookup_expr="exact")
+    isApproved = BooleanFilter(field_name="is_Approved")
+    isTaxInvoice = BooleanFilter(field_name="convertedpi__is_taxInvoice")
+    paymentStatus = CharFilter(
+        field_name="convertedpi__payment_status", lookup_expr="exact"
+    )
+    country = CharFilter(field_name="processedorders__country", lookup_expr="exact")
     user = NumberFilter(field_name="user_id")
-    companyRef = ModelChoiceFilter(field_name="company_ref", queryset = leads.objects.all())
+    companyRef = ModelChoiceFilter(
+        field_name="company_ref", queryset=leads.objects.all()
+    )
 
     class Meta:
         model = proforma
-        fields = ["company_name", "gstin", "address", "subtotal", "status", "isApproved", "companyRef"]
+        fields = [
+            "company_name",
+            "gstin",
+            "address",
+            "subtotal",
+            "status",
+            "isApproved",
+            "country",
+            "companyRef",
+            "user"
+        ]
 
 
 class ProformaMixin:
@@ -104,9 +125,11 @@ class ProformaView(APIView):
 
     def get(self, request):
         try:
-            pi_list = proforma.objects.filter(user_id=request.user.id).prefetch_related(
-                "processedorders", "orderlist"
-            ).select_related("convertedpi", "summary")
+            pi_list = (
+                proforma.objects.filter(user_id=request.user.id)
+                .prefetch_related("processedorders", "orderlist")
+                .select_related("convertedpi", "summary")
+            )
 
             selected_fy = request.GET.get("fy", current_fy())
             if selected_fy:
@@ -119,6 +142,7 @@ class ProformaView(APIView):
                 filters = (
                     Q(company_name__icontains=search_query)
                     | Q(gstin__icontains=search_query)
+                    | Q(user_name__icontains=search_query)
                     | Q(address__icontains=search_query)
                     | Q(requistioner__icontains=search_query)
                     | Q(pi_no__icontains=search_query)
@@ -331,9 +355,13 @@ class ApproveRequestPIView(APIView):
             # elif current_position != "Head":
             #     all_users = all_users.filter(pk=request.user.id)
 
-            pi_list = proforma.objects.filter(
-                user_id__in=list(all_users.values_list("id", flat=True))
-            ).prefetch_related("orderlist", "processedorders").select_related("convertedpi", "summary")
+            pi_list = (
+                proforma.objects.filter(
+                    user_id__in=list(all_users.values_list("id", flat=True))
+                )
+                .prefetch_related("orderlist", "processedorders")
+                .select_related("convertedpi", "summary")
+            )
 
             selected_fy = request.GET.get("fy", current_fy())
             if selected_fy:
@@ -341,12 +369,12 @@ class ApproveRequestPIView(APIView):
                 end_fy = dt(int(selected_fy.split("-")[1]), 3, 31).date()
                 pi_list = pi_list.filter(pi_date__range=(start_fy, end_fy))
 
-
             search_query = request.GET.get("search", None)
             if search_query:
                 filters = (
                     Q(company_name__icontains=search_query)
                     | Q(gstin__icontains=search_query)
+                    | Q(user_name__icontains=search_query)
                     | Q(address__icontains=search_query)
                     | Q(requistioner__icontains=search_query)
                     | Q(pi_no__icontains=search_query)
@@ -405,14 +433,16 @@ class InvoiceListView(APIView):
                 profile__branch=profile_instance.branch
             ).values_list("id", flat=True)
 
-            pi_list = proforma.objects.filter(
-                user_id__in=list(all_users), convertedpi__is_invoiceRequire=True
-            ).prefetch_related("orderlist", "processedorders").select_related("convertedpi", "summary")
+            pi_list = (
+                proforma.objects.filter(
+                    user_id__in=list(all_users), convertedpi__is_invoiceRequire=True
+                )
+                .prefetch_related("orderlist", "processedorders")
+                .select_related("convertedpi", "summary")
+            )
 
             if current_position != "Head" and request.user.role != "admin":
-                pi_list = pi_list.filter(
-                    user_id=request.user.id
-                )
+                pi_list = pi_list.filter(user_id=request.user.id)
             else:
                 pi_list = pi_list.filter(convertedpi__is_taxInvoice=True)
 
@@ -502,11 +532,15 @@ class InvoiceUpdateListView(APIView):
                 profile__branch=profile_instance.branch
             ).values_list("id", flat=True)
 
-            pi_list = proforma.objects.filter(
-                user_id__in=list(all_users),
-                convertedpi__is_invoiceRequire=True,
-                convertedpi__is_taxInvoice=False,
-            ).prefetch_related("orderlist", "processedorders").select_related("convertedpi", "summary")
+            pi_list = (
+                proforma.objects.filter(
+                    user_id__in=list(all_users),
+                    convertedpi__is_invoiceRequire=True,
+                    convertedpi__is_taxInvoice=False,
+                )
+                .prefetch_related("orderlist", "processedorders")
+                .select_related("convertedpi", "summary")
+            )
 
             selected_fy = request.GET.get("fy", current_fy())
             if selected_fy:
@@ -525,6 +559,7 @@ class InvoiceUpdateListView(APIView):
                 filters = (
                     Q(company_name__icontains=search_query)
                     | Q(gstin__icontains=search_query)
+                    | Q(user_name__icontains=search_query)
                     | Q(address__icontains=search_query)
                     | Q(requistioner__icontains=search_query)
                     | Q(pi_no__icontains=search_query)
@@ -577,33 +612,40 @@ class InvoiceUpdateListView(APIView):
             target_fy = current_fy(invoice_date)
 
             def get_fy_filter():
-                all_records = convertedPI.objects.filter(invoice_date__isnull = False)
+                all_records = convertedPI.objects.filter(invoice_date__isnull=False)
                 filtered = []
 
                 for obj in all_records:
                     if current_fy(obj.invoice_date) == target_fy:
                         filtered.append(obj.id)
                 return all_records.filter(id__in=filtered)
-            
+
             same_fy_invoices = get_fy_filter()
 
-
             lower_conflict = same_fy_invoices.filter(
-                invoice_number__lt = invoice_number,
-                invoice_date__gt=invoice_date
+                invoice_number__lt=invoice_number, invoice_date__gt=invoice_date
             )
             # print(f"lower_conflict: {lower_conflict}")
 
             higher_conflict = same_fy_invoices.filter(
-                invoice_number__gt = invoice_number,
-                invoice_date__lt = invoice_date
+                invoice_number__gt=invoice_number, invoice_date__lt=invoice_date
             )
             # print(f"higher_conflict: {higher_conflict}")
 
             if lower_conflict.exists():
-                return Response({"error": "There are lower invoice numbers with future dates in the same FY."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {
+                        "error": "There are lower invoice numbers with future dates in the same FY."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             if higher_conflict.exists():
-                return Response({"error": "There are higher invoice numbers with past dates in the same FY."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {
+                        "error": "There are higher invoice numbers with past dates in the same FY."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             try:
                 formatedInvoiceNo = get_invoice_no_from_date(
@@ -667,9 +709,13 @@ class ProcessedPIUpdateListView(APIView):
                 profile__branch=profile_instance.branch
             ).values_list("id", flat=True)
 
-            pi_list = proforma.objects.filter(
-                user_id__in=list(all_users), convertedpi__is_processed=True
-            ).prefetch_related("orderlist", "processedorders").select_related("convertedpi", "summary")
+            pi_list = (
+                proforma.objects.filter(
+                    user_id__in=list(all_users), convertedpi__is_processed=True
+                )
+                .prefetch_related("orderlist", "processedorders")
+                .select_related("convertedpi", "summary")
+            )
 
             if request.user.role != "admin" and request.user.department != "production":
                 pi_list = pi_list.filter(user_id=request.user.id)
@@ -687,9 +733,17 @@ class ProcessedPIUpdateListView(APIView):
                 filters = (
                     Q(company_name__icontains=search_query)
                     | Q(gstin__icontains=search_query)
+                    | Q(user_name__icontains=search_query)
                     | Q(address__icontains=search_query)
                     | Q(requistioner__icontains=search_query)
                     | Q(pi_no__icontains=search_query)
+                    | Q(pi_no__icontains=search_query)
+                    | Q(pi_no__icontains=search_query)
+                    | Q(processedorders__report_type__icontains=search_query)
+                    | Q(processedorders__country__icontains=search_query)
+                    | Q(processedorders__plan__icontains=search_query)
+                    | Q(processedorders__hsn__icontains=search_query)
+                    | Q(processedorders__product__icontains=search_query)
                 )
                 try:
                     value = Decimal(search_query)
@@ -698,6 +752,15 @@ class ProcessedPIUpdateListView(APIView):
                     pass
 
                 pi_list = pi_list.filter(filters)
+
+            pending_month = request.GET.get("month", None)
+
+            if pending_month:
+                pi_list = pi_list.filter(
+                    processedorders__from_month__lte=pending_month,
+                    processedorders__to_month__gte=pending_month,
+                    processedorders__last_dispatch_month__lt=pending_month,
+                ).distinct()
 
             filtered_pi = PiFilters(request.GET, queryset=pi_list)
             if filtered_pi.is_valid():

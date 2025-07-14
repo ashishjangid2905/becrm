@@ -183,7 +183,7 @@ class convertedPI(models.Model):
 
 class processedOrder(models.Model):
     pi_id = models.ForeignKey(proforma, verbose_name=_("PI ID"), on_delete=models.CASCADE, related_name="processedorders")
-    report_type = models.CharField(_("Report Type"), max_length=150, choices=REPORT_TYPE)
+    report_type = models.CharField(_("Report Type"), max_length=150)
     format = models.CharField(_("Format"), max_length=250, choices=REPORT_FORMAT)
     country = models.CharField(_("Country"), max_length=150, blank=True, null=True)
     plan = models.CharField(_("plan"), max_length=50, blank=True, null=True)

@@ -6,7 +6,7 @@ from . import views
 app_name = 'teams'
 urlpatterns = [
     path('user-list', views.UserListView.as_view()),
-    path('user-list/<int:pk>', views.UserListView.as_view()),
+    path('update/<int:pk>', views.UserListView.as_view()),
     path('register', views.UserListView.as_view(), name='add_user'),
     path('user', views.user_list, name='users'),
     path('set-target/<int:id>', views.CreateUpdateUserVariableView.as_view()),

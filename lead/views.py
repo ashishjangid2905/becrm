@@ -126,7 +126,18 @@ class LeadView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+        
+    def patch(self, request, id):
+        try:
+            instance = get_object_or_404(leads, pk=id)
+            data = request.data
+            serializer = leadsSerializer(instance, data=data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ContactView(APIView):
@@ -146,6 +157,21 @@ class ContactView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    def patch(self, request, lead_id ,id):
+        try:
+            instance = get_object_or_404(contactPerson, id=id)
+            data = request.data
+            data.pop("id")
+            serializer = contactPersonSerializer(instance, data=data, partial=True)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error":str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 

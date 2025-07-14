@@ -64,7 +64,9 @@ class UserListView(APIView):
                     )
                 profile_serializer.save()
 
-                result_serializer = UserListSerializer(user, context={"request": request})
+                result_serializer = UserListSerializer(
+                    user, context={"request": request}
+                )
 
                 return Response(result_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -75,19 +77,33 @@ class UserListView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, *args, **kwargs):
-        user = get_object_or_404(User, pk=kwargs.get("pk"))
-        serializer = UserSerializer(user, data=request.data, partial=True)
+        try:
+            user = get_object_or_404(User, pk=kwargs.get("pk"))
 
-        if serializer.is_valid():
-            try:
-                updated_user = serializer.update(user, serializer.validated_data)
-                return Response(
-                    UserSerializer(updated_user).data, status=status.HTTP_200_OK
-                )
-            except Exception as e:
-                return Response({"details": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            user_data = request.data
+            profile_data = user_data.pop("profile")
+            profile_data["user_id"] = user
+
+            print(user_data)
+
+            user_serializer = UserSerializer(user, data=user_data, partial=True)
+
+            profile_serializer = ProfileSerializer(user.profile,data=profile_data, partial=True)
+
+            with transaction.atomic():
+                if not profile_serializer.is_valid():
+                    return Response(profile_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                if not user_serializer.is_valid():
+                    return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+                user_serializer.save(partial=True)
+                profile_serializer.save(partial=True)
+
+                result_serializer = UserListSerializer(user, context={"request": request})
+                return Response(result_serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CreateUpdateUserVariableView(APIView):
@@ -101,9 +117,13 @@ class CreateUpdateUserVariableView(APIView):
             user_id = data.pop("user")
             with transaction.atomic():
                 user_profile = get_object_or_404(Profile, user=user_id)
-                curr_target = UserVariable.objects.filter(
-                    user_profile=user_profile, variable_name="sales_target"
-                ).order_by("created_at").last()
+                curr_target = (
+                    UserVariable.objects.filter(
+                        user_profile=user_profile, variable_name="sales_target"
+                    )
+                    .order_by("created_at")
+                    .last()
+                )
                 from_date = datetime.strptime(data.get("from_date"), "%Y-%m-%d").date()
                 if curr_target:
                     if from_date <= curr_target.from_date:
@@ -122,7 +142,9 @@ class CreateUpdateUserVariableView(APIView):
                 serializer.save(user_profile=user_profile)
 
                 result = get_object_or_404(User, id=id)
-                result_serializer = UserListSerializer(result, context={"request": request})
+                result_serializer = UserListSerializer(
+                    result, context={"request": request}
+                )
 
                 return Response(result_serializer.data, status=status.HTTP_201_CREATED)
 

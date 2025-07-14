@@ -8,8 +8,6 @@ from .utils import STATUS
 
 class leads(models.Model):
 
-    SOURCE = (('whatsapp', 'Whatsapp'), ('email', 'Email'), ('linkedin', 'Linkedin'), ('campaign', 'Campaign'), ('calling', 'Calling'), ('others', 'Others'))
-
     company_name = models.CharField(_("Company Name"), max_length=150, blank=False, null=False)
     gstin = models.CharField(_("GSTIN"), max_length=16, blank=True, null=True)
     address1 = models.CharField(_("Address Line 1"), max_length=255, blank=False, null=False)
@@ -20,7 +18,7 @@ class leads(models.Model):
     pincode = models.CharField(_("Pin Code"), max_length=255, blank=True, null=True)
     industry = models.CharField(_("Industry"), max_length=255, blank=True, null=True)
     full_address = models.CharField(_("full address"), max_length=512, blank=True)
-    source = models.CharField(_("Source"), max_length=50, null=False, blank=False, choices=SOURCE, default='email')
+    source = models.CharField(_("Source"), max_length=50, null=False, blank=False, default='email')
     created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
     edited_at = models.DateTimeField(_("Edited at"), auto_now=True)
     user = models.IntegerField(_("User Id"))

@@ -76,4 +76,4 @@ def handle_proforma_save(sender, instance, created, **kwargs):
 
 @receiver(post_delete, sender=proforma)
 def handle_proforma_delete(sender, instance, **kwargs):
-    PiSummery.objects.filter(proforma=instance).delete()
+    PiSummary.objects.filter(proforma=instance).delete()

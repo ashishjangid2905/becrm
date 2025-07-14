@@ -1,10 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from django.contrib.auth.hashers import make_password
 from .models import User, Profile, Branch, UserVariable, SmtpConfig
-from django.shortcuts import get_object_or_404
-from datetime import datetime, timedelta
-from django.db.models import Q
 from .templatetags.teams_custom_filters import get_current_position, get_current_target
 
 
@@ -36,17 +32,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = [
-            "id",
-            "dob",
-            "phone",
-            "profile_img",
-            "profile_image",
-            "branch",
-            "branch_name",
-            "last_edited",
-            "user"
-        ]
+        fields = '__all__'
 
         extra_kwargs = {
             "branch": {"write_only": True},
@@ -168,6 +154,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "email",
             "role",
+            "is_active",
             "department",
             "created_at",
             "password",
@@ -180,8 +167,12 @@ class UserSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, data):
-        if data["password"] != data["confirm_password"]:
-            raise serializers.ValidationError({"password": "Password does not Match."})
+        password = data.get("password")
+        confirm_password = data.get("confirm_password")
+
+        if password or confirm_password:
+            if password != confirm_password:
+                raise serializers.ValidationError({"password": "Password does not Match."})
         return data
 
     def create(self, validated_data):
@@ -191,66 +182,6 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(password=password, **validated_data)
 
         return user
-
-        # def update(self, instance, validated_data):
-
-        profile_data = validated_data.pop("profile", None)
-
-        if "password" in validated_data:
-            validated_data["password"] = make_password(validated_data["password"])
-
-        instance = super().update(instance, validated_data)
-
-        if profile_data:
-            uservariable_data = profile_data.pop("uservariable", [])
-            branch_data = profile_data.pop("branch", None)
-            if branch_data:
-                branch_name = branch_data.get("branch_name")
-                if branch_name:
-                    try:
-                        branch = get_object_or_404(Branch, branch_name=branch_name)
-                    except Branch.DoesNotExist:
-                        raise serializers.ValidationError(
-                            {"Branch": f"Branch - {branch_name} does not exist"}
-                        )
-
-                    profile_instance, created = Profile.objects.update_or_create(
-                        user=instance, branch=branch, defaults=profile_data
-                    )
-            profile_instance, created = Profile.objects.update_or_create(
-                user=instance, defaults=profile_data
-            )
-
-            if uservariable_data:
-                for user_variable in uservariable_data:
-                    variable_name = user_variable.get("variable_name")
-                    variable_value = user_variable.get("variable_value")
-                    from_date = user_variable.get("from_date")
-                    # try:
-                    #     from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
-                    # except ValueError:
-                    #     raise serializers.ValidationError({"From Date": "Invalid date format."})
-                    today = datetime.now().date()
-
-                    filters = {
-                        "from_date__lte": today,
-                        "user_profile": profile_instance,
-                        "variable_name": variable_name,
-                    }
-                    current_variable = UserVariable.objects.filter(
-                        Q(to_date__gte=today) | Q(to_date__isnull=True), **filters
-                    ).last()
-                    if current_variable:
-                        current_variable.to_date = from_date - timedelta(days=1)
-                        current_variable.save()
-                    UserVariable.objects.create(
-                        user_profile=profile_instance,
-                        variable_name=variable_name,
-                        variable_value=variable_value,
-                        from_date=from_date,
-                    )
-
-        return instance
 
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
