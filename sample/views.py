@@ -12,6 +12,8 @@ from django.db.models import Q
 import datetime
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
+from datetime import datetime as dt
+
 from .models import sample
 from .serializers import SampleSerializer, CountryMasterSerializer, PortSerializer
 from rest_framework.response import Response
@@ -28,6 +30,7 @@ from django_filters import (
     BooleanFilter,
     ModelChoiceFilter,
 )
+from invoice.custom_utils import current_fy
 
 
 class SampleFilters(FilterSet):
@@ -58,6 +61,12 @@ class SampleViews(APIView):
         try:
             user_profile = Profile.objects.get(user = request.user)
             sample_list = sample.objects.filter(user__profile__branch=user_profile.branch)
+
+            selected_fy = request.GET.get('fy', current_fy())
+            if selected_fy:
+                start_date = dt(int(selected_fy.split("-")[0]),4,1).date()
+                end_date = dt(int(selected_fy.split("-")[1]),3,31).date()
+                sample_list = sample_list.filter(requested_at__range=(start_date, end_date))
 
             filtered_sample = SampleFilters(request.GET, queryset=sample_list)
             if filtered_sample.is_valid():

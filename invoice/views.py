@@ -197,8 +197,10 @@ class ProformaCreateUpdateView(APIView, ProformaMixin):
             serializer = ProformaCreateSerializer(data=request.data)
             user_id = request.user.id
             if serializer.is_valid():
-                serializer.save(user_id=user_id)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                instance = serializer.save(user_id=user_id)
+
+                result = ProformaSerializer(instance)
+                return Response(result.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response(
@@ -339,7 +341,7 @@ class ApproveRequestPIView(APIView):
         try:
             profile_instance = get_object_or_404(Profile, user=request.user)
             current_position = get_current_position(profile_instance)
-            all_users = User.objects.filter(profile__branch=profile_instance.branch)
+            all_users = User.objects.filter(profile__branch=profile_instance.branch).exclude(id=request.user.id)
             user_exclusion = {
                 "Head": ["Head"],
                 "VP": ["Head", "VP"],
@@ -347,13 +349,10 @@ class ApproveRequestPIView(APIView):
             }
 
             if request.user.role != "admin":
-                all_users = all_users
                 if current_position in user_exclusion:
                     all_users = all_users.exclude(
                         groups__name__in=user_exclusion[current_position]
                     )
-            # elif current_position != "Head":
-            #     all_users = all_users.filter(pk=request.user.id)
 
             pi_list = (
                 proforma.objects.filter(

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import leads, contactPerson, Conversation, conversationDetails
+from .models import *
 from invoice.utils import STATE_CHOICE, COUNTRY_CHOICE
 from teams.models import User
 import uuid
@@ -45,3 +45,9 @@ class ConversationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Conversation
         fields = ['id', 'title', 'company_id','start_at']
+
+
+class InboundLeadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InboundLeads
+        fields = '__all__'

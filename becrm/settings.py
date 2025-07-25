@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 from datetime import timedelta
 from corsheaders.defaults import default_headers
 
-
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -69,26 +68,6 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10
 }
 
-# SIMPLE_JWT = {
-#     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-#     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-#     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
-#     'SLIDING_TOKEN_LIFETIME': timedelta(days=30),
-#     'SLIDING_TOKEN_REFRESH_LIFETIME_LATE_USER': timedelta(days=1),
-#     'SLIDING_TOKEN_LIFETIME_LATE_USER': timedelta(days=30),
-#     'ROTATE_REFRESH_TOKENS': True,
-#     'BLACKLIST_AFTER_ROTATION': True,
-#     'AUTH_COOKIE': 'access_token',  # Custom cookie name
-#     'AUTH_COOKIE_HTTP_ONLY': True,
-#     'AUTH_COOKIE_SECURE': False,  # Set True for HTTPS
-#     'AUTH_COOKIE_SAMESITE': 'Lax',
-#     "ALGORITHM": "HS256",
-#     "SIGNING_KEY": os.getenv('SECRET_KEY', "dscwdvc5435@=sdvs"),
-#     "AUDIENCE": None,
-#     "LEEWAY": 0,
-#     "USER_ID_FIELD": "id",
-#     'TOKEN_OBTAIN_SERIALIZER': 'teams.serializers.MyTokenObtainPairSerializer',
-# }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -145,28 +124,29 @@ DATABASES = {
     'default': {
         'ENGINE': 'mssql',
         'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('USERNAME'),
+        'USER': os.getenv('DB_USER'),
         'PASSWORD': os.getenv('PASSWORD'),
         'HOST': os.getenv('HOST'),  # If it's on localhost, use 'localhost' or '127.0.0.1'
         'PORT': '',  # Default SQL Server port is 1433
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',  # Use the appropriate ODBC driver
+            'authentication': 'SQL Server Authentication',
         },
     },
 
     'leads_db': {
         'ENGINE': 'mssql',
         'NAME': os.getenv('DB_NAME2'),
-        'USER': os.getenv('USERNAME2'),
+        'USER': os.getenv('DB_USER2'),
         'PASSWORD': os.getenv('PASSWORD2'),
         'HOST': os.getenv('HOST2'),  # If it's on localhost, use 'localhost' or '127.0.0.1'
         'PORT': '',  # Default SQL Server port is 1433
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',  # Use the appropriate ODBC driver
+            'authentication': 'SQL Server Authentication',
         },
     },
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

@@ -25,6 +25,7 @@ class CountryMaster(models.Model):
     country_code = models.CharField(max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS', blank=True, null=True)
     country = models.CharField(max_length=100, db_collation='SQL_Latin1_General_CP1_CI_AS')
     is_active = models.BooleanField(_("is active"), default=False)
+    can_process = models.BooleanField(_("can process"), default=False)
 
     class Meta:
         managed = True

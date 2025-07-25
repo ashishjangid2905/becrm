@@ -115,6 +115,23 @@ class conversationDetails(models.Model):
         db_table = "ConversationDetails"
 
 
-    
+
+class InboundLeads(models.Model):
+
+    name = models.CharField(_("name"), max_length=50)
+    company_name = models.CharField(_("company name"), max_length=50)
+    location = models.CharField(_("location"), max_length=50, blank=True, null=True)
+    email = models.EmailField(_("email"), max_length=254)
+    contact_no = models.CharField(_("contact no"), max_length=50)
+    message = models.TextField(_("message"), max_length=1000)
+    source = models.CharField(_("source"), max_length=50)
+    assigned_to = models.IntegerField(_("assigned to"), blank=True, null=True)
+    assigned_by = models.IntegerField(_("assigned by"), blank=True, null=True)
+    created_at = models.DateTimeField(_("created at"), auto_now=False, auto_now_add=True)
+
+    class Meta:
+        verbose_name = "inboundlead"
+        verbose_name_plural = "inboundleads"
+        db_table = "Inboundleads"
     
     

@@ -225,7 +225,6 @@ class ConversationView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        
 
 
 class dealActivityView(APIView):
@@ -266,351 +265,31 @@ class dealActivityView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-@login_required(login_url='app:login')
-def leads_list(request):
-    
-    query = request.GET.get('q')
-    user_id = request.user.id
-    selected_user = request.GET.get('user')
-    page_size = int(request.GET.get('pageSize', 20))
-    page_number = request.GET.get('page', 1)
-
-    task = process_leads.apply_async(args=[query, user_id, selected_user, page_size, page_number])
-
-    task_id = task.id
-
-    leads_result = task.get(timeout=30)
-
-    all_leads = leads.objects.filter(id__in=leads_result).order_by('-created_at')
-
-    for lead in all_leads:
-        lead.user = User.objects.get(pk=lead.user)
-
-    profile_instance = get_object_or_404(Profile, user=request.user)
-    user_branch = profile_instance.branch
-    all_users = Profile.objects.filter(branch=user_branch.id, user__department="sales")
-    source_choice = leads.SOURCE
-    states = STATE_CHOICE
-    countries = COUNTRY_CHOICE
-
-    task2 = total_leads.apply_async(args=[query, user_id, selected_user])
-    task2_id = task2.id
-    
-    lead_r = task2.get(timeout=30)
-
-    total_page = math.ceil(lead_r/page_size)
-    min_page = int(page_number) - 2 if int(page_number)>2 else 1
-    max_page = int(page_number) + 2 if total_page >= int(page_number)+2 else total_page
-    pages = [page for page in range(min_page, max_page+1)]
-
-    context = {
-        'user_leads': all_leads,
-        'user_id': user_id,
-        'source_choice': source_choice,
-        'states': states,
-        'countries': countries,
-        'all_users':all_users,
-        'pageSize': page_size,
-        'selected_user': selected_user,
-        'lead_count': lead_r,
-        'page_number': int(page_number),
-        'page_range': pages,
-        'total_page': total_page,
-    }
-    
-    return render(request, 'lead/lead-list.html', context)
-
-@login_required(login_url='app:login')
-def add_lead(request):
-
-    if not request.user.is_authenticated:
-        return redirect('app:login')
-    
-    source_choice = leads.SOURCE
-
-    context = {
-        'source_choice': source_choice,
-    }
-
-    if request.method == 'POST':
-        user = request.user.id
-        company_name = request.POST.get("company_name")
-        gstin = request.POST.get("gstin")
-        address1 = request.POST.get("address1")
-        address2 = request.POST.get("address2")
-        city = request.POST.get("city")
-        state = request.POST.get("state")
-        country = request.POST.get("country")
-        pincode = request.POST.get("pincode")
-        industry = request.POST.get("industry")
-        source = request.POST.get("source")
-
-        if leads.objects.filter(company_name = company_name, gstin=gstin, user=user).exists():
-            messages.error(request, f"The company '{company_name}' already exists.")
-            return redirect('lead:leads_list')
         
-        company = leads.objects.create(company_name=company_name, gstin=gstin, address1=address1, address2=address2, city=city, state=state, country=country, pincode=pincode, industry=industry, source=source, user=user)
 
-        person_name = request.POST.get("contact_person")
-        email_id = request.POST.get("email")
-        contact_no = request.POST.get("contact_no")
-        is_active = request.POST.get("is_active") == "on"
-
-        Contact_person = contactPerson.objects.create(person_name=person_name, email_id=email_id, contact_no=contact_no, is_active=is_active,company=company)
-        
-        print(request.POST.get('action'))
-        if request.POST.get('action') == 'Add & Create_PI':
-            company_id = company.id
-            target_url = reverse('invoice:create_pi_lead_id', args=[company_id])
-            return HttpResponseRedirect(target_url)
-        return redirect(reverse('lead:lead', kwargs={'leads_id': company.id}))
-
-    return redirect('lead:leads_list')
-
-@login_required(login_url='app:login')
-def edit_lead(request, leads_id):
-
-    if not request.user.is_authenticated:
-        return redirect('app:login')
-    
-    source_choice = leads.SOURCE
-    lead_instance = leads.objects.get(pk=leads_id)
-
-    context = {
-        'source_choice': source_choice,
-        'lead_instance': lead_instance,
-    }
-
-
-    if lead_instance.user == request.user.id:
-        if request.method == 'POST':
-            user = request.user.id
-            company_name = request.POST.get("company_name")
-            gstin = request.POST.get("gstin")
-            address1 = request.POST.get("address1")
-            address2 = request.POST.get("address2")
-            city = request.POST.get("city")
-            state = request.POST.get("state")
-            country = request.POST.get("country")
-            pincode = request.POST.get("pincode")
-            industry = request.POST.get("industry")
-            source = request.POST.get("source")
-
-            lead_instance.company_name = company_name
-            lead_instance.gstin = gstin
-            lead_instance.address1 = address1
-            lead_instance.address2 = address2
-            lead_instance.city = city
-            lead_instance.state = state
-            lead_instance.country = country
-            lead_instance.pincode = pincode
-            lead_instance.industry = industry
-            lead_instance.source = source
-            lead_instance.save()
-
-            return redirect(reverse('lead:lead', args=[leads_id]))
-
-    return redirect(reverse('lead:lead', args=[leads_id]))
-
-
-@login_required(login_url='app:login')
-def lead(request, leads_id):
-
-    if not request.user.is_authenticated:
-        return redirect('app:login')
-    
-    profile_instance = get_object_or_404(Profile, user = request.user)
-    current_position = get_current_position(profile_instance)
-    user_role = request.user.role
-    
-    company = leads.objects.get(pk=leads_id)
-
-    contact_person = contactPerson.objects.filter(company=leads_id).order_by('-is_active')
-
-    all_pi = proforma.objects.filter(company_ref = company)
-
-    if all_pi:
-        for pi in all_pi:
-            if pi.approved_by:
-                pi.approved_by = get_object_or_404(User, pk=pi.approved_by)
-
-    status_choices = STATUS_CHOICES
-    payment_status = PAYMENT_STATUS
-    states = STATE_CHOICE
-    countries = COUNTRY_CHOICE
-    source_choice = leads.SOURCE
-    company.source = dict(source_choice).get(company.source) if company.state else None
-    try:
-        company.state = int(company.state) if company.state else None
-    except:
-        pass
-
-
-    query = request.GET.get('q')
-
-    search_fields = [
-        'company_name', 'gstin', 'state', 'country', 'requistioner','email_id', 'contact',
-        'pi_no', 'orderlist__product'
+class InboundLeadGetView(APIView):
+    permission_classes = [AllowAny]
+    allowed_origins = [
+        'https://www.besmartexim.com',
+        'https://www.bedatos.com',
+        'http://192.168.3.98:8000',
+        'http://localhost:3000',  # if testing locally
     ]
-
-    search_objects = Q()
-
-    if query:
-        # matching_user_ids = User.objects.filter(first_name__icontains=query).values_list('id', flat=True)
-        
-        # Build the Q object for searching leads
-        for field in search_fields:
-            search_objects |= Q(**{f'{field}__icontains': query})
-
-        # Add matching user IDs to the Q object
-        # for user_id in matching_user_ids:
-        #     search_objects |= Q(user__exact=user_id)
-
-        piList = all_pi.filter(search_objects).distinct()
-    else:
-        piList = all_pi
-
-    context={
-        'company': company,
-        'contact_person': contact_person,
-        'piList': piList,
-        'status_choices': status_choices,
-        'source_choice':source_choice,
-        'payment_status': payment_status,
-        'states': states,
-        'countries': countries,
-        'current_position': current_position,
-        'user_role': user_role
-    }
-
-    return render(request, 'lead/pi-list.html', context)
-
-
-@login_required(login_url='app:login')
-def lead_chat(request, leads_id):
-
-    if not request.user.is_authenticated:
-        return redirect('app:login')
-    
-    company = leads.objects.get(pk=leads_id)
-
-    contact_person = contactPerson.objects.filter(company=leads_id).order_by('-is_active')
-
-    chat_titles = Conversation.objects.filter(company_id=leads_id).order_by('-start_at')
-
-    status_choice = conversationDetails.STATUS
-    states = STATE_CHOICE
-    countries = COUNTRY_CHOICE
-    source_choice = leads.SOURCE
-
-    q = request.GET.get('chat')
-
-    chats = conversationDetails.objects.filter(chat_no__company_id = leads_id).order_by('-inserted_at')
-
-    if q:
+    def post(self, request):
         try:
-            chat_title = Conversation.objects.get(pk=q, company_id = leads_id)
-            chat_details = chats.filter(chat_no=q)
-        except Conversation.DoesNotExist:
-            return HttpResponseRedirect(request.path_info)
-    else:
-        chat_title = Conversation.objects.filter(company_id=leads_id).last()
-        chat_details = chats.filter(chat_no=chat_title)
+            origin = request.headers.get('Origin') or request.headers.get('Referer')
+            print(origin)
+            if origin and not any(origin.startswith(allowed) for allowed in self.allowed_origins):
+                return Response({"error": "Unauthorized origin"}, status=status.HTTP_401_UNAUTHORIZED)
+            data = request.data
+            serializer = InboundLeadSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message" :"Thank you for the subscription"}, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    context={
-        'company': company,
-        'contact_person': contact_person,
-        'chat_titles': chat_titles,
-        'chat_title': chat_title,
-        'chat_details': chat_details,
-        'status_choice':status_choice,
-        'source_choice':source_choice,
-        'states': states,
-        'countries': countries
-    }
-
-    return render(request, 'lead/chat-details.html', context)
-
-
-@login_required(login_url='app:login')
-def add_contact(request, leads_id):
-    if not request.user.is_authenticated:
-        return redirect('app:login')  
-    
-    target_url = reverse("lead:leads_pi", args=[leads_id])
-
-    if request.method == 'POST':
-        company = leads.objects.get(pk=leads_id)
-        person_name = request.POST.get("contact_person")
-        email_id = request.POST.get("email")
-        contact_no = request.POST.get("contact_no")
-        is_active = request.POST.get("is_active") == "on"
-
-        Contact_person = contactPerson.objects.create(person_name=person_name, email_id=email_id, contact_no=contact_no, is_active=is_active, company=company)
-    
-    return HttpResponseRedirect(target_url)
-
-@login_required(login_url='app:login')
-def edit_contact(request, contact_id):
-    if not request.user.is_authenticated:
-        return redirect('app:login')
-
-    person_instance = get_object_or_404(contactPerson, pk=contact_id)
-    target_url = reverse("lead:leads_pi", args=[person_instance.company.id])
-
-    if request.method == 'POST':
-        person_instance.person_name = request.POST.get("contact_person")
-        person_instance.email_id = request.POST.get("email")
-        person_instance.contact_no = request.POST.get("contact_no")
-        person_instance.is_active = request.POST.get("is_active") == "on"
-        person_instance.save()
-
-    return HttpResponseRedirect(target_url)
-
-@login_required(login_url='app:login')
-def new_chat(request, leads_id):
-
-    if not request.user.is_authenticated:
-        return redirect('app:login')
-    
-    target_url = reverse("lead:leads_chat", args=[leads_id])
-    if request.method == 'POST':
-        company_id = leads.objects.get(pk=leads_id)
-        title = request.POST.get("chat_title")
-        chat = Conversation.objects.create(title=title,company_id=company_id)
-        details = request.POST.get("feeds")
-        contact_person_id = request.POST.get("contactPerson")
-        contact_person = contactPerson.objects.get(pk=contact_person_id)
-        status = request.POST.get("status")
-        follow_up = request.POST.get("follow_up")
-        if follow_up == "":
-            follow_up = None
-        conversation = conversationDetails.objects.create(details=details, chat_no=chat, contact_person=contact_person, status=status, follow_up=follow_up)
-
-        return HttpResponseRedirect(target_url + "?chat=" + str(chat.id))
-    return HttpResponseRedirect(target_url)
-
-@login_required(login_url='app:login')
-def chat_insert(request, chat_id):
-    chat_title = get_object_or_404(Conversation, pk=chat_id)
-
-
-    target_url = reverse("lead:leads_chat", args=[chat_title.company_id.id])
-
-    if chat_title.company_id.user == request.user.id and request.method == 'POST':
-        details = request.POST.get("feeds")
-        contact_person_id = request.POST.get("contactPerson")
-        status = request.POST.get("status")
-        follow_up = request.POST.get("follow_up")
-        contact_person = get_object_or_404(contactPerson, pk=contact_person_id)
-        if follow_up == "":
-            follow_up = None
-        feedDetail = conversationDetails.objects.create(chat_no=chat_title, details=details, contact_person=contact_person, status=status, follow_up=follow_up)
-        
-    return HttpResponseRedirect(target_url + "?chat=" + str(chat_id) )
 
 @login_required(login_url='app:login')
 def follow_ups(request):

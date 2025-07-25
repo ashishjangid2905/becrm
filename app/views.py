@@ -86,7 +86,7 @@ class Home(APIView):
                     JOIN
                     	PiSummary s on p.id = s.proforma_id
                     WHERE
-                    	p.closed_at IS NOT NULL AND p.is_Approved = 1
+                    	p.closed_at IS NOT NULL AND p.is_Approved = 1 AND p.status = 'closed'
                     GROUP BY
                     	p.user_id, p.user_name, FORMAT(p.closed_at, 'yyyy-MM')
                     ORDER BY
