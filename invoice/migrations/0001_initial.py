@@ -104,7 +104,7 @@ class Migration(migrations.Migration):
                 ('requistioner', models.CharField(max_length=50, verbose_name='Requistioner')),
                 ('email_id', models.EmailField(max_length=254, verbose_name='Email')),
                 ('contact', models.CharField(max_length=50, verbose_name='Contact No')),
-                ('pi_no', models.CharField(default=invoice.models.pi_number, max_length=50, unique=True, verbose_name='PI No')),
+                ('pi_no', models.CharField(max_length=50, unique=True, verbose_name='PI No')),
                 ('pi_date', models.DateField(auto_now_add=True, verbose_name='PI Date')),
                 ('po_no', models.CharField(blank=True, max_length=50, null=True, verbose_name='PO No')),
                 ('po_date', models.DateField(blank=True, null=True, verbose_name='PO Date')),

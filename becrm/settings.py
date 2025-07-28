@@ -13,7 +13,8 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-
+from datetime import timedelta
+from corsheaders.defaults import default_headers
 
 load_dotenv()
 
@@ -28,9 +29,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.3.98', '127.0.0.1', '192.168.0.3', '122.176.98.137']
+ALLOWED_HOSTS = ['192.168.3.98', '127.0.0.1', '192.168.0.3', '122.176.98.137', 'localhost']
 
 
 # Application definition
@@ -42,18 +43,37 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'django_filters',
+    'corsheaders',
     'teams',
     'sample',
     'app',
     'lead',
+    'billers',
     'invoice',
     'django_session_timeout',
 ]
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10
+}
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -62,6 +82,7 @@ MIDDLEWARE = [
     'django_session_timeout.middleware.SessionTimeoutMiddleware',
     'app.middleware.ActivityLogMiddleware',
 ]
+
 
 ROOT_URLCONF = 'becrm.urls'
 
@@ -103,28 +124,29 @@ DATABASES = {
     'default': {
         'ENGINE': 'mssql',
         'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('USERNAME'),
+        'USER': os.getenv('DB_USER'),
         'PASSWORD': os.getenv('PASSWORD'),
         'HOST': os.getenv('HOST'),  # If it's on localhost, use 'localhost' or '127.0.0.1'
         'PORT': '',  # Default SQL Server port is 1433
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',  # Use the appropriate ODBC driver
+            'authentication': 'SQL Server Authentication',
         },
     },
 
     'leads_db': {
         'ENGINE': 'mssql',
         'NAME': os.getenv('DB_NAME2'),
-        'USER': os.getenv('USERNAME2'),
+        'USER': os.getenv('DB_USER2'),
         'PASSWORD': os.getenv('PASSWORD2'),
         'HOST': os.getenv('HOST2'),  # If it's on localhost, use 'localhost' or '127.0.0.1'
         'PORT': '',  # Default SQL Server port is 1433
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',  # Use the appropriate ODBC driver
+            'authentication': 'SQL Server Authentication',
         },
     },
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -196,9 +218,103 @@ EMAIL_HOST_USER = 'additional.ashish@gmail.com'
 EMAIL_HOST_PASSWORD = 'jjcz artm csuu colt'
 
 
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_TIMEOUT = 1800
-SESSION_IDLE_TIMEOUT = 1800
-SESSION_EXPIRE_SECONDS = 1800  # Duration in seconds
-SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True  # Logout after inactivity
-SESSION_TIMEOUT_REDIRECT = '/login/'  # Optional: Redirect to the login page
+# SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# SESSION_TIMEOUT = 1800
+# SESSION_IDLE_TIMEOUT = 1800
+# SESSION_EXPIRE_SECONDS = 1800  # Duration in seconds
+# SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True  # Logout after inactivity
+# SESSION_TIMEOUT_REDIRECT = '/login/'  # Optional: Redirect to the login page
+
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS  = ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.3.98:3000', 'http://172.18.16.1:3000']
+
+CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.3.98:3000', 'http://172.18.16.1:3000']
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "content-disposition",
+]
+
+CORS_EXPOSE_HEADERS = [
+    "Content-Disposition",
+]
+
+SESSION_COOKIE_SAMESITE = "None"  
+CSRF_COOKIE_SAMESITE = "None"
+
+# If using CSRF protection
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = True
+
+# CORS_ALLOWED_ALL_ORIGINS = True
+
+# CORS_ALLOW_HEADERS = (
+#     "accept",
+#     "authorization",
+#     "content-type",
+#     "user-agent",
+#     "x-csrftoken",
+#     "x-requested-with",
+# )
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "UPDATE_LAST_LOGIN": False,
+
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": os.getenv('SECRET_KEY'),
+    "VERIFYING_KEY": "",
+    "AUDIENCE": None,
+    "ISSUER": None,
+    "JSON_ENCODER": None,
+    "JWK_URL": None,
+    "LEEWAY": 0,
+
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
+
+    "JTI_CLAIM": "jti",
+
+    "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
+    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=5),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
+
+    'TOKEN_OBTAIN_SERIALIZER': 'teams.serializers.MyTokenObtainPairSerializer',
+    "TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSerializer",
+    "TOKEN_VERIFY_SERIALIZER": "rest_framework_simplejwt.serializers.TokenVerifySerializer",
+    "TOKEN_BLACKLIST_SERIALIZER": "rest_framework_simplejwt.serializers.TokenBlacklistSerializer",
+    "SLIDING_TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainSlidingSerializer",
+    "SLIDING_TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer",
+}
+
+# Celery setup
+
+CELERY_TIMEZONE = 'Asia/Kolkata'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 600
+
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
+
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}

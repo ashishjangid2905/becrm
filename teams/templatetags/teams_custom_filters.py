@@ -14,7 +14,7 @@ def get_current_target(user_profile):
 
     variable = UserVariable.objects.filter(
         Q(to_date__gte=today) | Q(to_date__isnull = True),
-        **filters).last()
+        **filters).order_by("created_at").last()
 
     return variable.variable_value if variable else None
 

@@ -1,6 +1,6 @@
 from django import template
 from datetime import datetime
-
+from invoice.models import proforma
 register = template.Library()
 
 
@@ -31,14 +31,17 @@ def multiply(value, arg):
         return 0
     
 @register.filter
-def sale_category(proforma):
+def sale_category(pi):
     online_sale = 0
     offline_sale = 0
     domestic_sale = 0
     unique_lumpsum_amt_online = set()  # To track unique lumpsum amounts
     unique_lumpsum_amt_offline = set()  # To track unique lumpsum amounts
     unique_lumpsum_amt_domestic = set()  # To track unique lumpsum amounts
-    for order in proforma.orderlist_set.all():
+
+    pi = proforma.objects.get(pk = pi)
+
+    for order in pi.orderlist_set.all():
         if not order.is_lumpsum:
             if order.category == 'online' and order.report_type == 'online':
                 online_sale += order.total_price
@@ -62,10 +65,13 @@ def sale_category(proforma):
     return sale_category
     
 @register.simple_tag
-def total_order_value(proforma):
+def total_order_value(pi):
+
+    pi = proforma.objects.get(pk=pi)
+
     total_sum = 0
     unique_lumpsum_amt = set()  # To track unique lumpsum amounts
-    for order in proforma.orderlist_set.all():
+    for order in pi.orderlist_set.all():
         if order.is_lumpsum and order.lumpsum_amt:
             unique_lumpsum_amt.add(order.lumpsum_amt)
         elif not order.is_lumpsum:
@@ -75,22 +81,23 @@ def total_order_value(proforma):
     return total_sum
 
 @register.simple_tag
-def total_pi_value_inc_tax(proforma):
+def total_pi_value_inc_tax(pi):
 
-    total_value = total_order_value(proforma)
+    pi_instance = proforma.objects.get(pk=pi)
+    total_value = total_order_value(pi_instance)
 
-    if not proforma.bank.biller_id.biller_gstin or proforma.is_sez:
+    if not pi_instance.bank.biller_id.biller_gstin or pi_instance.is_sez:
         cgst = 0
         sgst = 0
         igst = 0
         total_inc_tax = total_value
     else:
-        if str(proforma.state) == proforma.bank.biller_id.biller_gstin[0:2]:
+        if str(pi_instance.state) == pi_instance.bank.biller_id.biller_gstin[0:2]:
             cgst = total_value*0.09
             sgst = total_value*0.09
             igst = 0
             total_inc_tax = total_value*1.18
-        elif str(proforma.state) == "500":
+        elif str(pi_instance.state) == "500":
             cgst = 0
             sgst = 0
             igst = 0
@@ -124,8 +131,9 @@ def split(value, delimiter):
 
 
 @register.simple_tag
-def total_dues(proforma):
-    total_amt = int(total_pi_value_inc_tax(proforma))
+def total_dues(pi):
+    pi = proforma.objects.get(pk=pi)
+    total_amt = int(total_pi_value_inc_tax(pi))
     convertedpi = getattr(proforma, 'convertedpi', None)
     if not convertedpi:
         return total_amt

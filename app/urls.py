@@ -8,11 +8,12 @@ from django.views.defaults import page_not_found
 app_name = 'app'
 
 urlpatterns = [
-    path('', views.home, name='home'),
+    # path('', views.home, name='home'),
+    path('', views.Home.as_view()),
     path('login/', views.login_user, name='login'),
     path('logout/', views.logout_user , name="logout"),
-    path('sample-chart/', views.sample_chart, name='sample_chart'),
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('dashboard/status/<str:task_id>/', views.check_dashboard_status, name='check_dashboard_status'),
     path('activity-logs/', views.logs, name='logs'),
     path('settings', views.settings, name='settings'),
 
