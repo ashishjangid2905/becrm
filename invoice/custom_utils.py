@@ -954,6 +954,7 @@ def pdf_PI(pi_id, is_invoice):
         if order.is_lumpsum:
             cat = dict(CATEGORY).get(str(order.category))
             report = dict(REPORT_TYPE).get(str(order.report_type))
+            country = order.country if order.country else ""
             product = order.product
             from_month = dt.strptime
             to_month = dt.strptime(order.to_month, "%Y-%m").strftime("%b'%y")
@@ -980,7 +981,7 @@ def pdf_PI(pi_id, is_invoice):
         total_m = f"{no_months} months"
 
         orderDes = Paragraph(
-            f"<font>{report} | {product} | {"Period" if order.category =="offline" else "Validity"}: {period if order.category =="offline" else total_m}</font>",
+            f"<font>{report} | {country} | {product} | {"Period" if order.category =="offline" else "Validity"}: {period if order.category =="offline" else total_m}</font>",
             font_s,
         )
 
@@ -1007,6 +1008,7 @@ def pdf_PI(pi_id, is_invoice):
     for order in filter_by_lumpsum(orders, False):
         cat = dict(CATEGORY).get(str(order.category))
         report = dict(REPORT_TYPE).get(str(order.report_type))
+        country = order.country if order.country else ""
         product = order.product
         from_month = dt.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
         to_month = dt.strptime(order.to_month, "%Y-%m").strftime("%b'%y")
@@ -1026,7 +1028,7 @@ def pdf_PI(pi_id, is_invoice):
         total_m = f"Total: {no_months}"
 
         orderDes = Paragraph(
-            f"<font>{report} | {product} | {"Period" if order.category =="offline" else "Validity"}: {period if order.category =="offline" else total_m}</font>",
+            f"<font>{report} | {country} | {product} | {"Period" if order.category =="offline" else "Validity"}: {period if order.category =="offline" else total_m}</font>",
             font_s,
         )
 

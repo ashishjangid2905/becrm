@@ -22,16 +22,23 @@ def log_user_activity(request, action):
             }
         )
         
+# @staticmethod
+# def get_action(request):
+#     if request.path == '/logout/':
+#         return 'User logged out'
+#     elif '/login' in request.path:
+#         return 'User logged in'
+#     elif '/pdf' in request.path:
+#         return 'Download PI'
+#     elif 'export' in request.GET:
+#         return 'Invoice-list Exported in Excel file.'
+#     return None
+
+
 @staticmethod
 def get_action(request):
-    if request.path == '/logout/':
-        return 'User logged out'
-    elif '/login' in request.path:
-        return 'User logged in'
-    elif '/pdf' in request.path:
-        return 'Download PI'
-    elif 'export' in request.GET:
-        return 'Invoice-list Exported in Excel file.'
+    if request.path:
+        return f"{request.method} {request.path}"
     return None
     
 @staticmethod

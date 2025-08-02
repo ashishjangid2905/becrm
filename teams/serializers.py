@@ -191,6 +191,8 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = self.get_token(self.user)
         profile = getattr(self.user, "profile", None)
 
+        token["first_name"] = self.user.first_name
+        token["last_name"] = self.user.last_name
         token["username"] = f"{self.user.first_name} {self.user.last_name}"
         token["email"] = self.user.email
         token["contact"] = profile.phone if profile else ""

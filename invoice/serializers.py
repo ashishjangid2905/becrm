@@ -10,7 +10,7 @@ class OrderListSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     class Meta:
         model = orderList
-        fields = ['id', 'category', 'report_type', 'product', 'from_month', 'to_month', 'unit_price', 'total_price', 'lumpsum_amt', 'is_lumpsum', 'order_status', 'inserted_at', 'updated_at']
+        fields = ['id', 'category', 'report_type', 'country', 'product', 'from_month', 'to_month', 'unit_price', 'total_price', 'lumpsum_amt', 'is_lumpsum', 'order_status', 'inserted_at', 'updated_at']
 
 class ConvertedPISerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
@@ -70,7 +70,6 @@ class ProformaCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"orderlist": "Order list cannot be empty."})
         bank_instance = validated_data.get("bank")
         pi_no = pi_number(bank_instance.biller_id)
-        print(f"Pi Number: {pi_no}")
         validated_data["pi_no"] = pi_no
         try:
             proforma_instance = proforma.objects.create(**validated_data)
@@ -99,11 +98,9 @@ class ProformaCreateSerializer(serializers.ModelSerializer):
                 # List for batch oprations
                 updated_orders = []
                 new_orders = []
-
                 # incoming orders
                 for order in order_data:
                     order_id = order.get("id")
-
                     if order_id and int(order_id) in existing_orders:
                         existing_order = existing_orders[order_id]
 
@@ -114,7 +111,7 @@ class ProformaCreateSerializer(serializers.ModelSerializer):
                         new_orders.append(orderList(proforma_id=instance, **order))
                 if updated_orders:
                     orderList.objects.bulk_update(updated_orders, fields=[  # Only update relevant fields
-                    "category", "report_type", "product", "from_month", "to_month",
+                    "category", "report_type", "country", "product", "from_month", "to_month",
                     "unit_price", "total_price", "lumpsum_amt", "is_lumpsum", "order_status"
                     ])
 
