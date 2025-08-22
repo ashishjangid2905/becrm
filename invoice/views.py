@@ -826,7 +826,7 @@ class ProcessedPIUpdateListView(APIView):
 
 @login_required(login_url="app:login")
 def biller_list(request):
-    billers = biller.objects.all()
+    billers = Biller.objects.all()
 
     profile_instance = get_object_or_404(Profile, user=request.user)
     user_branch = profile_instance.branch

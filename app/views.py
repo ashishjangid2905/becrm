@@ -17,7 +17,7 @@ from django.db.models import Count, Q, Min, Max
 from django.db.models.functions import ExtractMonth, TruncDate
 from django.http import JsonResponse
 import calendar
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime as dt
 from django.utils.timezone import now
 
 from .activity_log_utils import log_user_activity, get_action
@@ -39,6 +39,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
 from teams.serializers import MyTokenObtainPairSerializer
 from .serializers import DashboardSaleSerializer
+from invoice.custom_utils import current_fy
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -63,15 +64,18 @@ class Home(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # user_profile = get_object_or_404(Profile, user=request.user)
-        # all_users = User.objects.filter(profile__branch = user_profile.branch).values_list('id', flat=True)
-        # pi_list = proforma.objects.filter(user_id__in = list(all_users))
-        # serializer = DashboardSaleSerializer(pi_list, many=True)
-        # return Response(serializer.data, status=status.HTTP_200_OK)
 
-        with connections['leads_db'].cursor() as cursor:
-            cursor.execute(
-                """
+        profile_instance = get_object_or_404(Profile, user=request.user)
+        all_users = User.objects.filter(
+                profile__branch=profile_instance.branch
+            ).values_list("id", flat=True)
+        
+
+        fy = current_fy()
+        start_date = dt(int(fy.split("-")[0]), 4, 1).date()
+        end_date = dt.now()
+
+        query = """
                     SELECT
 	                    p.user_id,
 	                    p.user_name,
@@ -86,18 +90,18 @@ class Home(APIView):
                     JOIN
                     	PiSummary s on p.id = s.proforma_id
                     WHERE
-                    	p.closed_at IS NOT NULL AND p.is_Approved = 1 AND p.status = 'closed'
+                    	p.closed_at IS NOT NULL AND p.is_Approved = 1 AND p.status = 'closed' AND p.closed_at BETWEEN %s AND %s AND p.user_id IN ({user_ids})
                     GROUP BY
                     	p.user_id, p.user_name, FORMAT(p.closed_at, 'yyyy-MM')
                     ORDER BY
                     	closed_month, p.user_id
-               """
-            )
+               """.format(user_ids=",".join(str(u) for u in all_users))
+
+        with connections["leads_db"].cursor() as cursor:
+            cursor.execute(query,[start_date, end_date])
 
             columns = [col[0] for col in cursor.description]
-            result = [
-                dict(zip(columns, row)) for row in cursor.fetchall()
-            ]
+            result = [dict(zip(columns, row)) for row in cursor.fetchall()]
         return Response(result, status=status.HTTP_200_OK)
 
 

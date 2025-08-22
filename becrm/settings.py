@@ -31,7 +31,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.3.98', '127.0.0.1', '192.168.0.3', '122.176.98.137', 'localhost']
+ALLOWED_HOSTS = ['192.168.3.98', '127.0.0.1', '188.40.197.4', 'localhost']
 
 
 # Application definition
@@ -204,6 +204,8 @@ STATICFILES_DIRS = [
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # Directory where uploaded media is saved.
 MEDIA_URL = 'media/' # Public URL at the browser
 
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 
 # Manually Added/Changes
 
@@ -227,9 +229,9 @@ EMAIL_HOST_PASSWORD = 'jjcz artm csuu colt'
 
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS  = ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.3.98:3000', 'http://172.18.16.1:3000']
+CORS_ALLOWED_ORIGINS  = ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.3.98:3000', 'http://127.0.0.1:3000']
 
-CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.3.98:3000', 'http://172.18.16.1:3000']
+CSRF_TRUSTED_ORIGINS = ['http://188.40.197.4', 'http://localhost', 'http://127.0.0.1', 'http://192.168.3.98:3000']
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "content-disposition",
@@ -299,22 +301,22 @@ SIMPLE_JWT = {
 
 # Celery setup
 
-CELERY_TIMEZONE = 'Asia/Kolkata'
-CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 600
+# CELERY_TIMEZONE = 'Asia/Kolkata'
+# CELERY_TASK_TRACK_STARTED = True
+# CELERY_TASK_TIME_LIMIT = 30 * 600
 
-CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
+# CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+# CELERY_ACCEPT_CONTENT = ['json']
+# CELERY_TASK_SERIALIZER = 'json'
+# CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
 
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
-    }
-}
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': 'redis://127.0.0.1:6379/1',
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#         }
+#     }
+# }

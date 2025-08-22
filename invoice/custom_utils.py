@@ -1028,7 +1028,7 @@ def pdf_PI(pi_id, is_invoice):
         total_m = f"Total: {no_months}"
 
         orderDes = Paragraph(
-            f"<font>{report} | {country} | {product} | {"Period" if order.category =="offline" else "Validity"}: {period if order.category =="offline" else total_m}</font>",
+            f"<font>{report} | {country} {'|' if country else''} {product} | {"Period" if order.category =="offline" else "Validity"}: {period if order.category =="offline" else total_m}</font>",
             font_s,
         )
 

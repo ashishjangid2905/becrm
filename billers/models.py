@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from invoice.utils import VARIABLES
 
 # Create your models here.
-class biller(models.Model):
+class Biller(models.Model):
     biller_name = models.CharField(_("Biller Name"), max_length=150)
     brand_name = models.CharField(_("Brand Name"), max_length=150, null=True, blank=True)
     biller_gstin = models.CharField(_("Biller Gstin"), max_length=20, blank=True, null=True)
@@ -21,6 +21,7 @@ class biller(models.Model):
     corp_state = models.CharField(_("Corp. State"), max_length=254, blank=True, null=True)
     corp_pincode = models.CharField(_("Corp. Pincode"), max_length=254, blank=True, null=True)
     corp_country = models.CharField(_("Corp. Country"), max_length=254, blank=True, null=True)
+    branch_id = models.IntegerField(_("branch id"), blank=True, null=True)
     inserted_at = models.DateTimeField(_("Inserted"), auto_now=True)
     edited_at = models.DateTimeField(_("Edited"), auto_now_add=True)
     inserted_by = models.IntegerField(_("Inserted By"))
@@ -59,7 +60,7 @@ class biller(models.Model):
     
 
 class BillerVariable(models.Model):
-    biller_id = models.ForeignKey(biller, verbose_name=_("Biller Id"), on_delete=models.CASCADE, related_name="variables")
+    biller_id = models.ForeignKey(Biller, verbose_name=_("Biller Id"), on_delete=models.CASCADE, related_name="variables")
     variable_name = models.CharField(_("Variable Name"), max_length=50, choices=VARIABLES)
     variable_value = models.CharField(_("Variable Value"), max_length=150)
     from_date = models.DateField(_("From Date"), null=False, blank=False)
@@ -77,9 +78,9 @@ class BillerVariable(models.Model):
     
 
 
-class bankDetail(models.Model):
+class BankDetail(models.Model):
 
-    biller_id = models.ForeignKey(biller, on_delete=models.SET_NULL, null=True)
+    biller_id = models.ForeignKey(Biller, on_delete=models.SET_NULL, null=True)
     is_active = models.BooleanField(_("Is Active"), default=True)
     is_upi = models.BooleanField(_("Is UPI"), default=False)
     upi_id = models.CharField(_("UPI ID"), max_length=50, blank=True, null=True)

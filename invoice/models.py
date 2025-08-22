@@ -1,14 +1,11 @@
 from django.db import models
-from django.db.models import Q
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.text import slugify
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import get_object_or_404
-from lead.models import contactPerson, leads
-from teams.models import Profile, User
-import fiscalyear, datetime
-from .utils import STATUS_CHOICES, REPORT_FORMAT, REPORT_TYPE, ORDER_STATUS, PAYMENT_STATUS, VARIABLES
+from lead.models import leads
+from teams.models import User
+from .utils import STATUS_CHOICES, REPORT_FORMAT, ORDER_STATUS, PAYMENT_STATUS
 from billers.models import *
 
 # Create your models here.
@@ -37,7 +34,7 @@ class proforma(models.Model):
     po_date = models.DateField(_("PO Date"), auto_now=False, blank=True, null=True)
     subscription = models.CharField(_("Subscription Mode"), max_length=50)
     payment_term = models.CharField(_("Payment Term"), max_length=50)
-    bank = models.ForeignKey('billers.bankDetail', on_delete=models.RESTRICT, related_name="proformas")
+    bank = models.ForeignKey('billers.BankDetail', on_delete=models.RESTRICT, related_name="proformas")
     currency = models.CharField(_("Currency"), max_length=50)
     details = models.TextField(_("Details"), max_length=1000)
     is_Approved = models.BooleanField(_("Is_Approved"), default=False)
