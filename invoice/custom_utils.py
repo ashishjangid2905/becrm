@@ -956,7 +956,7 @@ def pdf_PI(pi_id, is_invoice):
             report = dict(REPORT_TYPE).get(str(order.report_type))
             country = order.country if order.country else ""
             product = order.product
-            from_month = dt.strptime
+            from_month = dt.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
             to_month = dt.strptime(order.to_month, "%Y-%m").strftime("%b'%y")
             period = (
                 f"{from_month} - {to_month}"
