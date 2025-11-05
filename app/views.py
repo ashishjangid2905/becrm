@@ -81,7 +81,7 @@ class Home(APIView):
 	                    p.user_name,
 	                    FORMAT(p.closed_at, 'yyyy-MM') AS closed_month,
                         COUNT(p.pi_no) AS total_pi,
-	                    SUM(s.subtotal) AS total_sale,
+	                    SUM(s.total_amount_in_inr) AS total_sale,
 	                    SUM(s.online_sale) AS total_online_sale,
 	                    SUM(s.offline_sale) AS total_offline_sale,
 	                    SUM(s.other_sale) AS total_other_sale

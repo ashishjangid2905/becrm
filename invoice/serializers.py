@@ -4,6 +4,9 @@ from teams.models import User
 from django.db import transaction
 from .custom_utils import total_pi_value_inc_tax, sale_category, pi_number, total_lumpsums, update_or_create_summery
 from billers.serializers import *
+from datetime import datetime as dt
+from .custom_utils import current_fy, get_biller_variable, get_invoice_no_from_date
+from .mixins import DynamicPiFilterMixin
 
 
 class OrderListSerializer(serializers.ModelSerializer):
@@ -12,12 +15,69 @@ class OrderListSerializer(serializers.ModelSerializer):
         model = orderList
         fields = ['id', 'category', 'report_type', 'country', 'product', 'from_month', 'to_month', 'unit_price', 'total_price', 'lumpsum_amt', 'is_lumpsum', 'order_status', 'inserted_at', 'updated_at']
 
-class ConvertedPISerializer(serializers.ModelSerializer):
+class ConvertedPISerializer(DynamicPiFilterMixin, serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
+    fy_field = "invoice_date"
     class Meta:
         model = convertedPI
         fields = '__all__'
         # read_only_fields = ['pi_id']
+
+    def validate(self, attrs):
+
+        request = self.context.get("request")
+        instance = self.instance
+
+        if "invoice_number" in attrs or "invoice_date" in attrs:
+            invoice_number = int(attrs.get("invoice_number"))
+            invoice_date = attrs.get("invoice_date")
+
+            if isinstance(invoice_date, str):
+                invoice_date = dt.strptime(invoice_date, "%Y-%m-%d").date()
+
+            target_fy = current_fy(invoice_date)
+
+            branch = request.user.profile.branch
+
+            queryset = convertedPI.objects.filter(is_taxInvoice=True, branch=branch.id)
+            queryset = self.fy_filter(request, queryset, target_fy)
+
+            lower_conflict = queryset.filter(invoice_number__lt=invoice_number, invoice_date__gt=invoice_date)
+            higher_conflict = queryset.filter(invoice_number__gt=invoice_number, invoice_date__lt=invoice_date)
+
+            if lower_conflict.exists():
+                raise serializers.ValidationError({"error":"There are lower invoice numbers with future dates in the same FY."})
+
+            if higher_conflict.exists():
+                raise serializers.ValidationError({"error":"There are higher invoice numbers with past dates in the same FY."})
+
+            biller = instance.pi_id.bank.biller
+            invoice_tag = get_biller_variable(biller, "invoice_tag")
+            invoice_format = get_biller_variable(biller, "invoice_format")
+
+            try:
+                formatted_invoice = get_invoice_no_from_date(invoice_tag, invoice_format, invoice_date, invoice_number)
+            except Exception as e:
+                raise serializers.ValidationError(str(e))
+
+            if queryset.filter(formatted_invoice=formatted_invoice).exists():
+                raise serializers.ValidationError({"error":"Invoice No already exists"})
+
+            attrs["invoice_date"] = invoice_date
+            attrs["formatted_invoice"] = formatted_invoice
+
+        return attrs
+    
+    def update(self, instance, validated_data):
+        request = self.context.get("request")
+
+        if validated_data.get("invoice_number"):
+            validated_data["is_taxInvoice"] = True
+            validated_data["is_closed"] = True
+            validated_data["generated_by"] = request.user.id
+
+        return super().update(instance, validated_data)
+    
 
 class ProcessedOrderSerializer(serializers.ModelSerializer):
     class Meta:
@@ -41,7 +101,6 @@ class ProformaSerializer(serializers.ModelSerializer):
     approved_sign = serializers.SerializerMethodField(read_only = True)
     class Meta:
         model = proforma
-        # fields = ['id', 'company_ref', 'user_id', 'user_name', 'user_contact', 'user_email', 'company_name', 'gstin', 'is_sez', 'lut_no', 'vendor_code', 'address', 'country', 'state', 'requistioner', 'email_id', 'contact', 'pi_no', 'pi_date', 'po_no', 'po_date', 'subscription', 'payment_term', 'bank', 'currency', 'details', 'is_Approved', 'approved_by', 'approved_sign', 'approved_at', 'status', 'closed_at', 'created_at', 'edited_by', 'edited_at', 'slug', 'feedback', 'additional_email', 'totalValue', 'totalValue_incTax', 'category_sales', 'orderlist', 'convertedpi', 'processedorders']
         fields = '__all__'
         
     def get_totalLumpsum(self, obj):
@@ -75,7 +134,7 @@ class ProformaCreateSerializer(serializers.ModelSerializer):
             proforma_instance = proforma.objects.create(**validated_data)
 
             order_instances = [
-                orderList(proforma_id=proforma_instance, **order) for order in order_data
+                orderList(proforma_id=proforma_instance.id, **order) for order in order_data
             ]
 
             orderList.objects.bulk_create(order_instances)

@@ -175,7 +175,7 @@ class Migration(migrations.Migration):
                         "verbose_name": "Biller",
                         "verbose_name_plural": "Billers",
                         "db_table": "Biller",
-                        "unique_together": {("biller_name", "biller_gstin")},
+                        # "unique_together": {("biller_name", "biller_gstin")},
                     },
                 ),
                 migrations.CreateModel(

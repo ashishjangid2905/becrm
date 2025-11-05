@@ -29,6 +29,7 @@ class UserVariableSerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.ModelSerializer):
     branch_name = serializers.SerializerMethodField(read_only=True)
     profile_image = serializers.SerializerMethodField(read_only=True)
+    profile_img = serializers.ImageField(required=False)
 
     class Meta:
         model = Profile
@@ -36,7 +37,6 @@ class ProfileSerializer(serializers.ModelSerializer):
 
         extra_kwargs = {
             "branch": {"write_only": True},
-            "profile_img": {"write_only": True},
             "user": {"write_only": True},
         }
 
@@ -143,6 +143,7 @@ class UserListSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
+    old_password = serializers.CharField(write_only=True, required=False)
     password = serializers.CharField(write_only=True)
     profile = ProfileSerializer(read_only=True)
 
@@ -159,20 +160,37 @@ class UserSerializer(serializers.ModelSerializer):
             "created_at",
             "password",
             "confirm_password",
+            "old_password",
             "profile",
         ]
         extra_kwargs = {
             "password": {"write_only": True},
             "confirm_password": {"write_only": True},
+            "old_password": {"write_only": True},
         }
 
     def validate(self, data):
+        request = self.context.get("request")
+        user = request.user if request else None
         password = data.get("password")
+        old_password = data.get("old_password")
         confirm_password = data.get("confirm_password")
 
         if password or confirm_password:
             if password != confirm_password:
-                raise serializers.ValidationError({"password": "Password does not Match."})
+                raise serializers.ValidationError({"error": "Password does not Match."})
+            
+            if user and self.instance and user == self.instance:
+                if not old_password:
+                    raise serializers.ValidationError({"error": "Old password is required."})
+                if not self.instance.check_password(old_password):
+                    raise serializers.ValidationError({"error": "Old password is incorrect."})
+                
+            elif user and user.role == "admin":
+                pass
+            elif user != self.instance:
+                raise serializers.ValidationError({"error": "You cannot change another user's password."})
+
         return data
 
     def create(self, validated_data):
@@ -183,6 +201,19 @@ class UserSerializer(serializers.ModelSerializer):
 
         return user
 
+    def update(self, instance, validated_data):
+
+        validated_data.pop("confirm_password", None)
+        validated_data.pop("old_password", None)
+        password = validated_data.pop("password", None)
+
+        instance = super().update(instance, validated_data)
+
+        if password:
+            instance.set_password(password)
+            instance.save()
+
+        return instance
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
@@ -199,6 +230,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["role"] = getattr(self.user, "role", "User") or "User"
         token["department"] = getattr(self.user, "department", "Sales") or "Sales"
         token["position"] = str(get_current_position(profile) if profile else "")
+        token["branch"] = profile.branch.id if profile else ""
         token["target"] = str(get_current_target(profile) if profile else "")
 
         request = self.context.get("request")

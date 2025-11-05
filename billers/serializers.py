@@ -9,10 +9,10 @@ class BillerVariableSerializer(serializers.ModelSerializer):
 class BillerSerializer(serializers.ModelSerializer):
     reg_full_address = serializers.SerializerMethodField(read_only = True)
     corp_full_address = serializers.SerializerMethodField(read_only = True)
-    variables = BillerVariableSerializer(many = True)
+    variables = BillerVariableSerializer(many = True, read_only=True)
     class Meta:
         model = Biller
-        fields = ['biller_name', 'brand_name', 'biller_gstin', 'biller_pan', 'biller_msme', 'reg_address1', 'reg_address2', 'reg_city', 'reg_state', 'reg_pincode', 'reg_country', 'corp_address1', 'corp_address2', 'corp_city', 'corp_state', 'corp_pincode', 'corp_country', 'reg_full_address', 'corp_full_address' 'inserted_at', 'edited_at', 'inserted_by', 'variables']
+        fields = '__all__'
 
     def get_reg_full_address(self, obj):
         address_parts = [
@@ -46,7 +46,7 @@ class BankDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['biller_name', 'biller_gstin']
 
     def get_biller_name(self, obj):
-        return obj.biller_id.biller_name
+        return obj.biller.biller_name
     
     def get_biller_gstin(self, obj):
-        return obj.biller_id.biller_gstin
+        return obj.biller.biller_gstin

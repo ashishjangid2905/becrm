@@ -1,9 +1,9 @@
 from django.contrib import admin
-from .models import proforma, orderList, processedOrder, convertedPI, BillerVariable
+from .models import *
 # Register your models here.
 
 admin.site.register(proforma)
 admin.site.register(orderList)
 admin.site.register(convertedPI)
 admin.site.register(processedOrder)
-admin.site.register(BillerVariable)
+admin.site.register(PiSummary)

@@ -23,6 +23,7 @@ class leads(models.Model):
     edited_at = models.DateTimeField(_("Edited at"), auto_now=True)
     user = models.IntegerField(_("User Id"))
     status = models.CharField(_("Lead Status"), max_length=50, default='new lead', choices=STATUS)
+    branch = models.IntegerField(_("branch"), blank=True, null=True)
 
     @property
     def user_id(self):
@@ -69,6 +70,7 @@ class contactPerson(models.Model):
     created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
     edited_at = models.DateTimeField(_("Edited at"), auto_now=True)
     is_active = models.BooleanField(_("Is Active"), default=True)
+    branch = models.IntegerField(_("branch"), blank=True, null=True)
 
     def toggle_active(self):
         self.is_active = not self.is_active
@@ -88,6 +90,7 @@ class Conversation(models.Model):
     title = models.CharField(_("Tittle"), max_length=250)
     company_id = models.ForeignKey(leads, verbose_name=_("Company Id"), on_delete=models.CASCADE)
     start_at = models.DateTimeField(_("Started at"), auto_now_add=True)
+    branch = models.IntegerField(_("branch"), blank=True, null=True)
 
     class Meta:
         verbose_name = 'Conversation'
@@ -128,10 +131,15 @@ class InboundLeads(models.Model):
     assigned_to = models.IntegerField(_("assigned to"), blank=True, null=True)
     assigned_by = models.IntegerField(_("assigned by"), blank=True, null=True)
     created_at = models.DateTimeField(_("created at"), auto_now=False, auto_now_add=True)
+    branch = models.IntegerField(_("branch"), blank=True, null=True)
 
     class Meta:
         verbose_name = "inboundlead"
         verbose_name_plural = "inboundleads"
         db_table = "Inboundleads"
+
+    def __str__(self):
+        return f"{self.company_name}: {self.name}"
+    
     
     

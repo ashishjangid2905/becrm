@@ -2,7 +2,6 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views
-from invoice.views import biller_list
 from django.views.defaults import page_not_found
 
 app_name = 'app'

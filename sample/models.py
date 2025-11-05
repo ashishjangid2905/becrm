@@ -73,7 +73,7 @@ class sample(models.Model):
     STATUS = (('pending', 'Pending'), ('received', 'Received'), ('rejected', 'Rejected'))
 
     sample_id = models.CharField(max_length=50, default=sample_no, unique=True)
-    user = models.ForeignKey(User, verbose_name='User', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, verbose_name='User', on_delete=models.CASCADE, related_name='samples')
     country = models.CharField(max_length=100, blank=False, default='India')
     report_format = models.CharField(_("Format"), max_length=100, blank=False, choices=FORMAT, default='monthly')
     report_type = models.CharField(_("Type"), max_length=100, blank=False, choices=TYPE, default='export')
@@ -91,6 +91,7 @@ class sample(models.Model):
     requested_at = models.DateTimeField(auto_now_add=True)
     slug = models.SlugField(unique=True, blank=True)
     last_edited = models.DateTimeField(auto_now=True, blank = True)
+    branch = models.ForeignKey("teams.Branch", verbose_name=_("branch"), on_delete=models.SET_NULL, blank=True, null=True, related_name='samples')
 
 
     def save(self, *args, **kwargs):

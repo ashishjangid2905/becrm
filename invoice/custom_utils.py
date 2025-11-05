@@ -54,6 +54,10 @@ from openpyxl.styles import (
 from openpyxl.utils import get_column_letter
 
 
+# Get current date
+def get_today():
+    return timezone.now().date()
+
 # funtion to use get roman no
 def int_to_roman(num):
     val = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
@@ -159,13 +163,13 @@ def total_pi_value_inc_tax(pi):
     pi_instance = proforma.objects.get(pk=pi)
     total_value = total_order_value(pi)
 
-    if not pi_instance.bank.biller_id.biller_gstin or pi_instance.is_sez:
+    if not pi_instance.bank.biller.biller_gstin or pi_instance.is_sez:
         cgst = 0
         sgst = 0
         igst = 0
         total_inc_tax = total_value
     else:
-        if str(pi_instance.state) == pi_instance.bank.biller_id.biller_gstin[0:2]:
+        if str(pi_instance.state) == pi_instance.bank.biller.biller_gstin[0:2]:
             cgst = total_value * 0.09
             sgst = total_value * 0.09
             igst = 0
@@ -278,11 +282,13 @@ def calculate_summery(pi):
     total_value = total_pi_value_inc_tax(pi.id)
     category_sales = sale_category(pi.id)
 
-    if not pi.bank.biller_id.biller_gstin or pi.is_sez:
+    exchange_rate = 1.00
+
+    if not pi.bank.biller.biller_gstin or pi.is_sez:
         cgst_rate = sgst_rate = igst_rate = 0
     else:
         state_code = str(pi.state)
-        biller_state_code = pi.bank.biller_id.biller_gstin[0:2]
+        biller_state_code = pi.bank.biller.biller_gstin[0:2]
         if state_code == biller_state_code:
             cgst_rate, sgst_rate, igst_rate = 9, 9, 0
         elif state_code == "500":
@@ -290,16 +296,20 @@ def calculate_summery(pi):
         else:
             cgst_rate = sgst_rate = 0
             igst_rate = 18
+        if pi.currency == "usd":
+            exchange_rate = 85.00
 
     return {
         "subtotal": Decimal(subtotal),
+        "total_amount_in_inr": Decimal(subtotal * exchange_rate),
+        "exchange_rate": exchange_rate,
         "total_value": Decimal(total_value),
         "cgst_rate": Decimal(cgst_rate),
         "sgst_rate": Decimal(sgst_rate),
         "igst_rate": Decimal(igst_rate),
-        "offline_sale": Decimal(category_sales["offline_sale"]),
-        "online_sale": Decimal(category_sales["online_sale"]),
-        "other_sale": Decimal(category_sales["domestic_sale"]),
+        "offline_sale": Decimal(category_sales["offline_sale"] * exchange_rate),
+        "online_sale": Decimal(category_sales["online_sale"] * exchange_rate),
+        "other_sale": Decimal(category_sales["domestic_sale"] * exchange_rate),
     }
 
 
@@ -323,6 +333,13 @@ def current_fy(date=None):
         end_year = year
 
     return f"{start_year}-{end_year}"
+
+def fy_date_range(fy=current_fy()):
+    start_year, end_year = map(int, fy.split("-"))
+    start_date = dt(start_year, 4,1).date()
+    end_date = dt(end_year, 3, 31).date()
+    return start_date, end_date
+
 
 
 # get formatted invoice no as per current fiscal year
@@ -540,8 +557,8 @@ def pdf_PI(pi_id, is_invoice):
     pi = get_object_or_404(proforma, pk=pi_id)
     orders = orderList.objects.filter(proforma_id=pi)
 
-    reg_address = pi.bank.biller_id.get_reg_full_address()
-    corp_address = pi.bank.biller_id.get_corp_full_address()
+    reg_address = pi.bank.biller.get_reg_full_address()
+    corp_address = pi.bank.biller.get_corp_full_address()
 
     net_total = total_order_value(pi.id)
     lumpsumAmt = total_lumpsums(pi.id)
@@ -688,11 +705,11 @@ def pdf_PI(pi_id, is_invoice):
         name="font_s", fontSize=10, fontName="Quicksand-SemiBold", alignment=2
     )
 
-    brand_text = f"{pi.bank.biller_id.brand_name}"
+    brand_text = f"{pi.bank.biller.brand_name}"
     brand_name = Paragraph(f'<font color="#3182d9">{brand_text}</font>', blue_font)
 
-    if pi.bank.biller_id.biller_name != pi.bank.biller_id.brand_name:
-        founder_text = f"{pi.bank.biller_id.biller_name}"
+    if pi.bank.biller.biller_name != pi.bank.biller.brand_name:
+        founder_text = f"{pi.bank.biller.biller_name}"
         founder_name = Paragraph(
             f'<font color="#000000" >founded by {founder_text}</font>', black_font
         )
@@ -718,13 +735,13 @@ def pdf_PI(pi_id, is_invoice):
         corpAddress = ""
     regAddress = Paragraph(f"<b>Reg. Office: </b><font>{reg_address}</font>", font_xs)
     gstin_text = (
-        f"<b>GSTIN: </b><font>{pi.bank.biller_id.biller_gstin}</font>"
+        f"<b>GSTIN: </b><font>{pi.bank.biller.biller_gstin}</font>"
         if corp_address
         else ""
     )
 
     biller_Name = Paragraph(
-        f"<b>{pi.bank.biller_id.biller_name} | {gstin_text}</b>", biller_font
+        f"<b>{pi.bank.biller.biller_name} | {gstin_text}</b>", biller_font
     )
 
     address = Paragraph(f"<b>Address: </b><font>{pi.address}</font>", font_xxs)
@@ -934,8 +951,8 @@ def pdf_PI(pi_id, is_invoice):
             ("SPAN", (0, 13), (6, 13)),
             ("SPAN", (0, 14), (5, 14)),
             ("ALIGN", (8, 8), (8, 15), "RIGHT"),
-            ("FONT", (8, 8), (8, 15), "Quicksand-Bold", 9),
-            ("FONT", (9, 8), (9, 15), "Quicksand-Medium", 9),
+            ("FONT", (8, 8), (8, 15), "Quicksand-Bold", 8),
+            ("FONT", (9, 8), (9, 15), "Quicksand-Medium", 8),
             ("LINEAFTER", (6, 9), (6, 13), 2, colors.white),
             ("TEXTCOLOR", (0, 7), (10, 15), colors.HexColor("#ffffff")),
             ("FONT", (0, 18), (10, 18), "Quicksand-Bold", 11),
@@ -1354,7 +1371,7 @@ def pdf_PI(pi_id, is_invoice):
         canvas.drawString(
             30,
             580,
-            f"Other {pi.bank.biller_id.biller_name} Details for future reference",
+            f"Other {pi.bank.biller.biller_name} Details for future reference",
         )
         canvas.setFillColor(colors.HexColor("#3182d9"))
         canvas.drawString(30, 500, f"Terms & Conditions")
@@ -1362,12 +1379,12 @@ def pdf_PI(pi_id, is_invoice):
         canvas.setFont("Montserrat-Regular", 11)
         canvas.setFillColor(colors.HexColor("#545454"))
         canvas.circle(50, 553, 2, stroke=1, fill=1)
-        canvas.drawString(55, 550, f"PAN: {pi.bank.biller_id.biller_pan}")
+        canvas.drawString(55, 550, f"PAN: {pi.bank.biller.biller_pan}")
         canvas.circle(50, 533, 2, stroke=1, fill=1)
         canvas.drawString(
             55,
             530,
-            f"Udyam Registration Number: {pi.bank.biller_id.biller_msme if pi.bank.biller_id.biller_msme else 'N/A' }",
+            f"Udyam Registration Number: {pi.bank.biller.biller_msme if pi.bank.biller.biller_msme else 'N/A' }",
         )
 
         canvas.setFont("Montserrat-Regular", 9)
@@ -1376,7 +1393,7 @@ def pdf_PI(pi_id, is_invoice):
         canvas.drawString(55, 480, "Payment has to be made 100% in advance")
         canvas.circle(50, 463, 2, stroke=1, fill=1)
         canvas.drawString(
-            55, 460, f"Company Legal Name is {pi.bank.biller_id.biller_name}"
+            55, 460, f"Company Legal Name is {pi.bank.biller.biller_name}"
         )
         canvas.circle(50, 443, 2, stroke=1, fill=1)
         canvas.drawString(

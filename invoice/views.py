@@ -1,59 +1,43 @@
 # all Django imports
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
 from django.db.models import Q
-from django.contrib import messages
 from django.utils import timezone
 from django.core.mail import EmailMultiAlternatives
 
 # All Import from apps
-from .models import (
-    proforma,
-    orderList,
-    convertedPI,
-    processedOrder,
-)
+from .models import *
 from billers.models import *
 from lead.models import leads
 from teams.models import User, Profile
-from .utils import (
-    SUBSCRIPTION_MODE,
-    STATUS_CHOICES,
-    PAYMENT_TERM,
-    COUNTRY_CHOICE,
-    STATE_CHOICE,
-    CATEGORY,
-    REPORT_TYPE,
-    PAYMENT_STATUS,
-    REPORT_FORMAT,
-    ORDER_STATUS,
-    REPORTS,
-    FORMAT,
-)
+
 from teams.custom_email_backend import CustomEmailBackend
 from teams.templatetags.teams_custom_filters import get_current_position
 from .permissions import Can_Approve, Can_Generate_TaxInvoice
 from .custom_utils import (
     get_biller_variable,
     current_fy,
+    fy_date_range,
     get_invoice_no_from_date,
     exportInvoicelist,
     pdf_PI,
 )
 
+from .mixins import DynamicPiFilterMixin
+
 # Third-party imports
-import fiscalyear
 from datetime import datetime as dt
 
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView, GenericAPIView
+from rest_framework.mixins import ListModelMixin, UpdateModelMixin, CreateModelMixin
 from .serializers import *
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.filters import OrderingFilter
+from rest_framework.filters import OrderingFilter, SearchFilter
 from django_filters import (
     FilterSet,
     CharFilter,
@@ -61,6 +45,9 @@ from django_filters import (
     BooleanFilter,
     ModelChoiceFilter,
 )
+
+from rest_framework.exceptions import ValidationError
+from django_filters.rest_framework import DjangoFilterBackend
 from decimal import Decimal, InvalidOperation
 
 
@@ -78,6 +65,9 @@ class PiFilters(FilterSet):
     status = CharFilter(field_name="status", lookup_expr="exact")
     isApproved = BooleanFilter(field_name="is_Approved")
     isTaxInvoice = BooleanFilter(field_name="convertedpi__is_taxInvoice")
+    orderStatus = CharFilter(
+        field_name="processedorders__order_status", lookup_expr="exact"
+    )
     paymentStatus = CharFilter(
         field_name="convertedpi__payment_status", lookup_expr="exact"
     )
@@ -98,7 +88,7 @@ class PiFilters(FilterSet):
             "isApproved",
             "country",
             "companyRef",
-            "user"
+            "user",
         ]
 
 
@@ -107,10 +97,27 @@ class ProformaMixin:
         return get_object_or_404(proforma, slug=slug)
 
 
-# View for Fetch Proforma Invoice List
-class ProformaView(APIView):
+"""
+Proforma List API View
+This view provide a paginated list of Proforma invoices for the authenticated user.
+It supports filtering, ordering, searching and fiscal-year-date based filtering.
+
+Key Features:
+    - User-Specific: Only return proforma invoices that created by the logged-in user.
+    - Filtering: using Pifilter, field based filtering
+    - Ordering: Support ordering for multiple fileds (e.g company_name, pi_no, pi_date etc)
+    - Searching: Allows text-based search across fields and numeric search for subtotal.
+    - Fiscal Year: Defaults to the currect fiscal year if none is provided.
+"""
+
+
+class ProformaView(DynamicPiFilterMixin, ListAPIView):
+    serializer_class = ProformaSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = PiPagination
+
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_class = PiFilters
     ordering_fields = [
         "company_name",
         "gstin",
@@ -121,56 +128,59 @@ class ProformaView(APIView):
         "summary__subtotal",
         "created_at",
     ]
-    ordering = ["-created_at"]
 
-    def get(self, request):
-        try:
-            pi_list = (
-                proforma.objects.filter(user_id=request.user.id)
-                .prefetch_related("processedorders", "orderlist")
-                .select_related("convertedpi", "summary")
-            )
+    ordering = ["-pi_no"]
 
-            selected_fy = request.GET.get("fy", current_fy())
-            if selected_fy:
-                start_fy = dt(int(selected_fy.split("-")[0]), 4, 1).date()
-                end_fy = dt(int(selected_fy.split("-")[1]), 3, 31).date()
-                pi_list = pi_list.filter(pi_date__range=(start_fy, end_fy))
+    search_fields = [
+        "company_name",
+        "gstin",
+        "address",
+        "requistioner",
+        "email_id",
+        "contact",
+        "pi_no",
+        "summary__subtotal",
+    ]
 
-            search_query = request.GET.get("search", None)
-            if search_query:
-                filters = (
-                    Q(company_name__icontains=search_query)
-                    | Q(gstin__icontains=search_query)
-                    | Q(user_name__icontains=search_query)
-                    | Q(address__icontains=search_query)
-                    | Q(requistioner__icontains=search_query)
-                    | Q(pi_no__icontains=search_query)
-                )
-                try:
-                    value = Decimal(search_query)
-                    filters |= Q(summary__subtotal__exact=value)
-                except InvalidOperation:
-                    pass
+    fy_field = "pi_date"
 
-                pi_list = pi_list.filter(filters)
+    def get_queryset(self):
+        """
+        Return the queryset for the logged-in user.
 
-            filtered_pi = PiFilters(request.GET, queryset=pi_list)
-            if filtered_pi.is_valid():
-                pi_list = filtered_pi.qs
-            else:
-                print("Filter errors:", filtered_pi.errors)
+        Query Parameters:
+        -fy (str): Fiscal Year in format 'YYYY-YYYY'. Defaults to current fy.
+        -search (str): Free-text search across allowed fields.
+                        If numeric then also searches by exact 'summary_subtotal'
+        Example:
+        GET /api/invoice/proforma/list?fy=2024-2025&search=abc
+        GET /api/invoice/proforma/list?fy=2024-2025&search=12000
+        """
 
-            ordering_query = request.GET.get("ordering", None)
-            if ordering_query:
-                ordering_filter = OrderingFilter()
-                pi_list = ordering_filter.filter_queryset(request, pi_list, self)
-            paginator = self.pagination_class()
-            paginated_pi = paginator.paginate_queryset(pi_list, request)
-            serializer = ProformaSerializer(paginated_pi, many=True)
-            return paginator.get_paginated_response(serializer.data)
-        except proforma.DoesNotExist:
-            return Response({"message": "No Proforma Invoice exists"})
+        request = self.request
+
+        # base queryset: Proforma Invoices for currect user with related objects
+        queryset = (
+            proforma.objects.filter(user_id=request.user.id)
+            .select_related("convertedpi", "summary")
+            .prefetch_related("orderlist", "processedorders")
+        )
+
+        # Fiscal year query
+        fy = request.GET.get("fy", current_fy())
+        if fy:
+            queryset = self.fy_filter(request, queryset, fy)
+
+        # Extend search to handle numeric subtotal search
+        search_query = request.GET.get("search")
+        if search_query:
+            try:
+                value = Decimal(search_query)
+                queryset = queryset | queryset.filter(summary__subtotal=value)
+            except InvalidOperation:
+                pass
+
+        return queryset
 
 
 # View for Create and Edit Proforma Invoice
@@ -196,8 +206,9 @@ class ProformaCreateUpdateView(APIView, ProformaMixin):
         try:
             serializer = ProformaCreateSerializer(data=request.data)
             user_id = request.user.id
+            branch = request.user.profile.branch.id
             if serializer.is_valid():
-                instance = serializer.save(user_id=user_id)
+                instance = serializer.save(user_id=user_id, branch=branch)
 
                 result = ProformaSerializer(instance)
                 return Response(result.data, status=status.HTTP_201_CREATED)
@@ -227,8 +238,10 @@ class ProformaCreateUpdateView(APIView, ProformaMixin):
         # handle full update of Proforma
         instance = self.get_object(slug=slug)
         data = request.data
-
+        branch = request.user.profile.branch.id
         convertedPIData = data.pop("convertedpi", None)
+        if convertedPIData:
+            convertedPIData["branch"] = branch
 
         if not instance:
             return Response(
@@ -321,10 +334,28 @@ class ProformaCreateUpdateView(APIView, ProformaMixin):
         )
 
 
-# View for Approval of Proforma Invoice
-class ApproveRequestPIView(APIView):
+"""
+PI Approval Request List API View
+This view provide a paginated list of Proforma invoice that logged-in user can approve exclude user's proforma's.
+It supports filtering, ordering, searching and fiscal-year-date based filtering.
+
+Key features:
+    - Permission-based Access: Only return proforma list that logged-in user permitted to approve, based on role and position
+    - Filtering: using Pifilter, field based filtering
+    - Ordering: Support ordering for multiple fileds (e.g company_name, pi_no, pi_date etc)
+    - Searching: Allows text-based search across fields and numeric search for subtotal.
+    - Fiscal Year: Defaults to the currect fiscal year if none is provided.
+"""
+
+
+class ApproveRequestPIView(DynamicPiFilterMixin, ListAPIView):
+    serializer_class = ProformaSerializer
     permission_classes = [IsAuthenticated, Can_Approve]
     pagination_class = PiPagination
+
+    # Filter set
+    filterset_class = PiFilters
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = [
         "company_name",
         "gstin",
@@ -337,77 +368,93 @@ class ApproveRequestPIView(APIView):
     ]
     ordering = ["-created_at"]
 
-    def get(self, request):
-        try:
-            profile_instance = get_object_or_404(Profile, user=request.user)
-            current_position = get_current_position(profile_instance)
-            all_users = User.objects.filter(profile__branch=profile_instance.branch).exclude(id=request.user.id)
-            user_exclusion = {
-                "Head": ["Head"],
-                "VP": ["Head", "VP"],
-                "Sr. Executive": ["Head", "VP", "Sr. Executive"],
-            }
+    search_fields = [
+        "company_name",
+        "gstin",
+        "user_name",
+        "address",
+        "requistioner",
+        "email_id",
+        "contact",
+        "pi_no",
+        "summary__subtotal",
+    ]
 
-            if request.user.role != "admin":
-                if current_position in user_exclusion:
-                    all_users = all_users.exclude(
-                        groups__name__in=user_exclusion[current_position]
-                    )
+    fy_field = "pi_date"
 
-            pi_list = (
-                proforma.objects.filter(
-                    user_id__in=list(all_users.values_list("id", flat=True))
-                )
-                .prefetch_related("orderlist", "processedorders")
-                .select_related("convertedpi", "summary")
+    def get_queryset(self):
+        """
+        Return a queryset for the logged-in user based-on user's role and current_position
+        Query Parameters:
+        - fy (str): Fiscal Year in format 'YYYY-YYYY'. Defaults to current fy.
+        - search (str): Free-text search across allowed fields.
+                        If numeric then also searches by exact 'summary_subtotal'
+
+        Notes:
+            - User role and position determine which Proforma records are visible
+                (e.g., `Head`, `VP`, `Sr. Executive` exclusions).
+            - Admin users can see all Proforma requests for their branch, excluding their own.
+        """
+
+        request = self.request
+
+        profile = Profile.objects.select_related("user").get(user=request.user)
+
+        # Base queryset: Proforma Invoices for currect user with related objects that exclude logged-in user's proforma
+        queryset = (
+            proforma.objects.filter(branch=profile.branch.id)
+            .select_related("convertedpi", "summary")
+            .prefetch_related("orderlist", "processedorders")
+            .exclude(user_id=request.user.id)
+        )
+
+        # define position based user exclusion
+        user_exclusion = {
+            "Head": ["Head"],
+            "VP": ["Head", "VP"],
+            "Sr. Executive": ["Head", "VP", "Sr. Executive"],
+        }
+        all_users = User.objects.filter(profile__branch=profile.branch).exclude(
+            id=request.user.id
+        )
+
+        # Fetch users as per user exclusion dict
+        current_position = get_current_position(profile)
+        if current_position in user_exclusion:
+            all_users = all_users.exclude(
+                groups__name__in=user_exclusion[current_position]
             )
 
-            selected_fy = request.GET.get("fy", current_fy())
-            if selected_fy:
-                start_fy = dt(int(selected_fy.split("-")[0]), 4, 1).date()
-                end_fy = dt(int(selected_fy.split("-")[1]), 3, 31).date()
-                pi_list = pi_list.filter(pi_date__range=(start_fy, end_fy))
+        # Queryset if logged-in user is not admin
+        if request.user.role != "admin":
+            queryset = proforma.objects.filter(
+                user_id__in=list(all_users.values_list("id", flat=True))
+            )
 
-            search_query = request.GET.get("search", None)
-            if search_query:
-                filters = (
-                    Q(company_name__icontains=search_query)
-                    | Q(gstin__icontains=search_query)
-                    | Q(user_name__icontains=search_query)
-                    | Q(address__icontains=search_query)
-                    | Q(requistioner__icontains=search_query)
-                    | Q(pi_no__icontains=search_query)
-                )
-                try:
-                    value = Decimal(search_query)
-                    filters |= Q(summary__subtotal__exact=value)
-                except InvalidOperation:
-                    pass
+        # Fiscal year query
+        fy = request.GET.get("fy", current_fy())
+        if fy:
+            queryset = self.fy_filter(request, queryset, fy)
 
-                pi_list = pi_list.filter(filters)
+        # Extend search to handle numeric subtotal search
+        search_query = request.GET.get("search")
+        if search_query:
+            try:
+                value = Decimal(search_query)
+                queryset = queryset | queryset.filter(summary__subtotal=value)
+            except InvalidOperation:
+                pass
 
-            filtered_pi = PiFilters(request.GET, queryset=pi_list)
-            if filtered_pi.is_valid():
-                pi_list = filtered_pi.qs
-            else:
-                print("Filter errors:", filtered_pi.errors)
-
-            ordering_query = request.GET.get("ordering", None)
-            if ordering_query:
-                ordering_filter = OrderingFilter()
-                pi_list = ordering_filter.filter_queryset(request, pi_list, self)
-            paginator = self.pagination_class()
-            paginated_pi = paginator.paginate_queryset(pi_list, request)
-            serializer = ProformaSerializer(paginated_pi, many=True)
-            return paginator.get_paginated_response(serializer.data)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return queryset
 
 
-# View for Invoice List and Invoice request List
-class InvoiceListView(APIView):
+class InvoiceListView(DynamicPiFilterMixin, ListAPIView):
+    serializer_class = ProformaSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = PiPagination
+
+    filterset_class = PiFilters
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = [
         "company_name",
         "gstin",
@@ -421,94 +468,98 @@ class InvoiceListView(APIView):
         "user_name",
         "created_at",
     ]
+
     ordering = ["-convertedpi__requested_at"]
 
-    def get(self, request):
-        try:
+    search_fields = [
+        "company_name",
+        "gstin",
+        "user_name",
+        "address",
+        "requistioner",
+        "email_id",
+        "contact",
+        "pi_no",
+        "summary__subtotal",
+    ]
 
-            profile_instance = get_object_or_404(Profile, user=request.user)
-            current_position = get_current_position(profile_instance)
-            all_users = User.objects.filter(
-                profile__branch=profile_instance.branch
-            ).values_list("id", flat=True)
+    fy_field = "convertedpi__invoice_date"
+    alt_fy_field = "convertedpi__requested_at"
 
-            pi_list = (
-                proforma.objects.filter(
-                    user_id__in=list(all_users), convertedpi__is_invoiceRequire=True
-                )
-                .prefetch_related("orderlist", "processedorders")
-                .select_related("convertedpi", "summary")
-            )
+    def get_queryset(self):
 
-            if current_position != "Head" and request.user.role != "admin":
-                pi_list = pi_list.filter(user_id=request.user.id)
-            else:
-                pi_list = pi_list.filter(convertedpi__is_taxInvoice=True)
+        request = self.request
+        profile = Profile.objects.select_related("user").get(user=request.user)
 
-            selected_fy = request.GET.get("fy", current_fy())
-            if selected_fy:
-                start_fy = dt(int(selected_fy.split("-")[0]), 4, 1).date()
-                end_fy = dt(int(selected_fy.split("-")[1]), 3, 31).date()
-                pi_list = pi_list.filter(
-                    Q(convertedpi__invoice_date__range=(start_fy, end_fy))
-                    | Q(
-                        convertedpi__invoice_date__isnull=True,
-                        convertedpi__requested_at__range=(start_fy, end_fy),
-                    )
-                )
+        # Base queryset
+        queryset = (
+            proforma.objects.filter(branch=profile.branch.id)
+            .select_related("convertedpi", "summary")
+            .prefetch_related("orderlist", "processedorders")
+        )
 
-            search_query = request.GET.get("search", None)
-            if search_query:
-                filters = (
-                    Q(company_name__icontains=search_query)
-                    | Q(gstin__icontains=search_query)
-                    | Q(address__icontains=search_query)
-                    | Q(requistioner__icontains=search_query)
-                    | Q(pi_no__icontains=search_query)
-                )
-                try:
-                    value = Decimal(search_query)
-                    filters |= Q(summary__subtotal__exact=value)
-                except InvalidOperation:
-                    pass
+        # Filter queryset based-on user's role and department
+        if request.user.role != "admin" and request.user.department != "account":
+            queryset = queryset.filter(user_id=request.user.id)
+        else:
+            queryset = queryset.filter(convertedpi__is_taxInvoice=True)
 
-                pi_list = pi_list.filter(filters)
+        # Fiscal year query
+        fy = request.GET.get("fy", current_fy())
+        if fy:
+            queryset = self.fy_filter(request, queryset, fy)
 
-            filtered_pi = PiFilters(request.GET, queryset=pi_list)
-            if filtered_pi.is_valid():
-                pi_list = filtered_pi.qs
-            else:
-                print("Filter errors:", filtered_pi.errors)
+        # Extend search  to handle numeric search for subtotal
+        search_query = request.GET.get("search", None)
+        if search_query:
+            try:
+                value = Decimal(search_query)
+                queryset = queryset | queryset.filter(summary__subtotal=value)
+            except InvalidOperation:
+                pass
 
-            ordering_query = request.GET.get("ordering", None)
-            if ordering_query:
-                ordering_filter = OrderingFilter()
-                pi_list = ordering_filter.filter_queryset(request, pi_list, self)
+        return queryset
 
-            exportReq = request.GET.get("action", None)
-            if exportReq == "export":
-                date_range = request.GET.get("dateRange", None)
-                if date_range:
-                    start_date = date_range.split(",")[0]
-                    end_date = date_range.split(",")[1]
-                    pi_list = pi_list.filter(
-                        Q(convertedpi__invoice_date__range=(start_date, end_date))
-                    ).order_by("convertedpi__formatted_invoice")
-                return exportInvoicelist(pi_list)
+    def list(self, request, *args, **kwargs):
+        # Export queryset in excel file
+        export_req = request.GET.get("action", None)
+        if export_req == "export":
+            queryset = self.filter_queryset(self.get_queryset())
+            date_range = request.GET.get("dateRange", None)
+            if date_range:
+                start_date, end_date = date_range.split(",")
+                queryset = queryset.filter(
+                    convertedpi__invoice_date__range=(start_date, end_date)
+                ).order_by("convertedpi__formatted_invoice")
 
-            paginator = self.pagination_class()
-            paginated_pi = paginator.paginate_queryset(pi_list, request)
-            serializer = ProformaSerializer(paginated_pi, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            return exportInvoicelist(queryset)
 
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return super().list(request, *args, **kwargs)
 
 
 # Get list of proforma invoice requested for Tax Invoiceand managed by accounts and admin only
-class InvoiceUpdateListView(APIView):
-    permission_classes = [IsAuthenticated, Can_Generate_TaxInvoice]
+"""
+Invoice Create and pending List View
+This view provide the proforma invoice list that request for invoice and assign the invoice number to respective proforma
+It supports filtering, ordering, searching and fiscal-year-date based filtering.
+
+Key Features:
+    - Permission Based: Can access if logged-in user Role is 'admin' or department is 'accounts' 
+    - List: Only provide proforma invoices that need to generate tax invoice based on branch
+    - Generate Invoice: Can generate tax invoice and handle invoice generation logic (e.g check duplicates, invoice number and date sequence)
+"""
+
+
+class InvoiceUpdateListView(
+    DynamicPiFilterMixin, ListModelMixin, UpdateModelMixin, GenericAPIView
+):
+    serializer_class = ProformaSerializer
     pagination_class = PiPagination
+    permission_classes = [IsAuthenticated, Can_Generate_TaxInvoice]
+
+    filterset_class = PiFilters
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+
     ordering_fields = [
         "company_name",
         "gstin",
@@ -522,167 +573,124 @@ class InvoiceUpdateListView(APIView):
         "user_name",
         "created_at",
     ]
-    ordering = ["-convertedpi__requested_at"]
 
-    def get(self, request):
-        try:
-            profile_instance = get_object_or_404(Profile, user=request.user)
-            all_users = User.objects.filter(
-                profile__branch=profile_instance.branch
-            ).values_list("id", flat=True)
+    ordering = ["convertedpi__requested_at"]
 
-            pi_list = (
-                proforma.objects.filter(
-                    user_id__in=list(all_users),
-                    convertedpi__is_invoiceRequire=True,
-                    convertedpi__is_taxInvoice=False,
-                )
-                .prefetch_related("orderlist", "processedorders")
-                .select_related("convertedpi", "summary")
+    search_fields = [
+        "company_name",
+        "gstin",
+        "user_name",
+        "address",
+        "requistioner",
+        "email_id",
+        "contact",
+        "pi_no",
+        "convertedpi__formatted_invoice",
+        "summary__subtotal",
+    ]
+
+    fy_field = "convertedpi__requested_at"
+
+    def get_queryset(self):
+        """
+        Return a queryset for the logged-in user based on role or department
+        Query Parameters:
+            -invoice require: filter proform invoice if is_invoiceRequire = True
+            -fy (str): Fiscal Year in format 'YYYY-YYYY'. Defaults to current fy.
+            -search (str): Free-text search across allowed fields.
+                            If numeric then also searches by exact 'summary_subtotal'
+        Note:
+            - If User from 'accounts' department: Proforma records are visible.
+            - Admin can see all records on respective branch
+        """
+
+        request = self.request
+        profile = Profile.objects.select_related("user").get(user=request.user)
+
+        # Base queryset: Proforma requested for tax invoice that still pending
+        queryset = (
+            proforma.objects.filter(
+                convertedpi__is_invoiceRequire=True,
+                branch=profile.branch.id,
+                convertedpi__is_taxInvoice=False,
             )
+            .select_related("convertedpi", "summary")
+            .prefetch_related("orderlist", "processedorders")
+        )
 
-            selected_fy = request.GET.get("fy", current_fy())
-            if selected_fy:
-                start_fy = dt(int(selected_fy.split("-")[0]), 4, 1).date()
-                end_fy = dt(int(selected_fy.split("-")[1]), 3, 31).date()
-                pi_list = pi_list.filter(
-                    Q(convertedpi__invoice_date__range=(start_fy, end_fy))
-                    | Q(
-                        convertedpi__invoice_date__isnull=True,
-                        convertedpi__requested_at__range=(start_fy, end_fy),
-                    )
-                )
+        # Fiscal year query
+        fy = request.GET.get("fy", current_fy())
+        if fy:
+            queryset = self.fy_filter(request, queryset, fy)
 
-            search_query = request.GET.get("search", None)
-            if search_query:
-                filters = (
-                    Q(company_name__icontains=search_query)
-                    | Q(gstin__icontains=search_query)
-                    | Q(user_name__icontains=search_query)
-                    | Q(address__icontains=search_query)
-                    | Q(requistioner__icontains=search_query)
-                    | Q(pi_no__icontains=search_query)
-                )
-                try:
-                    value = Decimal(search_query)
-                    filters |= Q(summary__subtotal__exact=value)
-                except InvalidOperation:
-                    pass
+        # Extend search for numeric values
+        search_query = request.GET.get("search")
+        if search_query:
+            try:
+                value = Decimal(search_query)
+                queryset = queryset | queryset.filter(summary__subtotal=value)
+            except InvalidOperation:
+                pass
 
-                pi_list = pi_list.filter(filters)
+        return queryset
 
-            filtered_pi = PiFilters(request.GET, queryset=pi_list)
-            if filtered_pi.is_valid():
-                pi_list = filtered_pi.qs
-            else:
-                print("Filter errors:", filtered_pi.errors)
+    def get(self, request, *args, **kwargs):
 
-            ordering_query = request.GET.get("ordering", None)
-            if ordering_query:
-                ordering_filter = OrderingFilter()
-                pi_list = ordering_filter.filter_queryset(request, pi_list, self)
+        # Handle Export queryset records in excel file
+        exportReq = request.GET.get("action", None)
+        queryset = self.get_queryset()
+        if exportReq == "export":
+            return exportInvoicelist(queryset)
 
-            exportReq = request.GET.get("action", None)
-            if exportReq == "export":
-                return exportInvoicelist(pi_list)
-
-            paginator = self.pagination_class()
-            paginated_pi = paginator.paginate_queryset(pi_list, request)
-            serializer = ProformaSerializer(paginated_pi, many=True)
-            return paginator.get_paginated_response(serializer.data)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return self.list(request, *args, **kwargs)
 
     def patch(self, request, id):
+        """
+        To generate tax invoice require fields:
+            - Invoice Number, Invoice Date
+
+            check validation of invoice_number and date from serializers validate method
+        """
         try:
-            print(id)
+            # Fetch convertedpi instance
             convertedpiInstance = get_object_or_404(convertedPI, id=id)
-
             data = request.data
-            biller_id = convertedpiInstance.pi_id.bank.biller_id
 
-            invoice_tag = get_biller_variable(biller_id, "invoice_tag")
-            invoice_format = get_biller_variable(biller_id, "invoice_format")
-            invoice_number = int(data.get("invoice_number"))
-            invoice_date = data.get("invoice_date")
-            if isinstance(invoice_date, str):
-                invoice_date = dt.strptime(invoice_date, "%Y-%m-%d").date()
-
-            target_fy = current_fy(invoice_date)
-
-            def get_fy_filter():
-                all_records = convertedPI.objects.filter(invoice_date__isnull=False)
-                filtered = []
-
-                for obj in all_records:
-                    if current_fy(obj.invoice_date) == target_fy:
-                        filtered.append(obj.id)
-                return all_records.filter(id__in=filtered)
-
-            same_fy_invoices = get_fy_filter()
-
-            lower_conflict = same_fy_invoices.filter(
-                invoice_number__lt=invoice_number, invoice_date__gt=invoice_date
-            )
-            # print(f"lower_conflict: {lower_conflict}")
-
-            higher_conflict = same_fy_invoices.filter(
-                invoice_number__gt=invoice_number, invoice_date__lt=invoice_date
-            )
-            # print(f"higher_conflict: {higher_conflict}")
-
-            if lower_conflict.exists():
-                return Response(
-                    {
-                        "error": "There are lower invoice numbers with future dates in the same FY."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if higher_conflict.exists():
-                return Response(
-                    {
-                        "error": "There are higher invoice numbers with past dates in the same FY."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            try:
-                formatedInvoiceNo = get_invoice_no_from_date(
-                    invoice_tag,
-                    invoice_format,
-                    data.get("invoice_date"),
-                    invoice_number,
-                )
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-            if convertedPI.objects.filter(formatted_invoice=formatedInvoiceNo).exists():
-                return Response(
-                    {"error": "Invoice No already exists"},
-                    status=status.HTTP_406_NOT_ACCEPTABLE,
-                )
-
-            data["formatted_invoice"] = formatedInvoiceNo
-            data["is_taxInvoice"] = True
-            data["is_closed"] = True
-            data["generated_by"] = request.user.id
             serializer = ConvertedPISerializer(
-                convertedpiInstance, data=data, partial=True
+                convertedpiInstance,
+                data=data,
+                partial=True,
+                context={"request": request},
             )
 
-            if serializer.is_valid():
-                serializer.save(partial=True)
-                result = ProformaSerializer(convertedpiInstance.pi_id)
-                return Response(result.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # check serializer is valid or not
+            serializer.is_valid(raise_exception=True)
+            serializer.save(partial=True)  # Save serializer
+
+            # Return proforma invoice with related objects after invoice created
+            result = ProformaSerializer(convertedpiInstance.pi_id)
+
+            return Response(result.data, status=status.HTTP_201_CREATED)
+        # Handle Validation Error if serializer raise any error
+        except ValidationError as ve:
+            return Response(ve.detail, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Processed Proform list to view and update order status by production department
-class ProcessedPIUpdateListView(APIView):
+class ProcessedPIUpdateListView(
+    DynamicPiFilterMixin,
+    ListModelMixin,
+    CreateModelMixin,
+    UpdateModelMixin,
+    GenericAPIView,
+):
+    serializer_class = ProformaSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = PiPagination
+
+    filterset_class = PiFilters
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     ordering_fields = [
         "company_name",
         "gstin",
@@ -691,104 +699,74 @@ class ProcessedPIUpdateListView(APIView):
         "pi_date",
         "convertedpi__invoice_no",
         "convertedpi__invoice_date",
-        "convertedpi__requested_at",
+        "convertedpi__processed_at",
         "user_name",
         "created_at",
     ]
-    ordering = ["-convertedpi__requested_at"]
+    ordering = ["-convertedpi__processed_at"]
 
-    @staticmethod
-    def get_object(id):
-        return get_object_or_404(processedOrder, pk=id)
+    search_fields = [
+        "company_name",
+        "gstin",
+        "address",
+        "requistioner",
+        "pi_no",
+        "summary__subtotal",
+        "processedorders__report_type",
+        "processedorders__country",
+        "processedorders__hsn",
+        "processedorders__plan",
+        "processedorders__product",
+    ]
 
-    def get(self, request):
-        try:
-            profile_instance = get_object_or_404(Profile, user=request.user)
-            all_users = User.objects.filter(
-                profile__branch=profile_instance.branch
-            ).values_list("id", flat=True)
+    fy_field = "convertedpi__processed_at"
 
-            pi_list = (
-                proforma.objects.filter(
-                    user_id__in=list(all_users), convertedpi__is_processed=True
-                )
-                .prefetch_related("orderlist", "processedorders")
-                .select_related("convertedpi", "summary")
-            )
+    def get_queryset(self):
 
-            if request.user.role != "admin" and request.user.department != "production":
-                pi_list = pi_list.filter(user_id=request.user.id)
+        request = self.request
+        profile = Profile.objects.select_related("user").get(user=request.user)
 
-            selected_fy = request.GET.get("fy", current_fy())
-            if selected_fy:
-                start_fy = dt(int(selected_fy.split("-")[0]), 4, 1).date()
-                end_fy = dt(int(selected_fy.split("-")[1]), 3, 31).date()
-                pi_list = pi_list.filter(
-                    convertedpi__requested_at__range=(start_fy, end_fy)
-                )
+        queryset = (
+            proforma.objects.select_related("convertedpi", "summary")
+            .filter(convertedpi__is_processed=True, branch=profile.branch.id)
+            .prefetch_related("orderlist", "processedorders")
+        )
 
-            search_query = request.GET.get("search", None)
-            if search_query:
-                filters = (
-                    Q(company_name__icontains=search_query)
-                    | Q(gstin__icontains=search_query)
-                    | Q(user_name__icontains=search_query)
-                    | Q(address__icontains=search_query)
-                    | Q(requistioner__icontains=search_query)
-                    | Q(pi_no__icontains=search_query)
-                    | Q(pi_no__icontains=search_query)
-                    | Q(pi_no__icontains=search_query)
-                    | Q(processedorders__report_type__icontains=search_query)
-                    | Q(processedorders__country__icontains=search_query)
-                    | Q(processedorders__plan__icontains=search_query)
-                    | Q(processedorders__hsn__icontains=search_query)
-                    | Q(processedorders__product__icontains=search_query)
-                )
-                try:
-                    value = Decimal(search_query)
-                    filters |= Q(summary__subtotal__exact=value)
-                except InvalidOperation:
-                    pass
+        if request.user.role != "admin" and request.user.department != "production":
+            queryset = queryset.filter(user_id=request.user.id)
 
-                pi_list = pi_list.filter(filters)
+        fy = request.GET.get("fy", current_fy())
+        if fy:
+            queryset = self.fy_filter(request, queryset, fy)
 
-            pending_month = request.GET.get("month", None)
-
-            if pending_month:
-                pi_list = pi_list.filter(
+        pending_month = request.GET.get("month", None)
+        if pending_month:
+            queryset = (
+                queryset.filter(
                     processedorders__from_month__lte=pending_month,
                     processedorders__to_month__gte=pending_month,
-                    processedorders__last_dispatch_month__lt=pending_month,
-                ).distinct()
+                )
+                .filter(
+                    Q(processedorders__last_dispatch_month__lt=pending_month)
+                    | Q(processedorders__last_dispatch_month__isnull=True)
+                )
+                .distinct()
+            )
 
-            filtered_pi = PiFilters(request.GET, queryset=pi_list)
-            if filtered_pi.is_valid():
-                pi_list = filtered_pi.qs
-            else:
-                print("Filter errors:", filtered_pi.errors)
+        return queryset
 
-            ordering_query = request.GET.get("ordering", None)
-            if ordering_query:
-                ordering_filter = OrderingFilter()
-                pi_list = ordering_filter.filter_queryset(request, pi_list, self)
-
-            paginator = self.pagination_class()
-            paginated_pi = paginator.paginate_queryset(pi_list, request)
-            serializer = ProformaSerializer(paginated_pi, many=True)
-            return paginator.get_paginated_response(serializer.data)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
 
     def patch(self, request, id):
         try:
-            orderInstance = self.get_object(id=id)
+            orderInstance = get_object_or_404(processedOrder, pk=id)
             data = request.data
             serializer = ProcessedOrderSerializer(
                 orderInstance, data=data, partial=True
             )
             if serializer.is_valid():
                 serializer.save(partial=True)
-                # pi_Instance = get_object_or_404(proforma, pk=orderInstance.pi_id)
                 result = ProformaSerializer(orderInstance.pi_id)
                 return Response(result.data, status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -800,8 +778,9 @@ class ProcessedPIUpdateListView(APIView):
             pi_instance = get_object_or_404(proforma, slug=slug)
             convertedPiInstance = get_object_or_404(convertedPI, pi_id=pi_instance)
             data = request.data.pop("processedorders")
+            if not data:
+                return Response({"message": "No processed orders provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-            print(data)
             if (
                 pi_instance.status != "closed"
                 and pi_instance.convertedpi.is_processed == True
@@ -812,39 +791,40 @@ class ProcessedPIUpdateListView(APIView):
                 )
 
             serializer = ProcessedOrderSerializer(data=data, many=True)
-            if serializer.is_valid():
-                serializer.save(pi_id=pi_instance)
-                if convertedPiInstance:
-                    convertedPiInstance.is_processed = True
-                    convertedPiInstance.save()
-                result = ProformaSerializer(pi_instance)
-                return Response(result.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(pi_id=pi_instance)
+            if convertedPiInstance:
+                convertedPiInstance.is_processed = True
+                convertedPiInstance.processed_at = timezone.now().date()
+                convertedPiInstance.save()
+            result = ProformaSerializer(pi_instance)
+            return Response(result.data, status=status.HTTP_201_CREATED)
+            # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            print("Error in processing PI:", e)
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@login_required(login_url="app:login")
-def biller_list(request):
-    billers = Biller.objects.all()
+# @login_required(login_url="app:login")
+# def biller_list(request):
+#     billers = Biller.objects.all()
 
-    profile_instance = get_object_or_404(Profile, user=request.user)
-    user_branch = profile_instance.branch
+#     profile_instance = get_object_or_404(Profile, user=request.user)
+#     user_branch = profile_instance.branch
 
-    all_users = User.objects.filter(profile__branch=user_branch)
+#     all_users = User.objects.filter(profile__branch=user_branch)
 
-    all_users_id = []
+#     all_users_id = []
 
-    for user in all_users:
-        all_users_id.append(user.id)
+#     for user in all_users:
+#         all_users_id.append(user.id)
 
-    billers = billers.filter(inserted_by__in=all_users_id)
+#     billers = billers.filter(inserted_by__in=all_users_id)
 
-    context = {
-        "billers": billers,
-    }
-    return render(request, "invoices/biller-list.html", context)
-
+#     context = {
+#         "billers": billers,
+#     }
+#     return render(request, "invoices/biller-list.html", context)
 
 
 # @login_required(login_url="app:login")

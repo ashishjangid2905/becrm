@@ -75,7 +75,7 @@ class Profile(models.Model):
     gender = models.CharField(_("gender"), max_length=50, default="male")
     employee_code = models.CharField(_("employee code"), max_length=50, blank=True, null=True)
     phone = models.CharField(max_length = 15, blank=True, null=True, validators=[RegexValidator(regex=r'^\+?1?\d{9,15}$')])
-    profile_img = models.ImageField(_("Profile"), upload_to=user_profile_path, blank=True, default='profile/user-default-96.png')
+    profile_img = models.ImageField(_("Profile"), upload_to=user_profile_path, blank=True, null=True)
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null = True)
     last_edited = models.DateTimeField(_("last edited"), auto_now=True)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)

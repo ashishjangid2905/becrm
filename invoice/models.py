@@ -3,12 +3,17 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.text import slugify
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from lead.models import leads
 from teams.models import User
 from .utils import STATUS_CHOICES, REPORT_FORMAT, ORDER_STATUS, PAYMENT_STATUS
 from billers.models import *
+from .custom_utils import get_today
 
 # Create your models here.
+
+# def get_today():
+#     return timezone.now().date()
 
 class proforma(models.Model):
     
@@ -29,7 +34,7 @@ class proforma(models.Model):
     email_id = models.CharField(_("Email"), max_length=254, blank=True)
     contact = models.CharField(_("Contact No"), max_length=50, blank=True)
     pi_no = models.CharField(_("PI No"), max_length=50, unique=True)
-    pi_date = models.DateField(_("PI Date"), auto_now_add=True, null=False)
+    pi_date = models.DateField(_("PI Date"), null=False, default=get_today)
     po_no = models.CharField(_("PO No"), max_length=50, blank=True, null=True)
     po_date = models.DateField(_("PO Date"), auto_now=False, blank=True, null=True)
     subscription = models.CharField(_("Subscription Mode"), max_length=50)
@@ -39,7 +44,7 @@ class proforma(models.Model):
     details = models.TextField(_("Details"), max_length=1000)
     is_Approved = models.BooleanField(_("Is_Approved"), default=False)
     approved_by = models.IntegerField(_("Approved By"), blank=True, null=True)
-    approved_at = models.DateTimeField(_("Approved At"), auto_now=True)
+    approved_at = models.DateTimeField(_("Approved At"), blank=True, null=True)
     status = models.CharField(_("Status"), max_length=50, default='open', choices=STATUS_CHOICES)
     closed_at = models.DateField(_("Closing Date"), auto_now=False, auto_now_add=False, null=True, blank=True)
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
@@ -48,6 +53,7 @@ class proforma(models.Model):
     slug = models.SlugField(_("slug"), unique=True, blank=True)
     feedback = models.TextField(_("feedback"), max_length=255, blank=True, null=True)
     additional_email = models.CharField(_("Additional Emails"), max_length=254, blank=True, null=True)
+    branch = models.IntegerField(_("branch"), blank=True, null=True)
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -77,14 +83,15 @@ class proforma(models.Model):
             models.Index(fields=["created_at"]),
             models.Index(fields=["closed_at"]),
             models.Index(fields=["is_Approved"]),
+            models.Index(fields=["branch"]),
         ]
 
     def __str__(self):
-        return self.company_name
+        return f"{self.company_name}: {self.pi_no}"
 
 class orderList(models.Model):
     
-    proforma_id = models.ForeignKey(proforma, on_delete=models.RESTRICT, related_name="orderlist")
+    proforma = models.ForeignKey(proforma, on_delete=models.RESTRICT, related_name="orderlist")
     category = models.CharField(_("Category"), max_length=50, blank=False, null=False)
     report_type = models.CharField(_("Report Type"), max_length=50)
     country = models.CharField(_("country"), max_length=255, blank=True, null=True)
@@ -96,8 +103,9 @@ class orderList(models.Model):
     lumpsum_amt = models.IntegerField(_("Lumpsum"), blank=True, null=True)
     is_lumpsum = models.BooleanField(_("Is_Lumpsum"), default=False)
     order_status = models.CharField(_("Order Status"), max_length=50, default='pending')
-    inserted_at = models.DateTimeField(_("Inserted At"), auto_now=True)
-    updated_at = models.DateTimeField(_("Updated At"), auto_now_add=True)
+    inserted_at = models.DateTimeField(_("Inserted At"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
+    branch = models.IntegerField(_("branch"), blank=True, null=True)
 
     class Meta:
         verbose_name = _("Order")
@@ -107,14 +115,17 @@ class orderList(models.Model):
             models.Index(fields=["category"]),
             models.Index(fields=["report_type"]),
             models.Index(fields=["is_lumpsum"]),
+            models.Index(fields=["branch"]),
         ]
     
     def __str__(self):
-        return f'PI No.: {self.proforma_id.pi_no} - {self.report_type}: {self.category}'
+        return f'PI No.: {self.proforma.pi_no}: {self.proforma.company_name} - {self.report_type}: {self.category}'
     
 class PiSummary(models.Model):
     proforma = models.OneToOneField(proforma, verbose_name=_("proforma"), on_delete=models.CASCADE, related_name="summary")
     subtotal = models.DecimalField(_("subtotal"), max_digits=12, decimal_places=2)
+    exchange_rate = models.DecimalField(_("exchange rate"), max_digits=12, decimal_places=6, default=1.0)
+    total_amount_in_inr = models.DecimalField(_("total value (INR)"), max_digits=12, decimal_places=2, default=0.00)
     cgst_rate = models.DecimalField(_("cgst rate"), max_digits=4, decimal_places=2, default=0.00)
     sgst_rate = models.DecimalField(_("sgst rate"), max_digits=4, decimal_places=2, default=0.00)
     igst_rate = models.DecimalField(_("igst rate"), max_digits=4, decimal_places=2, default=0.00)
@@ -124,14 +135,21 @@ class PiSummary(models.Model):
     online_sale = models.DecimalField(_("online sale"), max_digits=12, decimal_places=2, default=0.00)
     other_sale = models.DecimalField(_("other sale"), max_digits=12, decimal_places=2, default=0.00)
     last_updated = models.DateTimeField(_("last updated"), auto_now=True)
+    branch = models.IntegerField(_("branch"), blank=True, null=True)
 
     class Meta:
         verbose_name = _("Pi Summary")
         verbose_name_plural = _("Pi Summary")
         db_table = "PiSummary"
         indexes = [
-            models.Index(fields=["last_updated"])
+            models.Index(fields=["last_updated"]),
+            models.Index(fields=["branch"]),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.proforma and self.proforma.branch:
+            self.branch = self.proforma.branch
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.proforma.pi_no
@@ -157,10 +175,12 @@ class convertedPI(models.Model):
     invoice_number = models.PositiveIntegerField(_("invoice number"), blank=True, null=True)
     irn = models.CharField(_("IRN"), max_length=250, blank=True, null=True)
     invoice_date = models.DateField(_("Invoice Date"), blank=True, null=True)
-    requested_at = models.DateTimeField(_("Requested At"), auto_now_add=True )
+    requested_at = models.DateTimeField(_("Requested At"), auto_now_add=True)
+    processed_at = models.DateTimeField(_("processed_at"), blank=True, null=True)
     edited_at = models.DateTimeField(_("Edited At"), auto_now=True)
     generated_by = models.IntegerField(_("invoice generated by"), blank=True, null=True)
     updated_by = models.IntegerField(_("updated_by"), blank=True, null=True)
+    branch = models.IntegerField(_("branch"), blank=True, null=True)
 
     class Meta:
         verbose_name = _("Converted PI")
@@ -173,7 +193,13 @@ class convertedPI(models.Model):
             models.Index(fields=['is_processed']),
             models.Index(fields=['is_closed']),
             models.Index(fields=['invoice_date']),
+            models.Index(fields=["branch"]),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.pi_id and self.pi_id.branch:
+            self.branch = self.pi_id.branch
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'PI No.-{self.pi_id.pi_no}, Invoice No.-{self.formatted_invoice}'
@@ -198,6 +224,7 @@ class processedOrder(models.Model):
     order_status = models.CharField(_("Order Status"), max_length=50, default='pending', choices=ORDER_STATUS)
     last_sent_date = models.DateField(_("last sent date"), blank=True, null=True)
     order_date = models.DateTimeField(_("order date"), auto_now_add=True)
+    branch = models.IntegerField(_("branch"), blank=True, null=True)
 
     class Meta:
         verbose_name = _("Order Process")
@@ -209,7 +236,13 @@ class processedOrder(models.Model):
             models.Index(fields=["country"]),
             models.Index(fields=["order_status"]),
             models.Index(fields=["from_month", "to_month"]),
+            models.Index(fields=["branch"]),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.pi_id and self.pi_id.branch:
+            self.branch = self.pi_id.branch
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.report_type} {self.format} {self.country}'

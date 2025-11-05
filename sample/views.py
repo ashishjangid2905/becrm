@@ -60,7 +60,7 @@ class SampleViews(APIView):
     def get(self, request):
         try:
             user_profile = Profile.objects.get(user = request.user)
-            sample_list = sample.objects.filter(user__profile__branch=user_profile.branch)
+            sample_list = sample.objects.filter(branch=user_profile.branch)
 
             selected_fy = request.GET.get('fy', current_fy())
             if selected_fy:

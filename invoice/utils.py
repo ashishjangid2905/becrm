@@ -52,7 +52,7 @@ REPORT_FORMAT = [
     ("weekly", _("weekly")),
     ("10 days", _("10 Days")),
     ("sez", _("SEZ")),
-    ("sez(weekly)", _("SEZ (Weekly)")),
+    ("sez_with_incoterm", _("SEZ (Incoterms)")),
     ("incoterm", _("Incoterm")),
 ]
 

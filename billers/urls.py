@@ -6,7 +6,11 @@ from .views import *
 app_name = 'billers'
 
 urlpatterns = [
-    path('bank-list', BankListView.as_view()),
+    path('', BillerListCreateView.as_view()),
+    path('<int:pk>', BillerListCreateView.as_view()),
+    path('bank', BankListCreateUpdateView.as_view()),
+    path('<int:biller_id>/bank', BankListCreateUpdateView.as_view()),
+    path('<int:biller_id>/bank/<int:pk>', BankListCreateUpdateView.as_view()),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

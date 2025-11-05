@@ -21,16 +21,21 @@ class Biller(models.Model):
     corp_state = models.CharField(_("Corp. State"), max_length=254, blank=True, null=True)
     corp_pincode = models.CharField(_("Corp. Pincode"), max_length=254, blank=True, null=True)
     corp_country = models.CharField(_("Corp. Country"), max_length=254, blank=True, null=True)
-    branch_id = models.IntegerField(_("branch id"), blank=True, null=True)
-    inserted_at = models.DateTimeField(_("Inserted"), auto_now=True)
-    edited_at = models.DateTimeField(_("Edited"), auto_now_add=True)
+    branch = models.IntegerField(_("branch id"), blank=True, null=True)
+    inserted_at = models.DateTimeField(_("Inserted"), auto_now_add=True)
+    edited_at = models.DateTimeField(_("Edited"), blank=True, null=True)
     inserted_by = models.IntegerField(_("Inserted By"))
 
     class Meta:
         verbose_name = _("Biller")
         verbose_name_plural = _("Billers")
         db_table = "Biller"
-        unique_together = ('biller_name', 'biller_gstin')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['biller_name', 'biller_gstin', 'branch'],
+                name='unique_biller_name_gstin_branch'
+            )
+        ]
 
     def get_reg_full_address(self):
         address_parts = [
@@ -80,20 +85,21 @@ class BillerVariable(models.Model):
 
 class BankDetail(models.Model):
 
-    biller_id = models.ForeignKey(Biller, on_delete=models.SET_NULL, null=True)
+    biller = models.ForeignKey(Biller, on_delete=models.SET_NULL, null=True, related_name='banks')
     is_active = models.BooleanField(_("Is Active"), default=True)
     is_upi = models.BooleanField(_("Is UPI"), default=False)
     upi_id = models.CharField(_("UPI ID"), max_length=50, blank=True, null=True)
     upi_no = models.CharField(_("UPI No"), max_length=50, blank=True, null=True)
     bnf_name = models.CharField(_("Beneficiary Name"), max_length=150, blank=False, null=False)
-    bank_name = models.CharField(_("Bank Name"), max_length=150, blank=False, null=False)
+    bank_name = models.CharField(_("Bank Name"), max_length=150, blank=True, null=True)
     branch_address = models.CharField(_("Branch Address"), max_length=254, blank=True, null=True)
-    ac_no = models.CharField(_("A/c No"), max_length=150, blank=False, null=False)
-    ifsc = models.CharField(_("IFSC"), max_length=50, blank=False, null=False)
+    ac_no = models.CharField(_("A/c No"), max_length=150, blank=True, null=True)
+    ifsc = models.CharField(_("IFSC"), max_length=50, blank=True, null=True)
     swift_code = models.CharField(_("Swift Code"), max_length=50, blank=True, null=True)
     inserted_at = models.DateTimeField(_("Inserted at"), auto_now_add=True)
     edited_at = models.DateTimeField(_("Edited at"), auto_now=True)
     inserted_by = models.IntegerField(_("Inserted By"))
+    branch = models.IntegerField(_("branch"), blank=True, null=True)
 
     class Meta:
         verbose_name = _("Bank")
