@@ -571,9 +571,9 @@ def pdf_PI(pi_id, is_invoice):
     roundOff = pi.summary.total_value - round(pi.summary.total_value, 0)
 
     if pi.currency == "inr":
-        total_val_words = f"Rs. {num2words(round(pi.summary.total_value,0), lang='en-IN').replace(',', '').title()} Only"
+        total_val_words = f"Rs. {num2words(round(pi.summary.total_value,0), lang='en_IN').replace(',', '').title()} Only"
     else:
-        total_val_words = f"Usd {num2words(round(pi.summary.total_value,0), lang='en-IN').replace(',', '').title()} Only"
+        total_val_words = f"Usd {num2words(round(pi.summary.total_value,0), lang='en_IN').replace(',', '').title()} Only"
 
     igst = pi.summary.subtotal * (pi.summary.igst_rate/100)
     cgst = pi.summary.subtotal * (pi.summary.cgst_rate/100)
@@ -1042,7 +1042,7 @@ def pdf_PI(pi_id, is_invoice):
 
         no_months = (to_m.year - from_m.year) * 12 + to_m.month - from_m.month + 1
 
-        total_m = f"Total: {no_months}"
+        total_m = f"{no_months} months"
 
         orderDes = Paragraph(
             f"<font>{report} | {country} {'|' if country else''} {product} | {"Period" if order.category =="offline" else "Validity"}: {period if order.category =="offline" else total_m}</font>",

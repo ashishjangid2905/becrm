@@ -8,12 +8,11 @@ from lead.models import leads
 from teams.models import User
 from .utils import STATUS_CHOICES, REPORT_FORMAT, ORDER_STATUS, PAYMENT_STATUS
 from billers.models import *
-from .custom_utils import get_today
 
 # Create your models here.
 
-# def get_today():
-#     return timezone.now().date()
+def get_today():
+    return timezone.now().date()
 
 class proforma(models.Model):
     
