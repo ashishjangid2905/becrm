@@ -29,9 +29,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['192.168.3.98', '127.0.0.1', '188.40.197.4', 'localhost']
+ALLOWED_HOSTS = ['192.168.3.98', '127.0.0.1', '188.40.197.4', 'localhost', 'crm.bedatos.in', 'bedatos.com', 'www.bedatos.com']
 
 
 # Application definition
@@ -222,9 +222,10 @@ EMAIL_HOST_PASSWORD = 'jjcz artm csuu colt'
 
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS  = ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.3.98:3000', 'http://127.0.0.1:3000']
+CORS_ALLOWED_ORIGINS  = ['http://192.168.3.98:3000', 'http://127.0.0.1:3000', 'http://crm.bedatos.in', 'https://crm.bedatos.in', 'https://bedatos.com', 'https://www.bedatos.com']
 
-CSRF_TRUSTED_ORIGINS = ['http://188.40.197.4', 'http://localhost', 'http://127.0.0.1', 'http://192.168.3.98:3000']
+CSRF_TRUSTED_ORIGINS = ['http://188.40.197.4', 'http://localhost', 'http://127.0.0.1', 'http://192.168.3.98:3000', 'http://crm.bedatos.in', 'https://crm.bedatos.in', 'https://bedatos.com', 'https://www.bedatos.com']
+
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "content-disposition",

@@ -305,7 +305,8 @@ class dealActivityView(APIView):
 class InboundLeadGetView(APIView):
     permission_classes = [AllowAny]
     allowed_origins = [
-        "https://www.besmartexim.com",
+        "https://besmartexim.com",
+        "https://bedatos.com",
         "https://www.bedatos.com",
         "http://192.168.3.98:8000",
         "http://localhost:3000",  # if testing locally
@@ -323,6 +324,7 @@ class InboundLeadGetView(APIView):
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
             data = request.data
+            data["source"] = origin
             serializer = InboundLeadSerializer(data=data)
             if serializer.is_valid():
                 serializer.save()

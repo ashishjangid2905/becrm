@@ -94,7 +94,7 @@ class SampleViews(APIView):
         serializer = SampleSerializer(data = request.data)
         if serializer.is_valid():
             sample_id = sample_no(request.user)
-            serializer.save(user=request.user, sample_id=sample_id)
+            serializer.save(user=request.user, sample_id=sample_id, branch = request.user.profile.branch)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     

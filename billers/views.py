@@ -61,7 +61,7 @@ class BillerListCreateView(ListModelMixin, CreateModelMixin, RetrieveModelMixin,
 
 class BankListCreateUpdateView(ListModelMixin, CreateModelMixin, UpdateModelMixin, GenericAPIView):
     serializer_class = BankDetailSerializer
-    permission_classes = [IsAuthenticated, IsAdminRole]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         request = self.request
