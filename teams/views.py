@@ -28,6 +28,31 @@ class UserDetailView(APIView):
         user = get_object_or_404(User, pk=request.user.id)
         serializer = UserListSerializer(user, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class UserListDashboardView(APIView):
+    # queryset = User.objects.all()
+    serializer_class = UserListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        profile_instance = get_object_or_404(Profile, user=request.user)
+        branch_id = profile_instance.branch
+        users = User.objects.filter(profile__branch=branch_id).order_by("first_name")
+        current_position = get_current_position(profile_instance)
+
+        # user_exclusion = {
+        #     "Head": {"Head"},
+        #     "VP": {"Head", "VP"},
+        #     "Sr. Executive": {"Head", "VP", "Sr. Executive"},
+        # }
+
+        # if request.user.role != "admin":
+        #     if current_position in user_exclusion:
+        #         users = users.exclude(groups__name__in=user_exclusion[current_position])
+
+        serializers = UserListSerializer(users, many=True, context={"request": request})
+        return Response(serializers.data)
 
 
 class UserListView(APIView):

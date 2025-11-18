@@ -160,11 +160,14 @@ class ProformaView(DynamicPiFilterMixin, ListAPIView):
         request = self.request
 
         # base queryset: Proforma Invoices for currect user with related objects
-        queryset = (
-            proforma.objects.filter(user_id=request.user.id)
-            .select_related("convertedpi", "summary")
-            .prefetch_related("orderlist", "processedorders")
-        )
+        if request.GET.get("companyRef", None):
+            queryset = (proforma.objects.all()
+                        .prefetch_related("processedorders", "orderlist")
+                        .select_related("convertedpi", "summary"))
+        else:
+            queryset = (proforma.objects.filter(user_id=request.user.id)
+                        .select_related("convertedpi", "summary")
+                        .prefetch_related("orderlist", "processedorders"))
 
         # Fiscal year query
         fy = request.GET.get("fy", current_fy())

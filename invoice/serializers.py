@@ -167,7 +167,7 @@ class ProformaCreateSerializer(serializers.ModelSerializer):
                             setattr(existing_order, key, value)
                         updated_orders.append(existing_order)
                     else:
-                        new_orders.append(orderList(proforma_id=instance, **order))
+                        new_orders.append(orderList(proforma_id=instance.id, **order))
                 if updated_orders:
                     orderList.objects.bulk_update(updated_orders, fields=[  # Only update relevant fields
                     "category", "report_type", "country", "product", "from_month", "to_month",
