@@ -6,6 +6,8 @@ from django.http import FileResponse
 from django.db.models import Subquery, Max, F, Q
 from django.conf import settings
 from django.db import transaction, IntegrityError
+from django.utils import timezone
+from django.conf import settings
 
 # Import from  app models, utils
 from .models import leads, contactPerson, Conversation, conversationDetails
@@ -24,6 +26,7 @@ from django.utils.timezone import now
 
 from rest_framework import status
 from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .serializers import *
@@ -289,7 +292,7 @@ class dealActivityView(APIView):
             if data.get("follow_up") == "":
                 data["follow_up"] = None
 
-            print(data)
+            # print(data)
 
             serializer = ConversationDetailsSerializer(data=data)
 
@@ -308,14 +311,18 @@ class InboundLeadGetView(APIView):
         "https://besmartexim.com",
         "https://bedatos.com",
         "https://www.bedatos.com",
-        "http://192.168.3.98:8000",
+        "https://marketing.bedatos.com",
         "http://localhost:3000",  # if testing locally
     ]
 
     def post(self, request):
         try:
             origin = request.headers.get("Origin") or request.headers.get("Referer")
-            print(origin)
+            api_key = request.headers.get("X-API-KEY")
+            
+            if api_key != settings.WEBHOOK_SECRET_KEY:
+                return Response({"error": "Invalid API key"}, status=status.HTTP_403_FORBIDDEN)
+
             if origin and not any(
                 origin.startswith(allowed) for allowed in self.allowed_origins
             ):
@@ -325,6 +332,7 @@ class InboundLeadGetView(APIView):
                 )
             data = request.data
             data["source"] = origin
+
             serializer = InboundLeadSerializer(data=data)
             if serializer.is_valid():
                 serializer.save()
@@ -335,6 +343,104 @@ class InboundLeadGetView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class InboundLeadView(ModelViewSet):
+    queryset = InboundLeads.objects.all().order_by("-created_at")
+    serializer_class = InboundLeadSerializer
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+
+        try:
+
+            user = request.user
+            branch = user.profile.branch.id
+
+            current_position = get_current_position(user.profile)
+
+            queryset = self.get_queryset()
+
+            queryset = queryset.filter(branch=branch)
+
+            if not current_position in ["Head", "VP"] or user.role != "admin":
+                queryset = queryset.filter(assigned_to=user.id)
+
+            serializer = self.get_serializer(queryset, many=True)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+
+        try:
+
+            instance = self.get_object()
+
+            user = request.user
+            data = request.data.copy()
+
+            data["assigned_by"] = user.id
+
+            serializer = self.get_serializer(instance, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {"detail": "Delete not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {"detail": "Create not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+
+class DealFollowUpViews(ModelViewSet):
+    queryset = Conversation.objects.all().order_by("start_at")
+    serializer_class = ConversationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        try:
+            today = timezone.now().date()
+
+            last_updates = (
+                conversationDetails.objects.values("chat_no")
+                .annotate(last_inserted=Max("inserted_at"))
+                .values("last_inserted")  # Subquery output must match field type
+            )
+
+            queryset = self.get_queryset()
+
+            follow_up_date = request.GET.get("follow-up", today)
+            queryset = queryset.filter(
+                company_id__user=request.user.id,
+                conversationdetails__inserted_at__in=Subquery(last_updates),
+                conversationdetails__follow_up=follow_up_date,
+            ).distinct()
+
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {"detail": "Delete not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {"detail": "Create not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
 
 @login_required(login_url="app:login")

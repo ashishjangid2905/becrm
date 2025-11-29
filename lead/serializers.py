@@ -42,9 +42,13 @@ class ConversationDetailsSerializer(serializers.ModelSerializer):
 
 class ConversationSerializer(serializers.ModelSerializer):
     # conversationdetails = ConversationDetailsSerializer(many=True)
+    company_name = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model = Conversation
-        fields = ['id', 'title', 'company_id','start_at']
+        fields = ['id', 'title', 'company_id', 'company_name','start_at']
+
+    def get_company_name(self, obj):
+        return obj.company_id.company_name
 
 
 class InboundLeadSerializer(serializers.ModelSerializer):

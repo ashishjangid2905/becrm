@@ -67,9 +67,8 @@ class Home(APIView):
 
         profile_instance = get_object_or_404(Profile, user=request.user)
         all_users = User.objects.filter(
-                profile__branch=profile_instance.branch
-            ).values_list("id", flat=True)
-        
+            profile__branch=profile_instance.branch
+        ).values_list("id", flat=True)
 
         fy = current_fy()
         start_date = dt(int(fy.split("-")[0]), 4, 1).date()
@@ -77,32 +76,66 @@ class Home(APIView):
 
         query = """
                     SELECT
-	                    p.user_id,
-	                    p.user_name,
-	                    FORMAT(p.closed_at, 'yyyy-MM') AS closed_month,
+                        p.user_id,
+                        p.user_name,
+                        p.status,
+                        CASE
+                            WHEN p.closed_at IS NULL THEN FORMAT(p.pi_date, 'yyyy-MM') 
+                            ELSE FORMAT(p.closed_at, 'yyyy-MM') 
+                        END AS pi_month,
                         COUNT(p.pi_no) AS total_pi,
-	                    SUM(s.total_amount_in_inr) AS total_sale,
-	                    SUM(s.online_sale) AS total_online_sale,
-	                    SUM(s.offline_sale) AS total_offline_sale,
-	                    SUM(s.other_sale) AS total_other_sale
+                        SUM(s.total_amount_in_inr) AS total_sale,
+                        SUM(s.online_sale) AS total_online_sale,
+                        SUM(s.offline_sale) AS total_offline_sale,
+                        SUM(s.other_sale) AS total_other_sale
                     FROM
-                    	Proforma_Invoice p
+                        Proforma_Invoice p
                     JOIN
-                    	PiSummary s on p.id = s.proforma_id
+                        PiSummary s on p.id = s.proforma_id
                     WHERE
-                    	p.closed_at IS NOT NULL AND p.is_Approved = 1 AND p.status = 'closed' AND p.closed_at BETWEEN %s AND %s AND p.user_id IN ({user_ids})
+                    	CASE
+                            WHEN p.closed_at IS NULL THEN p.pi_date 
+                            ELSE p.closed_at
+                        END BETWEEN %s AND %s AND p.user_id IN ({user_ids})
                     GROUP BY
-                    	p.user_id, p.user_name, FORMAT(p.closed_at, 'yyyy-MM')
+                        p.user_id, p.user_name, 
+                        CASE
+                            WHEN p.closed_at IS NULL THEN FORMAT(p.pi_date, 'yyyy-MM') 
+                            ELSE FORMAT(p.closed_at, 'yyyy-MM') 
+                        END, p.status
                     ORDER BY
-                    	closed_month, p.user_id
-               """.format(user_ids=",".join(str(u) for u in all_users))
+                        pi_month, p.user_id
+               """.format(
+            user_ids=",".join(str(u) for u in all_users)
+        )
+
+        total_clients_query = """
+                            SELECT
+                                l.[user] AS user_id,
+                                COUNT(*) AS clients 
+                            FROM Leads l
+                            WHERE l.[user] IS NOT NULL
+                                AND EXISTS (
+                                    SELECT 1
+                                    FROM Proforma_Invoice p
+                                    WHERE p.company_ref_id = l.id
+                                        AND p.status = 'closed'
+                                        AND p.[user_id] = l.[user]
+                                )
+                            GROUP BY l.[user]
+                        """
 
         with connections["leads_db"].cursor() as cursor:
-            cursor.execute(query,[start_date, end_date])
+            cursor.execute(query, [start_date, end_date])
 
             columns = [col[0] for col in cursor.description]
-            result = [dict(zip(columns, row)) for row in cursor.fetchall()]
-        return Response(result, status=status.HTTP_200_OK)
+            pi_summery = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+            cursor.execute(total_clients_query)
+            columns = [col[0] for col in cursor.description]
+            total_clients = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            
+        return Response({"result":pi_summery, "total_clients":total_clients}, status=status.HTTP_200_OK)
 
 
 @login_required(login_url="app:login")

@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from lead.models import leads
 from teams.models import User
-from .utils import STATUS_CHOICES, REPORT_FORMAT, ORDER_STATUS, PAYMENT_STATUS
+from .utils import STATUS_CHOICES, REPORT_FORMAT, ORDER_STATUS, PAYMENT_STATUS, RENEWAL_CHOICES
 from billers.models import *
 
 # Create your models here.
@@ -46,6 +46,7 @@ class proforma(models.Model):
     approved_at = models.DateTimeField(_("Approved At"), blank=True, null=True)
     status = models.CharField(_("Status"), max_length=50, default='open', choices=STATUS_CHOICES)
     closed_at = models.DateField(_("Closing Date"), auto_now=False, auto_now_add=False, null=True, blank=True)
+    renewal_status = models.CharField(_("renewal status"), max_length=20, default="pending", choices=RENEWAL_CHOICES)
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     edited_by = models.IntegerField(_("Edited By"), blank=True, null=True)
     edited_at = models.DateTimeField(_("Edited At"), auto_now=True)

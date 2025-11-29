@@ -6,6 +6,7 @@ from . import views
 app_name = 'invoice'
 urlpatterns = [
     path('proforma/list', views.ProformaView.as_view()),
+    path('proforma/renewals', views.RenewalPIView.as_view()),
     path('proforma/create', views.ProformaCreateUpdateView.as_view()),
     path('proforma/<slug:slug>', views.ProformaCreateUpdateView.as_view()),
     path('proforma/update/<slug:slug>', views.ProformaCreateUpdateView.as_view()),

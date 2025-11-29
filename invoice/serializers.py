@@ -185,3 +185,9 @@ class ProformaCreateSerializer(serializers.ModelSerializer):
         return instance
 
         
+# class ProformaRenewSerializer(serializers.ModelSerializer):
+#     canRenew = serializers.BooleanField(read_only=True)
+
+#     class Meta:
+#         model = proforma
+#         fields = ["id", "pi_no", "company_name", "canRenew"]

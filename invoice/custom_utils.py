@@ -297,7 +297,7 @@ def calculate_summery(pi):
             cgst_rate = sgst_rate = 0
             igst_rate = 18
         if pi.currency == "usd":
-            exchange_rate = 85.00
+            exchange_rate = 88.00
 
     return {
         "subtotal": Decimal(subtotal),

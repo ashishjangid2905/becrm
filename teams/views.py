@@ -41,16 +41,6 @@ class UserListDashboardView(APIView):
         users = User.objects.filter(profile__branch=branch_id).order_by("first_name")
         current_position = get_current_position(profile_instance)
 
-        # user_exclusion = {
-        #     "Head": {"Head"},
-        #     "VP": {"Head", "VP"},
-        #     "Sr. Executive": {"Head", "VP", "Sr. Executive"},
-        # }
-
-        # if request.user.role != "admin":
-        #     if current_position in user_exclusion:
-        #         users = users.exclude(groups__name__in=user_exclusion[current_position])
-
         serializers = UserListSerializer(users, many=True, context={"request": request})
         return Response(serializers.data)
 

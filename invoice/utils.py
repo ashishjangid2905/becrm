@@ -30,6 +30,12 @@ PAYMENT_TERM = [
     ("credit", _("CREDIT")),
 ]
 
+RENEWAL_CHOICES = [
+    ("pending", _("Pending")),
+    ("renewed", _("Renewed")),
+    ("renew_cancel", _("Renew Cancel")),
+]
+
 CATEGORY = [
     ("offline", _("BE TRADE PUBLICATIONS")),
     ("online", _("beDATOS PORTAL")),

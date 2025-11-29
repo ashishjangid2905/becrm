@@ -18,9 +18,9 @@ urlpatterns = [
     path('deal/activity/<int:id>', views.dealActivityView.as_view()),
     path('deal/insert/note/<int:id>', views.dealActivityView.as_view()),
 
+    path('follow-up', views.DealFollowUpViews.as_view({'get':'list'})),
     path('subscribe/website', views.InboundLeadGetView.as_view()),
 
-    path('follow-up', views.follow_ups, name='follow_ups'),
     path('upload-lead', views.upload_Leads, name='upload_Leads'),
     path('download-template', views.download_template, name='download_template'),
     # path('export', views.exportlead, name='export_lead'),

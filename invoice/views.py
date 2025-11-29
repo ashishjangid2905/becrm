@@ -2,7 +2,9 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Q, F
+from django.db.models.functions import Substr, Cast
+from django.db.models import Value, Max, Case, When, BooleanField, IntegerField
 from django.utils import timezone
 from django.core.mail import EmailMultiAlternatives
 
@@ -161,13 +163,17 @@ class ProformaView(DynamicPiFilterMixin, ListAPIView):
 
         # base queryset: Proforma Invoices for currect user with related objects
         if request.GET.get("companyRef", None):
-            queryset = (proforma.objects.all()
-                        .prefetch_related("processedorders", "orderlist")
-                        .select_related("convertedpi", "summary"))
+            queryset = (
+                proforma.objects.all()
+                .prefetch_related("processedorders", "orderlist")
+                .select_related("convertedpi", "summary")
+            )
         else:
-            queryset = (proforma.objects.filter(user_id=request.user.id)
-                        .select_related("convertedpi", "summary")
-                        .prefetch_related("orderlist", "processedorders"))
+            queryset = (
+                proforma.objects.filter(user_id=request.user.id)
+                .select_related("convertedpi", "summary")
+                .prefetch_related("orderlist", "processedorders")
+            )
 
         # Fiscal year query
         fy = request.GET.get("fy", current_fy())
@@ -229,6 +235,11 @@ class ProformaCreateUpdateView(APIView, ProformaMixin):
             return Response(
                 {"error": "Proforma not found"}, status=status.HTTP_404_NOT_FOUND
             )
+
+        data = request.data
+
+        if not data["po_no"]:
+            data["po_date"] = None
 
         serializer = ProformaCreateSerializer(instance, data=request.data)
         if serializer.is_valid():
@@ -782,7 +793,10 @@ class ProcessedPIUpdateListView(
             convertedPiInstance = get_object_or_404(convertedPI, pi_id=pi_instance)
             data = request.data.pop("processedorders")
             if not data:
-                return Response({"message": "No processed orders provided"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"message": "No processed orders provided"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             if (
                 pi_instance.status != "closed"
@@ -808,27 +822,81 @@ class ProcessedPIUpdateListView(
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# @login_required(login_url="app:login")
-# def biller_list(request):
-#     billers = Biller.objects.all()
+class RenewalPIView(ListAPIView):
+    serializer_class = ProformaSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = PiPagination
 
-#     profile_instance = get_object_or_404(Profile, user=request.user)
-#     user_branch = profile_instance.branch
+    # Important: DO NOT USE PiFilters (causes get_object issues)
+    filterset_class = PiFilters
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    ordering_fields = ["pi_no", "company_name"]  # optional
+    search_fields = ["pi_no", "company_name"]  # optional
 
-#     all_users = User.objects.filter(profile__branch=user_branch)
+    def get_queryset(self):
 
-#     all_users_id = []
+        request = self.request
 
-#     for user in all_users:
-#         all_users_id.append(user.id)
+        user = request.user
 
-#     billers = billers.filter(inserted_by__in=all_users_id)
+        curr_month = timezone.now().month
+        curr_year = timezone.now().year
 
-#     context = {
-#         "billers": billers,
-#     }
-#     return render(request, "invoices/biller-list.html", context)
+        curr_index = curr_year * 12 + curr_month
 
+        queryset = (
+            proforma.objects.annotate(
+                from_year_int=Cast(
+                    Substr("processedorders__from_month", 1, 4), IntegerField()
+                ),
+                from_mon_int=Cast(
+                    Substr("processedorders__from_month", 6, 2), IntegerField()
+                ),
+                to_year_int=Cast(
+                    Substr("processedorders__to_month", 1, 4), IntegerField()
+                ),
+                to_mon_int=Cast(
+                    Substr("processedorders__to_month", 6, 2), IntegerField()
+                ),
+                from_index=F("from_year_int") * 12 + F("from_mon_int"),
+                to_index=F("to_year_int") * 12 + F("to_mon_int"),
+                month_diff=F("to_index") - F("from_index"),
+                # Boolean → INTEGER (SQL Server safe)
+                order_can_renew_int=Case(
+                    When(month_diff__gte=6, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+            )
+            .annotate(max_order_can_renew=Max("order_can_renew_int"))
+            .annotate(
+                canRenew=Case(
+                    When(max_order_can_renew=1, then=Value(True)),
+                    default=Value(False),
+                    output_field=BooleanField(),
+                )
+            )
+            .distinct()
+        )
+
+        queryset = queryset.annotate(
+            remaining_month=curr_index - F("to_index")
+        ).filter(
+            canRenew=True,
+            status="closed",
+            renewal_status = 'pending',
+            remaining_month__gte=0,
+            remaining_month__lte=6,
+        )
+
+        if user.role != "admin":
+            queryset = queryset.filter(user_id=user.id)
+
+        return queryset
+
+
+class EmailView(APIView):
+    pass
 
 # @login_required(login_url="app:login")
 # def email_form(request, pi):
