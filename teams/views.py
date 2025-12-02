@@ -38,7 +38,7 @@ class UserListDashboardView(APIView):
     def get(self, request):
         profile_instance = get_object_or_404(Profile, user=request.user)
         branch_id = profile_instance.branch
-        users = User.objects.filter(profile__branch=branch_id).order_by("first_name")
+        users = User.objects.filter(profile__branch=branch_id, is_active=True).order_by("first_name")
         current_position = get_current_position(profile_instance)
 
         serializers = UserListSerializer(users, many=True, context={"request": request})

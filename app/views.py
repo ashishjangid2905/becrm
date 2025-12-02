@@ -96,7 +96,7 @@ class Home(APIView):
                     	CASE
                             WHEN p.closed_at IS NULL THEN p.pi_date 
                             ELSE p.closed_at
-                        END BETWEEN %s AND %s AND p.user_id IN ({user_ids})
+                        END BETWEEN %s AND %s AND p.branch = ({branch})
                     GROUP BY
                         p.user_id, p.user_name, 
                         CASE
@@ -105,16 +105,14 @@ class Home(APIView):
                         END, p.status
                     ORDER BY
                         pi_month, p.user_id
-               """.format(
-            user_ids=",".join(str(u) for u in all_users)
-        )
+               """.format(branch=profile_instance.branch.id)
 
         total_clients_query = """
                             SELECT
                                 l.[user] AS user_id,
                                 COUNT(*) AS clients 
                             FROM Leads l
-                            WHERE l.[user] IS NOT NULL
+                            WHERE l.[user] IS NOT NULL AND l.[branch] = ({branch})
                                 AND EXISTS (
                                     SELECT 1
                                     FROM Proforma_Invoice p
@@ -123,7 +121,7 @@ class Home(APIView):
                                         AND p.[user_id] = l.[user]
                                 )
                             GROUP BY l.[user]
-                        """
+                        """.format(branch=profile_instance.branch.id)
 
         with connections["leads_db"].cursor() as cursor:
             cursor.execute(query, [start_date, end_date])

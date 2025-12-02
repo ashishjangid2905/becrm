@@ -287,7 +287,7 @@ def calculate_summery(pi):
     if not pi.bank.biller.biller_gstin or pi.is_sez:
         cgst_rate = sgst_rate = igst_rate = 0
     else:
-        state_code = str(pi.state)
+        state_code = str(pi.state).zfill(2)
         biller_state_code = pi.bank.biller.biller_gstin[0:2]
         if state_code == biller_state_code:
             cgst_rate, sgst_rate, igst_rate = 9, 9, 0

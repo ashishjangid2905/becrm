@@ -231,6 +231,7 @@ CSRF_TRUSTED_ORIGINS = ['http://188.40.197.4', 'http://localhost', 'http://127.0
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "content-disposition",
+    "x-api-key"
 ]
 
 CORS_EXPOSE_HEADERS = [

@@ -839,6 +839,8 @@ class RenewalPIView(ListAPIView):
 
         user = request.user
 
+        branch = user.profile.branch.id
+
         curr_month = timezone.now().month
         curr_year = timezone.now().year
 
@@ -887,6 +889,7 @@ class RenewalPIView(ListAPIView):
             renewal_status = 'pending',
             remaining_month__gte=0,
             remaining_month__lte=6,
+            branch=branch
         )
 
         if user.role != "admin":
