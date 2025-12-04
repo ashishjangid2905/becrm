@@ -18,6 +18,8 @@ from .utils import (
 )
 from invoice.models import *
 from billers.models import *
+from a_core.utils import get_label
+
 from decimal import Decimal
 
 # Import from third party modules
@@ -39,6 +41,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib import colors
+from reportlab.lib.utils import ImageReader
 
 # pypdf for read and write
 from pypdf import PdfReader, PdfWriter
@@ -738,7 +741,7 @@ def pdf_PI(pi_id, is_invoice):
     regAddress = Paragraph(f"<b>Reg. Office: </b><font>{reg_address}</font>", font_xs)
     gstin_text = (
         f"<b>GSTIN: </b><font>{pi.bank.biller.biller_gstin}</font>"
-        if corp_address
+        if pi.bank.biller.biller_gstin
         else ""
     )
 
@@ -971,8 +974,9 @@ def pdf_PI(pi_id, is_invoice):
 
     for order in filter_by_lumpsum(orders, True):
         if order.is_lumpsum:
-            cat = dict(CATEGORY).get(str(order.category))
-            report = dict(REPORT_TYPE).get(str(order.report_type))
+            cat = get_label(pi.branch,"CATEGORY",order.category)
+            # cat = dict(CATEGORY).get(str(order.category))
+            report = get_label(pi.branch,"REPORT_TYPE",order.report_type)
             country = order.country if order.country else ""
             product = order.product
             from_month = dt.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
@@ -1025,14 +1029,14 @@ def pdf_PI(pi_id, is_invoice):
         lumpsumRow += 2
 
     for order in filter_by_lumpsum(orders, False):
-        cat = dict(CATEGORY).get(str(order.category))
-        report = dict(REPORT_TYPE).get(str(order.report_type))
+        cat = get_label(pi.branch,"CATEGORY",order.category)
+        report = get_label(pi.branch,"REPORT_TYPE",order.report_type)
         country = order.country if order.country else ""
         product = order.product
         from_month = dt.strptime(order.from_month, "%Y-%m").strftime("%b'%y")
         to_month = dt.strptime(order.to_month, "%Y-%m").strftime("%b'%y")
 
-        period = f"{from_month} - {to_month}"
+        period = f"{from_month} - {to_month}" if from_month != to_month else from_month
 
         # unitPrice = f"{curr} {order.unit_price}"
         totalPrice = f"{order.total_price:.2f}"
@@ -1257,7 +1261,7 @@ def pdf_PI(pi_id, is_invoice):
         contact_H_width = canvas.stringWidth(" | Contact: ", "Montserrat-Medium", 9)
         contact_width = canvas.stringWidth(f"{pi.user_contact}", "Montserrat-Bold", 9)
         web_H_width = canvas.stringWidth(" | Website: ", "Montserrat-Medium", 9)
-        web_width = canvas.stringWidth("www.besmartexim.com", "Montserrat-Bold", 9)
+        web_width = canvas.stringWidth(f"{get_biller_variable(pi.bank.biller, "website")}", "Montserrat-Bold", 9)
 
         start_point = (
             295
@@ -1295,7 +1299,7 @@ def pdf_PI(pi_id, is_invoice):
             + contact_width
             + web_H_width,
             50,
-            "www.besmartexim.com",
+            f"{get_biller_variable(pi.bank.biller, "website")}",
         )
 
         canvas.setFont("Montserrat-Regular", 7)
@@ -1314,10 +1318,13 @@ def pdf_PI(pi_id, is_invoice):
         canvas.setFont("Montserrat-Medium", 11)
         canvas.setFillColor(colors.HexColor("#ffffff"))
         canvas.drawString(50, 780, "Kindly pay in favor of")
+
         if pi.bank.is_upi:
+            qr_image = ImageReader(pi.bank.upi_qr.file)
             canvas.drawRightString(145, 740, "Holder Name: ")
             canvas.drawRightString(145, 725, "UPI ID.: ")
             canvas.drawRightString(145, 710, "UPI No.: ")
+            canvas.drawImage(qr_image, 380, 650, width=150, height=150, preserveAspectRatio=True)
         else:
             canvas.drawRightString(145, 740, "Bank Name: ")
             canvas.drawRightString(145, 725, "A/C No.: ")

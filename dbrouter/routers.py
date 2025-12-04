@@ -60,7 +60,7 @@ class LeadRouter:
 
     # Immutable sets of app labels
     LEADS_APPS = frozenset(["lead", "invoice", "billers"])
-    DEFAULT_APPS = frozenset(["auth", "contenttypes", "admin", "sessions", "teams", "sample", "app", "notification"])
+    DEFAULT_APPS = frozenset(["auth", "contenttypes", "admin", "sessions", "teams", "sample", "app", "notification", "a_core"])
 
     # ------------------------------
     # DB for read

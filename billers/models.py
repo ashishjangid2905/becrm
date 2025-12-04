@@ -101,11 +101,23 @@ class BankDetail(models.Model):
     inserted_by = models.IntegerField(_("Inserted By"))
     branch = models.IntegerField(_("branch"), blank=True, null=True)
 
+    upi_qr = models.ImageField(_("upi qr"), upload_to=f"upi_qr_code/", blank=True, null=True)
+
     class Meta:
         verbose_name = _("Bank")
         verbose_name_plural = _("Banks")
         db_table = "Bank_List"
-        unique_together = ('bnf_name', 'bank_name', 'ac_no', 'upi_id', 'upi_no')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['bnf_name', 'bank_name', 'ac_no', 'upi_id', 'upi_no', 'branch'],
+                name="unique_bnf_bank_ac_upi_id_no_branch"
+            )
+        ]
 
     def __str__(self):
         return f'{self.bank_name} - {self.bnf_name}'
+    
+    def get_upi_uri(self):
+        if not self.upi_id:
+            return None
+        return f"upi://pay?pa={self.upi_id}&pn={self.bnf_name}&cu=INR"

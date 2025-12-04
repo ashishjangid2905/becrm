@@ -5,6 +5,7 @@ VARIABLES = [
     ("pi_format", _("PI Format")),
     ("invoice_tag", _("Invoice Tag")),
     ("invoice_format", _("Invoice Format")),
+    ("website", _("Website")),
 ]
 
 FORMAT = [

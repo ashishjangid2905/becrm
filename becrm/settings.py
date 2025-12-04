@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'billers',
     'invoice',
     'notification',
+    'a_core',
     'django_session_timeout',
 ]
 
