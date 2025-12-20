@@ -1179,20 +1179,22 @@ def pdf_PI(pi_id, is_invoice):
         # Set font color for the tax strings
         canvas.drawRightString(440, 245, f"AMOUNT:")
         canvas.drawRightString(530, 245, f"{curr} {net_total:.2f}")
-        canvas.drawRightString(440, 230, f"IGST (18%):")
-        canvas.drawRightString(530, 230, f"{curr} {igst:.2f}")
-        canvas.drawRightString(440, 215, f"CGST (9%):") # Use different y-coordinates
-        canvas.drawRightString(530, 215, f"{curr} {cgst:.2f}") # Use different y-coordinates
-        canvas.drawRightString(440, 200, f"SGST (9%):") # Use different y-coordinates
-        canvas.drawRightString(530, 200, f"{curr} {sgst:.2f}") # Use different y-coordinates
 
-        canvas.setFont("Quicksand-Medium", 8)
-        canvas.drawRightString(
-            440, 188, "rounded off (+/-):"
-        )  # Use different y-coordinates
-        canvas.drawRightString(
-            530, 188, f"{curr} {roundOff:.2f}"
-        )  # Use different y-coordinates
+        if pi.bank.biller.biller_gstin:
+            canvas.drawRightString(440, 230, f"IGST (18%):")
+            canvas.drawRightString(530, 230, f"{curr} {igst:.2f}")
+            canvas.drawRightString(440, 215, f"CGST (9%):") # Use different y-coordinates
+            canvas.drawRightString(530, 215, f"{curr} {cgst:.2f}") # Use different y-coordinates
+            canvas.drawRightString(440, 200, f"SGST (9%):") # Use different y-coordinates
+            canvas.drawRightString(530, 200, f"{curr} {sgst:.2f}") # Use different y-coordinates
+
+            canvas.setFont("Quicksand-Medium", 8)
+            canvas.drawRightString(
+                440, 188, "rounded off (+/-):"
+            )  # Use different y-coordinates
+            canvas.drawRightString(
+                530, 188, f"{curr} {roundOff:.2f}"
+            )  # Use different y-coordinates
         canvas.setFont("Quicksand-Bold", 12)
         canvas.drawRightString(440, 173, f"TOTAL:")  # Use different y-coordinates
         canvas.drawRightString(
@@ -1235,11 +1237,13 @@ def pdf_PI(pi_id, is_invoice):
         canvas.setFillColor(
             colors.HexColor("#3182d9")
         )  # Set the font color to a shade of blue
-        canvas.drawRightString(
-            540, 145, "Whether Tax is payable under REVERSE CHARGE: "
-        )  # Use different y-coordinates
-        canvas.setFont("Montserrat-Bold", 10)
-        canvas.drawRightString(560, 145, "NO")  # Use different y-coordinates
+
+        if pi.bank.biller.biller_gstin:
+            canvas.drawRightString(
+                540, 145, "Whether Tax is payable under REVERSE CHARGE: "
+            )  # Use different y-coordinates
+            canvas.setFont("Montserrat-Bold", 10)
+            canvas.drawRightString(560, 145, "NO")  # Use different y-coordinates
 
         canvas.setFillColor(
             colors.HexColor("#ffffff")
@@ -1389,12 +1393,13 @@ def pdf_PI(pi_id, is_invoice):
         canvas.setFillColor(colors.HexColor("#545454"))
         canvas.circle(50, 553, 2, stroke=1, fill=1)
         canvas.drawString(55, 550, f"PAN: {pi.bank.biller.biller_pan}")
-        canvas.circle(50, 533, 2, stroke=1, fill=1)
-        canvas.drawString(
+        if pi.bank.biller.biller_msme:
+            canvas.circle(50, 533, 2, stroke=1, fill=1)
+            canvas.drawString(
             55,
             530,
-            f"Udyam Registration Number: {pi.bank.biller.biller_msme if pi.bank.biller.biller_msme else 'N/A' }",
-        )
+            f"Udyam Registration Number: {pi.bank.biller.biller_msme }",
+            )
 
         canvas.setFont("Montserrat-Regular", 9)
         canvas.setFillColor(colors.HexColor("#3182d9"))
@@ -1410,14 +1415,17 @@ def pdf_PI(pi_id, is_invoice):
             440,
             "Any changes in the order will attract cost once order is sent based on PI approval by the client",
         )
-        canvas.circle(50, 423, 2, stroke=1, fill=1)
-        canvas.drawString(55, 420, f"18% GST will be applicable for all transactions")
-        canvas.circle(50, 403, 2, stroke=1, fill=1)
-        canvas.drawString(
+
+        if pi.bank.biller.biller_gstin:
+            canvas.circle(50, 423, 2, stroke=1, fill=1)
+            canvas.drawString(55, 420, f"18% GST will be applicable for all transactions")
+        if pi.branch == 1 and pi.bank.biller.biller_gstin:
+            canvas.circle(50, 403, 2, stroke=1, fill=1)
+            canvas.drawString(
             55,
             400,
             f"E-Invoice is applicable w.e.f. 1st August 2023 and hence once filed, no changes cannot be made after 24 hrs.",
-        )
+            )
 
     elements = []
     elements.append(table)

@@ -286,7 +286,7 @@ class ProformaCreateUpdateView(APIView, ProformaMixin):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-            serializer.save(approved_by=request.user.id, partial=True)
+            serializer.save(approved_by=request.user.id, approved_at=timezone.now(), partial=True)
             result = ProformaSerializer(instance)
             return Response(result.data, status=status.HTTP_200_OK)
         elif "status" in data:
@@ -812,7 +812,7 @@ class ProcessedPIUpdateListView(
             serializer.save(pi_id=pi_instance)
             if convertedPiInstance:
                 convertedPiInstance.is_processed = True
-                convertedPiInstance.processed_at = timezone.now().date()
+                convertedPiInstance.processed_at = timezone.now()
                 convertedPiInstance.save()
             result = ProformaSerializer(pi_instance)
             return Response(result.data, status=status.HTTP_201_CREATED)

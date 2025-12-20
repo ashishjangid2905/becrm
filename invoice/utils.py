@@ -13,6 +13,7 @@ FORMAT = [
     ("{py}-{fy}/{tag}-{num:04d}", _("23-24/tag-0001")),
     ("{tag}/{py}-{fy}/{num:04d}", _("tag/23-24/0001")),
     ("{tag}-{num:04d}/{py}-{fy}", _("tag-0001/23-24")),
+    ("TI/{tag}-{num:04d}/{py}-{fy}", _("TI/tag-0001/23-24")),
 ]
 
 STATUS_CHOICES = [
@@ -58,6 +59,7 @@ REPORT_FORMAT = [
     ("monthly", _("Monthly")),
     ("weekly", _("weekly")),
     ("10 days", _("10 Days")),
+    ("10 days_incoterm", _("10 Days (Incoterms)")),
     ("sez", _("SEZ")),
     ("sez_with_incoterm", _("SEZ (Incoterms)")),
     ("incoterm", _("Incoterm")),
