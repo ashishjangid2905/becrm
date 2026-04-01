@@ -4,8 +4,6 @@ from .views import *
 
 router = routers.SimpleRouter()
 
-router.register(r"labels", BranchLabelViewset)
+router.register(r"labels", BranchLabelViewset, basename="branch-label")
 
-urlpatterns = [
-    path("", include(router.urls))
-]
+urlpatterns = [path("", include(router.urls))]

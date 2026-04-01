@@ -20,14 +20,20 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from teams.serializers import MyTokenObtainPairSerializer
+from teams.views import CookieTokenObtainPairView, CookieTokenRefreshView, CookieLogoutView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+
+    path('api/auth/login/', CookieTokenObtainPairView.as_view(), name='cookie_token_obtain_pair'),
+    path('api/auth/refresh/', CookieTokenRefreshView.as_view(), name='cookie_token_refresh'),
+    path('api/auth/logout/', CookieLogoutView.as_view(), name='cookie_logout'),
+    
     path('api/', include('app.urls')),
-    path('api/core', include('a_core.urls')),
+    path('api/core/', include('a_core.urls')),
     path('api/user/', include('teams.urls')),
     path('api/sample/', include('sample.urls')),
     path('api/lead/', include('lead.urls')),

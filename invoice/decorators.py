@@ -4,9 +4,7 @@ from teams.models import Profile
 from teams.templatetags.teams_custom_filters import get_current_position
 
 def can_approve_proforma(user):
-        
     try:
-
         user_profile = get_object_or_404(Profile, user = user)
         current_position = get_current_position(user_profile)
 

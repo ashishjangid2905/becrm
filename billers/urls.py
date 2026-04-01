@@ -13,8 +13,3 @@ urlpatterns = [
     path('<int:biller_id>/bank/<int:pk>', BankListCreateUpdateView.as_view()),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-
-# custom handlers
-
-handler404 = 'app.views.custom_page_not_found'

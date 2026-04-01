@@ -1,5 +1,6 @@
 from django.utils.translation import gettext_lazy as _
 from .models import *
+import re
 
 DEFAULT_LABELS = {
     "CATEGORY": [
@@ -24,3 +25,7 @@ def get_label(branch, group, key_value):
         return label.label
 
     return dict(DEFAULT_LABELS[group]).get(key_value, key_value)
+
+
+def safe_filename(name):
+    return re.sub(r'[\\/*?:"<>|]',"_", str(name))

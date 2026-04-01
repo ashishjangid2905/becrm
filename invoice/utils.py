@@ -37,6 +37,12 @@ RENEWAL_CHOICES = [
     ("renew_cancel", _("Renew Cancel")),
 ]
 
+APPROVAL_CHOICES = [
+    ("pending", _("Pending")),
+    ("approved", _("Approved")),
+    ("feedback", _("Feedback")),
+]
+
 CATEGORY = [
     ("offline", _("BE TRADE PUBLICATIONS")),
     ("online", _("beDATOS PORTAL")),
@@ -56,11 +62,12 @@ REPORTS = [
 
 REPORT_FORMAT = [
     ("monthly", _("Monthly")),
+    ("incoterm", _("Monthly (Incoterm)")),
     ("weekly", _("weekly")),
     ("10 days", _("10 Days")),
+    ("10 days_incoterm", _("10 Days (incoterms)")),
     ("sez", _("SEZ")),
     ("sez_with_incoterm", _("SEZ (Incoterms)")),
-    ("incoterm", _("Incoterm")),
 ]
 
 

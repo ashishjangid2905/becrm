@@ -81,6 +81,7 @@ class UserListSerializer(serializers.ModelSerializer):
     profile_img = serializers.SerializerMethodField()
     position = serializers.SerializerMethodField()
     target = serializers.SerializerMethodField()
+    branch = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -100,6 +101,7 @@ class UserListSerializer(serializers.ModelSerializer):
             "profile_img",
             "position",
             "target",
+            "branch"
             
         ]
 
@@ -139,6 +141,9 @@ class UserListSerializer(serializers.ModelSerializer):
         target = get_current_target(obj.profile)
 
         return target
+    
+    def get_branch(self, obj):
+        return obj.profile.branch.id
 
 
 class UserSerializer(serializers.ModelSerializer):

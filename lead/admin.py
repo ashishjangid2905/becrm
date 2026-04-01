@@ -5,6 +5,7 @@ from .models import *
 
 class Leads(admin.ModelAdmin):
     list_display = ['id','company_name', 'city', 'state', 'country', 'created_at', 'edited_at']
+    search_fields = ['company_name', 'city', 'state', 'country']
 
 
 class ContactPerson(admin.ModelAdmin):

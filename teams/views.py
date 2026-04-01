@@ -11,15 +11,124 @@ from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.generics import UpdateAPIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import ValidationError
 from .permissions import IsAdminRole
 from .serializers import *
 
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.conf import settings
+
+
 User = get_user_model()
 
+
+class DebugTokenView(APIView):
+    permission_classes = [AllowAny]  # Make it public for debugging
+
+    def get(self, request):
+        # Inspect cookies
+        cookies = request.COOKIES
+
+        # Inspect user
+        user = request.user
+        if user.is_authenticated:
+            user_info = {
+                "id": user.id,
+                "username": getattr(user, "username", None),
+                "email": getattr(user, "email", None),
+            }
+        else:
+            user_info = "AnonymousUser"
+
+        return Response({
+            "cookies": cookies,
+            "user": str(user),
+            "user_info": user_info,
+        })
+
+
+class CookieTokenObtainPairView(TokenObtainPairView):
+
+    permission_classes = [AllowAny]
+
+    """
+    Login: returns access + refresh tokens in HttpOnly cookies
+    """
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+
+        data = response.data
+        access = data.get("access")
+        refresh = data.get("refresh")
+
+        if access:
+            response.set_cookie(
+                settings.ACCESS_TOKEN_NAME,
+                access,
+                httponly=True,
+                secure=settings.COOKIE_SECURE,
+                samesite=settings.COOKIE_SAMESITE,
+                max_age=3600,  # 1 hour
+            )
+
+        if refresh:
+            response.set_cookie(
+                settings.REFRESH_TOKEN_NAME,
+                refresh,
+                httponly=True,
+                secure=settings.COOKIE_SECURE,
+                samesite=settings.COOKIE_SAMESITE,
+                max_age=86400,  # 1 day
+            )
+
+        # print(response.data)
+        response.data = {"message": "Login successful"}
+
+        return response
+    
+
+class CookieTokenRefreshView(TokenRefreshView):
+    """
+    Refresh token from HttpOnly cookie and return new access token in cookie
+    """
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get(settings.REFRESH_TOKEN_NAME)
+
+        if refresh_token is None:
+            return Response({"error": "Refresh token missing"}, status=400)
+        
+        request.data["refresh"] = refresh_token
+        response = super().post(request, *args, **kwargs)
+        access = response.data.get("access")
+
+        if access:
+            response.set_cookie(
+                settings.ACCESS_TOKEN_NAME,
+                access,
+                httponly=True,
+                secure=settings.COOKIE_SECURE,
+                samesite=settings.COOKIE_SAMESITE,
+                max_age=3600,
+            )
+
+        response.data = {"message": "Token refreshed"}
+        return response
+    
+class CookieLogoutView(TokenRefreshView):
+    """
+    Logout: delete access & refresh cookies
+    """
+
+    def post(self, request, *args, **kwargs):
+        response = Response({"message": "Logged out successfully"}, status=200)
+
+        response.delete_cookie(settings.ACCESS_TOKEN_NAME)
+        response.delete_cookie(settings.REFRESH_TOKEN_NAME)
+
+        return response
 
 class UserDetailView(APIView):
     permission_classes = [IsAuthenticated]

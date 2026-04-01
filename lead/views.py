@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import FileResponse
 from django.db.models import Subquery, Max, F, Q
 from django.conf import settings
-from django.db import transaction, IntegrityError
+from django.db import transaction, IntegrityError, connections
 from django.utils import timezone
 from django.conf import settings
 
@@ -21,6 +21,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.styles import PatternFill, Font
 import logging
 from django.utils.timezone import now
+from urllib.parse import urlparse
 
 # Create your views here.
 
@@ -33,7 +34,10 @@ from .serializers import *
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter, SearchFilter
 from django_filters.rest_framework import FilterSet
+from django_filters import NumberFilter
 from django.db import IntegrityError, transaction
+
+logger = logging.getLogger(__name__)
 
 
 class BasePagination(PageNumberPagination):
@@ -43,6 +47,8 @@ class BasePagination(PageNumberPagination):
 
 
 class LeadsFilters(FilterSet):
+    user = NumberFilter(field_name="user")
+
     class Meta:
         model = leads
         fields = ["company_name", "gstin", "full_address", "industry"]
@@ -64,9 +70,14 @@ class lead_list(APIView):
 
     def get(self, request):
         try:
-            all_leads = leads.objects.filter(user=request.user.id).prefetch_related(
+            user = request.user
+            branch = user.profile.branch.id
+            all_leads = leads.objects.filter(branch=branch).prefetch_related(
                 "contactpersons"
             )
+            if request.user.role != "admin":
+                all_leads = all_leads.filter(user=user.id)
+
             search_query = request.GET.get("search", None)
             if search_query:
                 search_filter = SearchFilter()
@@ -131,11 +142,15 @@ class LeadListView(APIView):
 
     def get(self, request):
         try:
+            user = request.user
+            branch = user.profile.branch.id
             all_leads = (
-                leads.objects.filter(user=request.user.id)
+                leads.objects.filter(branch=branch)
                 .prefetch_related("contactpersons")
                 .order_by("company_name")
             )
+            if user.role != "admin":
+                all_leads = all_leads.filter(user=user.id)
 
             serializer = leadsSerializer(all_leads, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -152,7 +167,30 @@ class LeadView(APIView):
         try:
             lead = get_object_or_404(leads, pk=id)
             serializer = leadsSerializer(lead)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+
+            query = """
+                    SELECT 
+                        COUNT(p.pi_no) AS total_pi,
+                        SUM(s.total_amount_in_inr) AS total_sale,
+                        SUM(s.online_sale) AS total_online_sale,
+                        SUM(s.offline_sale) AS total_offline_sale,
+                        SUM(s.other_sale) AS total_other_sale
+                    FROM
+                        Proforma_Invoice p
+                    JOIN
+                        PiSummary s on p.id = s.proforma_id
+                    WHERE p.company_ref_id = %s
+                    """
+
+            with connections["leads_db"].cursor() as cursor:
+                cursor.execute(query, [id])
+                columns = [col[0] for col in cursor.description]
+                row = cursor.fetchone()
+                lead_summary = dict(zip(columns, row)) if row else {}
+
+            data = {"lead": serializer.data, "summary": lead_summary}
+
+            return Response(data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -307,31 +345,54 @@ class dealActivityView(APIView):
 
 class InboundLeadGetView(APIView):
     permission_classes = [AllowAny]
-    allowed_origins = [
-        "https://besmartexim.com",
-        "https://bedatos.com",
-        "https://www.bedatos.com",
-        "https://marketing.bedatos.com",
-        "http://localhost:3000",  # if testing locally
-    ]
+    allowed_origins = {
+        "besmartexim.com",
+        "bedatos.com",
+        "www.bedatos.com",
+        "marketing.bedatos.com",
+        "localhost",  # if testing locally
+    }
+
+    def get_hostname(self, origin):
+        if not origin:
+            return None
+        try:
+            parsed = urlparse(origin)
+            return parsed.hostname
+        except Exception:
+            return None
 
     def post(self, request):
         try:
-            origin = request.headers.get("Origin") or request.headers.get("Referer")
-            api_key = request.headers.get("X-API-KEY")
-            
-            if api_key != settings.WEBHOOK_SECRET_KEY:
-                return Response({"error": "Invalid API key"}, status=status.HTTP_403_FORBIDDEN)
+            origin = request.headers.get("Origin")
+            hostname = self.get_hostname(origin)
 
-            if origin and not any(
-                origin.startswith(allowed) for allowed in self.allowed_origins
-            ):
+            api_key = request.headers.get("X-API-KEY")
+
+            # ✅ API Key validation
+            if api_key != settings.WEBHOOK_SECRET_KEY:
+                return Response(
+                    {"error": "Invalid API key"}, status=status.HTTP_403_FORBIDDEN
+                )
+
+            # ✅ Origin validation
+            if hostname and hostname not in self.allowed_origins:
                 return Response(
                     {"error": "Unauthorized origin"},
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
-            data = request.data
-            data["source"] = origin
+
+            data = request.data.copy()
+
+            # ✅ Safe extraction
+            hs_code = data.pop("hs_code", "")
+            trade_type = data.pop("trade_type", "")
+            form_type = data.pop("form_type", "")
+            msg = data.get("message", "")
+
+            # ✅ Build fields safely
+            data["message"] = f"HS Code_{hs_code}_{trade_type}: {msg}"
+            data["source"] = f"{hostname or 'unknown'}//{form_type}"
 
             serializer = InboundLeadSerializer(data=data)
             if serializer.is_valid():
@@ -342,7 +403,11 @@ class InboundLeadGetView(APIView):
                 )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            logger.exception("Inbound lead error")
+            return Response(
+                {"error": "Something went wrong"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class InboundLeadView(ModelViewSet):

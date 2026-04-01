@@ -25,6 +25,7 @@ from .custom_utils import (
     exportInvoicelist,
     pdf_PI,
 )
+from .services import handle_proforma_approval, handle_proforma_status_change
 
 from .mixins import DynamicPiFilterMixin
 
@@ -46,6 +47,7 @@ from django_filters import (
     NumberFilter,
     BooleanFilter,
     ModelChoiceFilter,
+    DateFromToRangeFilter
 )
 
 from rest_framework.exceptions import ValidationError
@@ -65,7 +67,7 @@ class PiFilters(FilterSet):
     address = CharFilter(field_name="address", lookup_expr="icontains")
     subtotal = NumberFilter(field_name="summary__subtotal")
     status = CharFilter(field_name="status", lookup_expr="exact")
-    isApproved = BooleanFilter(field_name="is_Approved")
+    isApproved = CharFilter(field_name="approval_status")
     isTaxInvoice = BooleanFilter(field_name="convertedpi__is_taxInvoice")
     orderStatus = CharFilter(
         field_name="processedorders__order_status", lookup_expr="exact"
@@ -78,6 +80,8 @@ class PiFilters(FilterSet):
     companyRef = ModelChoiceFilter(
         field_name="company_ref", queryset=leads.objects.all()
     )
+    pi_date = DateFromToRangeFilter(field_name="pi_date")
+    invoice_date = DateFromToRangeFilter(field_name="convertedpi__invoice_date")
 
     class Meta:
         model = proforma
@@ -127,6 +131,8 @@ class ProformaView(DynamicPiFilterMixin, ListAPIView):
         "pi_no",
         "pi_date",
         "user_name",
+        "status",
+        "approval_status",
         "summary__subtotal",
         "created_at",
     ]
@@ -247,105 +253,63 @@ class ProformaCreateUpdateView(APIView, ProformaMixin):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+class ProformaApprovalView(APIView):
+    permission_classes = [IsAuthenticated]
+
     @transaction.atomic
     def patch(self, request, slug):
-        # handle full update of Proforma
-        instance = self.get_object(slug=slug)
-        data = request.data
-        branch = request.user.profile.branch.id
-        convertedPIData = data.pop("convertedpi", None)
-        if convertedPIData:
-            convertedPIData["branch"] = branch
-
-        if not instance:
+        try:
+            instance = proforma.objects.get(slug=slug)
+        except proforma.DoesNotExist:
             return Response(
                 {"error": "Proforma not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = ProformaCreateSerializer(instance, data=data, partial=True)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        data = request.data
 
-        pi_user = get_object_or_404(User, pk=instance.user_id)
-        if "is_Approved" in data:
-            owner_group = set(pi_user.groups.values_list("name", flat=True))
-            user_group = set(request.user.groups.values_list("name", flat=True))
-
-            can_approve = (
-                "Head" in user_group
-                or ("VP" in user_group and "Head" not in owner_group)
-                or (
-                    "Sr. Executive" in user_group
-                    and not owner_group.intersection({"VP", "Head"})
-                )
+        if data.get("action") != "approval":
+            return Response(
+                {"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-            if not can_approve:
-                return Response(
-                    {"messages": "You are not an authorised to approve this proforma"},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            serializer.save(approved_by=request.user.id, partial=True)
-            result = ProformaSerializer(instance)
-            return Response(result.data, status=status.HTTP_200_OK)
-        elif "status" in data:
-            serializer.save(edited_by=request.user.id, partial=True)
-            if data["status"] == "closed":
-                if not convertedPIData:
-                    return Response(
-                        {"error": "need to update payment status"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                convertedPI_id = convertedPIData.get("id", None)
-                convertedPIData["is_closed"] = True
-                convertedPIData["is_hold"] = False
-                convertedPIData["is_cancel"] = False
-                if convertedPI_id:
-                    convertedPiInstance = get_object_or_404(
-                        convertedPI, pk=convertedPI_id
-                    )
-                    CPISerializer = ConvertedPISerializer(
-                        convertedPiInstance, data=convertedPIData, partial=True
-                    )
-                else:
-                    CPISerializer = ConvertedPISerializer(data=convertedPIData)
-
-                if CPISerializer.is_valid():
-                    CPISerializer.save()
-                else:
-                    return Response(
-                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                    )
-            else:
-                convertedPI_id = convertedPIData.get("id")
-                if convertedPI_id:
-                    convertedPiInstance = get_object_or_404(
-                        convertedPI, pk=convertedPI_id
-                    )
-                    if data["status"] == "open":
-                        convertedPIData["is_hold"] = True
-                        convertedPIData["is_closed"] = False
-                    elif data["status"] == "lost":
-                        convertedPIData["is_invoiceRequire"] = False
-                        convertedPIData["is_hold"] = True
-                        convertedPIData["is_cancel"] = True
-                        convertedPIData["is_closed"] = False
-                    CPISerializer = ConvertedPISerializer(
-                        convertedPiInstance, data=convertedPIData, partial=True
-                    )
-                    if CPISerializer.is_valid():
-                        CPISerializer.save()
-                    else:
-                        return Response(
-                            CPISerializer.errors, status=status.HTTP_400_BAD_REQUEST
-                        )
-            result = ProformaSerializer(instance)
-            return Response(result.data, status=status.HTTP_200_OK)
-        return Response(
-            {"error": "need to check error"}, status=status.HTTP_400_BAD_REQUEST
+        handle_proforma_approval(
+            proforma=instance,
+            decision=data.get("decision"),
+            decided_by=request.user,
+            feedback=data.get("feedback"),
         )
+
+        return Response(ProformaSerializer(instance).data, status=status.HTTP_200_OK)
+
+
+class ProformaStatusUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, slug):
+        data = request.data
+        instance = get_object_or_404(proforma, slug=slug)
+        status_value = data.get("status")
+        converted_pi_data = data.get("convertedpi")
+
+        if status_value not in {"open", "closed", "lost"}:
+            return Response(
+                {"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            handle_proforma_status_change(
+                proforma=instance,
+                status=status_value,
+                user=request.user,
+                converted_pi_data=converted_pi_data,
+            )
+
+            return Response(
+                ProformaSerializer(instance).data, status=status.HTTP_200_OK
+            )
+        except ValidationError as e:
+            return Response({"error": e.detail}, status=status.HTTP_400_BAD_REQUEST)
 
 
 """
@@ -743,7 +707,7 @@ class ProcessedPIUpdateListView(
         queryset = (
             proforma.objects.select_related("convertedpi", "summary")
             .filter(convertedpi__is_processed=True, branch=profile.branch.id)
-            .prefetch_related("orderlist", "processedorders")
+            .prefetch_related("orderlist", "processedorders").distinct()
         )
 
         if request.user.role != "admin" and request.user.department != "production":
@@ -776,6 +740,7 @@ class ProcessedPIUpdateListView(
         try:
             orderInstance = get_object_or_404(processedOrder, pk=id)
             data = request.data
+            print(f"data: {data}")
             serializer = ProcessedOrderSerializer(
                 orderInstance, data=data, partial=True
             )
@@ -812,7 +777,7 @@ class ProcessedPIUpdateListView(
             serializer.save(pi_id=pi_instance)
             if convertedPiInstance:
                 convertedPiInstance.is_processed = True
-                convertedPiInstance.processed_at = timezone.now().date()
+                convertedPiInstance.processed_at = timezone.now()
                 convertedPiInstance.save()
             result = ProformaSerializer(pi_instance)
             return Response(result.data, status=status.HTTP_201_CREATED)
@@ -881,15 +846,13 @@ class RenewalPIView(ListAPIView):
             .distinct()
         )
 
-        queryset = queryset.annotate(
-            remaining_month=curr_index - F("to_index")
-        ).filter(
+        queryset = queryset.annotate(remaining_month=curr_index - F("to_index")).filter(
             canRenew=True,
             status="closed",
-            renewal_status = 'pending',
+            renewal_status="pending",
             remaining_month__gte=0,
             remaining_month__lte=6,
-            branch=branch
+            branch=branch,
         )
 
         if user.role != "admin":
@@ -898,8 +861,76 @@ class RenewalPIView(ListAPIView):
         return queryset
 
 
+import zipfile
+import io
+from django.http import HttpResponse
+from a_core.utils import safe_filename
+
+
+class BulkInvoiceDownloadView(APIView, ProformaMixin):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            slugs = request.data.get("slugs", [])
+            is_invoice = request.data.get("is_invoice", False)
+
+            if not slugs:
+                return Response({"error": "No invoices provided"}, status=400)
+
+            # ✅ FIXED
+            zip_buffer = io.BytesIO()
+
+            with zipfile.ZipFile(
+                zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED
+            ) as zip_file:
+                for slug in slugs:
+                    try:
+                        # ✅ SAFE FETCH
+                        instance = self.get_object(slug=slug)
+
+                        if not instance:
+                            print(f"⚠️ Slug not found: {slug}")
+                            continue
+
+                        # ✅ PDF GENERATION
+                        pdf_response = pdf_PI(instance.id, is_invoice)
+                        pdf_bytes = pdf_response.content
+
+                        # ✅ SAFE FILENAME
+                        filename = safe_filename(f"PI_{instance.company_name}_{instance.pi_no}_{instance.id}.pdf")
+
+                        zip_file.writestr(filename, pdf_bytes)
+
+                    except Exception as e:
+                        print(f"❌ Error processing {slug}: {e}")
+                        continue
+
+            # ✅ IMPORTANT: outside 'with'
+            if not zip_buffer.getvalue():
+                return Response(
+                    {"error": "No valid invoices found"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            zip_buffer.seek(0)
+
+            response = HttpResponse(
+                zip_buffer.getvalue(), content_type="application/zip"
+            )
+            response["Content-Disposition"] = 'attachment; filename="invoices.zip"'
+
+            return response
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class EmailView(APIView):
     pass
+
 
 # @login_required(login_url="app:login")
 # def email_form(request, pi):

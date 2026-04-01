@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from lead.models import leads
 from teams.models import User
-from .utils import STATUS_CHOICES, REPORT_FORMAT, ORDER_STATUS, PAYMENT_STATUS, RENEWAL_CHOICES
+from .utils import STATUS_CHOICES, REPORT_FORMAT, ORDER_STATUS, PAYMENT_STATUS, RENEWAL_CHOICES, APPROVAL_CHOICES
 from billers.models import *
 
 # Create your models here.
@@ -42,6 +42,7 @@ class proforma(models.Model):
     currency = models.CharField(_("Currency"), max_length=50)
     details = models.TextField(_("Details"), max_length=1000)
     is_Approved = models.BooleanField(_("Is_Approved"), default=False)
+    approval_status = models.CharField(_("approval status"), max_length=20, default="pending", null=True, blank=True, choices=APPROVAL_CHOICES)
     approved_by = models.IntegerField(_("Approved By"), blank=True, null=True)
     approved_at = models.DateTimeField(_("Approved At"), blank=True, null=True)
     status = models.CharField(_("Status"), max_length=50, default='open', choices=STATUS_CHOICES)

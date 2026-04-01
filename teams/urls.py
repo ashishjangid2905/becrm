@@ -6,7 +6,8 @@ from .views import *
 app_name = 'teams'
 urlpatterns = [
     path('register', UserListView.as_view(), name='add_user'),
-    path('user', UserDetailView.as_view()),
+    path("debug-token/", DebugTokenView.as_view(), name="debug-token"),
+    path('me', UserDetailView.as_view()),
     path('users/dashboard', UserListDashboardView.as_view()),
     path('user-list', UserListView.as_view()),
     path('update/<int:pk>', UserListView.as_view()),
