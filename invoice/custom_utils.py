@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from datetime import datetime as dt
+from datetime import datetime as dt, time
 
 # Import from app model, utils permission etc
 from .utils import (
@@ -55,6 +55,8 @@ from openpyxl.styles import (
 )
 
 from openpyxl.utils import get_column_letter
+
+from currency_symbols import CurrencySymbols
 
 
 # Get current date
@@ -301,6 +303,8 @@ def calculate_summery(pi):
             igst_rate = 18
         if pi.currency == "usd":
             exchange_rate = 88.00
+        elif pi.currency == "eur":
+            exchange_rate = 110.00
 
     return {
         "subtotal": Decimal(subtotal),
@@ -341,7 +345,10 @@ def fy_date_range(fy=current_fy()):
     start_year, end_year = map(int, fy.split("-"))
     start_date = dt(start_year, 4,1).date()
     end_date = dt(end_year, 3, 31).date()
-    return start_date, end_date
+
+    start_datetime = dt.combine(start_date, time.min)
+    end_datetime = dt.combine(end_date, time.max)
+    return start_datetime, end_datetime
 
 
 
@@ -568,17 +575,26 @@ def pdf_PI(pi_id, is_invoice):
     net_total = total_order_value(pi.id)
     lumpsumAmt = total_lumpsums(pi.id)
 
-    if pi.currency == "inr":
-        curr = "₹"
-    else:
-        curr = "$"
+    # if pi.currency == "inr":
+    #     curr = "₹"
+    # elif pi.currency == "usd":
+    #     curr = "$"
+    # elif pi.currency == "eur":
+    #     curr = "€"
+    
+    curr = CurrencySymbols.get_symbol(pi.currency)
 
     roundOff = pi.summary.total_value - round(pi.summary.total_value, 0)
 
     if pi.currency == "inr":
         total_val_words = f"Rs. {num2words(round(pi.summary.total_value,0), lang='en_IN').replace(',', '').title()} Only"
+    elif pi.currency == "usd":
+        total_val_words = f"Usd {num2words(round(pi.summary.total_value,0), lang='en_US').replace(',', '').title()} Only"
+    elif pi.currency == "eur":
+        total_val_words = f"Eur {num2words(round(pi.summary.total_value,0), lang='en_US').replace(',', '').title()} Only"
     else:
-        total_val_words = f"Usd {num2words(round(pi.summary.total_value,0), lang='en_IN').replace(',', '').title()} Only"
+        total_val_words = f"{str(pi.currency).capitalize()} {num2words(round(pi.summary.total_value,0), lang='en_US').replace(',', '').title()} Only"
+
 
     igst = pi.summary.subtotal * (pi.summary.igst_rate/100)
     cgst = pi.summary.subtotal * (pi.summary.cgst_rate/100)

@@ -6,10 +6,13 @@ from .models import *
 class Leads(admin.ModelAdmin):
     list_display = ['id','company_name', 'city', 'state', 'country', 'created_at', 'edited_at']
     search_fields = ['company_name', 'city', 'state', 'country']
+    list_filter = ['branch']
 
 
 class ContactPerson(admin.ModelAdmin):
     list_display = ['id', 'person_name', 'email_id', 'contact_no', 'company', 'is_active','created_at']
+    search_fields = ['person_name', 'email_id', 'contact_no']
+    list_filter = ['branch']
 
 class conversation(admin.ModelAdmin):
     list_display = ['id','title', 'start_at']

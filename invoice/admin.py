@@ -4,13 +4,15 @@ from .models import *
 
 @admin.register(proforma)
 class proformaAdmin(admin.ModelAdmin):
-    list_display = ['id','user_name','company_name', 'gstin', 'pi_no', 'status', 'created_at', 'edited_at']
+    list_display = ['id','user_name','company_name', 'gstin','state', 'country', 'pi_no', 'status', 'created_at', 'edited_at']
     search_fields = ['user_name','company_name', 'gstin', 'pi_no', 'status']
+    list_filter = ['branch']
 
 @admin.register(convertedPI)
 class convertedPIAdmin(admin.ModelAdmin):
     list_display = ["id",'get_user_name','get_company_name', 'get_gstin', 'get_pi_no', 'get_status', "formatted_invoice"]
     search_fields = ['pi_id__user_name','pi_id__company_name', 'pi_id__gstin', 'pi_id__pi_no', 'pi_id__status', "formatted_invoice"]
+    list_filter = ['branch']
 
     def get_user_name(self, obj):
         return obj.pi_id.user_name
@@ -54,6 +56,7 @@ class OrderListAdmin(admin.ModelAdmin):
 class ProcessOrderAdmin(admin.ModelAdmin):
     list_display = ["id",'get_user_name','get_company_name', 'get_gstin', 'get_pi_no', 'get_status', 'report_type', 'format', 'country' ]
     search_fields = ['pi_id__user_name','pi_id__company_name', 'pi_id__gstin', 'pi_id__pi_no', 'pi_id__status', 'report_type', 'format', 'country']
+    list_filter = ['branch']
 
     def get_user_name(self, obj):
         return obj.pi_id.user_name
@@ -80,6 +83,7 @@ class ProcessOrderAdmin(admin.ModelAdmin):
 class PiSummaryAdmin(admin.ModelAdmin):
     list_display = ["id",'get_company_name', 'get_pi_no','get_pi_date', 'subtotal']
     search_fields = ["proforma__company_name", "proforma__pi_no", 'subtotal']
+    list_filter = ['branch']
 
     def get_company_name(self, obj):
         return obj.proforma.company_name

@@ -9,4 +9,4 @@ class Can_Approve(BasePermission):
     
 class Can_Generate_TaxInvoice(BasePermission):
     def has_permission(self, request, view):
-        return request.user.role == 'admin' or request.user.department == 'accounts'
+        return request.user.role == 'admin' or request.user.department == 'account'

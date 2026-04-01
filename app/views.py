@@ -71,7 +71,8 @@ class Home(APIView):
         ).values_list("id", flat=True)
 
         fy = current_fy()
-        start_date = dt(int(fy.split("-")[0]), 4, 1).date()
+        # start_date = dt(int(fy.split("-")[0]), 4, 1).date()
+        start_date = dt(2025, 4, 1).date()
         end_date = dt.now()
 
         query = """

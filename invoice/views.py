@@ -142,6 +142,8 @@ class ProformaView(DynamicPiFilterMixin, ListAPIView):
         "contact",
         "pi_no",
         "summary__subtotal",
+        "orderlist__category",
+        "orderlist__report_type",
     ]
 
     fy_field = "pi_date"

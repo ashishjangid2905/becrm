@@ -21,6 +21,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.styles import PatternFill, Font
 import logging
 from django.utils.timezone import now
+from urllib.parse import urlparse
 
 # Create your views here.
 
@@ -35,6 +36,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from django_filters.rest_framework import FilterSet
 from django.db import IntegrityError, transaction
 
+logger = logging.getLogger(__name__)
 
 class BasePagination(PageNumberPagination):
     page_size = 10
@@ -92,11 +94,13 @@ class lead_list(APIView):
 
     def post(self, request):
         serializer = leadsSerializer(data=request.data)
-        user_id = request.user.id
+        user = request.user
+        user_id = user.id
         try:
             if serializer.is_valid():
                 company_name = request.data.get("company_name")
                 gstin = request.data.get("gstin")
+                branch = user.profile.branch.id
                 if leads.objects.filter(
                     company_name=company_name, gstin=gstin, user=user_id
                 ).exists():
@@ -105,11 +109,11 @@ class lead_list(APIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 with transaction.atomic():
-                    lead_instance = serializer.save(user=user_id)
+                    lead_instance = serializer.save(user=user_id, branch=branch)
                     contactpersons_data = request.data.get("contactpersons", [])
                     lead = get_object_or_404(leads, pk=lead_instance.id)
                     contact_persons = [
-                        contactPerson(company=lead, **contact)
+                        contactPerson(company=lead, branch=branch,**contact)
                         for contact in contactpersons_data
                     ]
                     if contact_persons:
@@ -174,13 +178,15 @@ class ContactView(APIView):
 
     def post(self, request, id):
         try:
+            user = request.user
+            branch = user.profile.branch.id
             leadInstance = get_object_or_404(leads, id=id)
             data = request.data
             company_id = data.pop("company")
-            print(data)
+            # print(data)
             serializer = contactPersonSerializer(data=data)
             if serializer.is_valid():
-                serializer.save(company=leadInstance)
+                serializer.save(company=leadInstance, branch=branch)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -229,6 +235,8 @@ class ConversationView(APIView):
     # Create/Start New Conversation
     def post(self, request, id):
         try:
+            user = request.user
+            branch = user.profile.branch.id
             data = request.data.copy()
             title = data.get("title")
             company_id = data.get("company")
@@ -239,7 +247,7 @@ class ConversationView(APIView):
                 )
 
             with transaction.atomic():
-                deal_data = {"title": title, "company_id": company_id}
+                deal_data = {"title": title, "company_id": company_id, "branch": branch}
                 dealSerializer = ConversationSerializer(data=deal_data)
                 if not dealSerializer.is_valid():
                     raise IntegrityError(
@@ -305,33 +313,96 @@ class dealActivityView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+# class InboundLeadGetView(APIView):
+#     permission_classes = [AllowAny]
+#     allowed_origins = [
+#         "https://besmartexim.com",
+#         "https://bedatos.com",
+#         "https://www.bedatos.com",
+#         "https://marketing.bedatos.com",
+#         "http://localhost:3000",  # if testing locally
+#     ]
+
+#     def post(self, request):
+#         try:
+#             origin = request.headers.get("Origin") or request.headers.get("Referer")
+#             api_key = request.headers.get("X-API-KEY")
+            
+#             if api_key != settings.WEBHOOK_SECRET_KEY:
+#                 return Response({"error": "Invalid API key"}, status=status.HTTP_403_FORBIDDEN)
+
+#             if origin and not any(
+#                 origin.startswith(allowed) for allowed in self.allowed_origins
+#             ):
+#                 return Response(
+#                     {"error": "Unauthorized origin"},
+#                     status=status.HTTP_401_UNAUTHORIZED,
+#                 )
+#             data = request.data
+#             data["source"] = origin
+
+#             serializer = InboundLeadSerializer(data=data)
+#             if serializer.is_valid():
+#                 serializer.save()
+#                 return Response(
+#                     {"message": "Thank you for the subscription"},
+#                     status=status.HTTP_201_CREATED,
+#                 )
+#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
 class InboundLeadGetView(APIView):
     permission_classes = [AllowAny]
-    allowed_origins = [
-        "https://besmartexim.com",
-        "https://bedatos.com",
-        "https://www.bedatos.com",
-        "https://marketing.bedatos.com",
-        "http://localhost:3000",  # if testing locally
-    ]
+    allowed_origins = {
+        "besmartexim.com",
+        "bedatos.com",
+        "www.bedatos.com",
+        "marketing.bedatos.com",
+        "localhost",  # if testing locally
+    }
+
+    def get_hostname(self, origin):
+        if not origin:
+            return None
+        try:
+            parsed = urlparse(origin)
+            return parsed.hostname
+        except Exception:
+            return None
 
     def post(self, request):
         try:
-            origin = request.headers.get("Origin") or request.headers.get("Referer")
-            api_key = request.headers.get("X-API-KEY")
-            
-            if api_key != settings.WEBHOOK_SECRET_KEY:
-                return Response({"error": "Invalid API key"}, status=status.HTTP_403_FORBIDDEN)
+            origin = request.headers.get("Origin")
+            hostname = self.get_hostname(origin)
 
-            if origin and not any(
-                origin.startswith(allowed) for allowed in self.allowed_origins
-            ):
+            api_key = request.headers.get("X-API-KEY")
+
+            # ✅ API Key validation
+            if api_key != settings.WEBHOOK_SECRET_KEY:
+                return Response(
+                    {"error": "Invalid API key"}, status=status.HTTP_403_FORBIDDEN
+                )
+
+            # ✅ Origin validation
+            if hostname and hostname not in self.allowed_origins:
                 return Response(
                     {"error": "Unauthorized origin"},
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
-            data = request.data
-            data["source"] = origin
+
+            data = request.data.copy()
+
+            # ✅ Safe extraction
+            hs_code = data.pop("hs_code", "")
+            trade_type = data.pop("trade_type", "")
+            form_type = data.pop("form_type", "")
+            msg = data.get("message", "")
+
+            # ✅ Build fields safely
+            data["message"] = f"HS Code_{hs_code}_{trade_type}: {msg}"
+            data["source"] = f"{hostname or 'unknown'}//{form_type}"
 
             serializer = InboundLeadSerializer(data=data)
             if serializer.is_valid():
@@ -342,8 +413,11 @@ class InboundLeadGetView(APIView):
                 )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+            logger.exception("Inbound lead error")
+            return Response(
+                {"error": "Something went wrong"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 class InboundLeadView(ModelViewSet):
     queryset = InboundLeads.objects.all().order_by("-created_at")
