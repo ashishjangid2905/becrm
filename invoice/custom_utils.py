@@ -327,9 +327,13 @@ def update_or_create_summery(pi):
 
 # get current fisal year
 def current_fy(date=None):
-    today = timezone.now().date()
     if isinstance(date, str):
         today = dt.strptime(date, "%Y-%m-%d").date()
+    elif date:
+        today = date
+    else:
+        today = timezone.now().date()
+
     year = today.year
 
     if today.month >= 4:
